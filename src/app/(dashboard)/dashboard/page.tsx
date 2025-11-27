@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { DashboardCalendar } from '@/components/DashboardCalendar'
+import { ExamDateButtons } from '@/components/ExamDateButtons'
 
 async function getDashboardData(userId: string) {
   const today = new Date()
@@ -31,6 +32,7 @@ async function getDashboardData(userId: string) {
     recentPatients,
     tasks,
     currentRotation,
+    rotations,
   ] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
@@ -59,6 +61,11 @@ async function getDashboardData(userId: string) {
     prisma.rotation.findFirst({
       where: { userId, isCurrent: true },
     }),
+    prisma.rotation.findMany({
+      where: { userId },
+      orderBy: { startDate: 'asc' },
+      select: { id: true, name: true, shelfDate: true },
+    }),
   ])
 
   const questionsToday = todayLogs.reduce((sum, log) => sum + log.questionsTotal, 0)
@@ -76,6 +83,7 @@ async function getDashboardData(userId: string) {
     recentPatients,
     tasks,
     currentRotation,
+    rotations,
   }
 }
 
@@ -275,6 +283,22 @@ export default async function DashboardPage() {
             >
               AI Study Coach
             </Link>
+          </div>
+
+          {/* Exam Date Buttons */}
+          <div className="mt-6 pt-6 border-t border-slate-700/50">
+            <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-4">
+              Exam Dates
+            </h3>
+            <ExamDateButtons
+              step2Date={data.user?.step2Date?.toISOString() || null}
+              comlexDate={data.user?.comlexDate?.toISOString() || null}
+              rotations={data.rotations.map(r => ({
+                id: r.id,
+                name: r.name,
+                shelfDate: r.shelfDate?.toISOString() || null,
+              }))}
+            />
           </div>
         </CardContent>
       </Card>
