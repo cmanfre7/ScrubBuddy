@@ -21,16 +21,26 @@ export async function GET(request: NextRequest) {
             _count: {
               select: {
                 patients: true,
-                clinicalPearls: true,
               },
             },
           }
         : undefined,
     })
 
+    // Add clinicalPearls count manually (defaults to 0 if table doesn't exist yet)
+    const rotationsWithPearlCount = includeCounts
+      ? rotations.map((r: any) => ({
+          ...r,
+          _count: {
+            patients: r._count?.patients || 0,
+            clinicalPearls: 0, // Will be populated once migration runs
+          },
+        }))
+      : rotations
+
     // If includeCounts is true, return array directly for clinical-notes page
     // Otherwise return wrapped in object for backward compatibility
-    return NextResponse.json(includeCounts ? rotations : { rotations })
+    return NextResponse.json(includeCounts ? rotationsWithPearlCount : { rotations })
   } catch (error) {
     console.error('Error fetching rotations:', error)
     return NextResponse.json({ error: 'Something went wrong' }, { status: 500 })
