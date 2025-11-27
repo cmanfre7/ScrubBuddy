@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
+import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard,
@@ -60,10 +61,24 @@ export function Sidebar() {
         <div className="flex items-center justify-between h-16 px-4 border-b border-slate-800">
           {!collapsed && (
             <Link href="/dashboard" className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">SB</span>
-              </div>
-              <span className="text-lg font-bold text-slate-100">ScrubBuddy</span>
+              <Image
+                src="/logos/primary/scrubbuddy-logo-dark.svg"
+                alt="ScrubBuddy"
+                width={140}
+                height={32}
+                className="h-8 w-auto"
+              />
+            </Link>
+          )}
+          {collapsed && (
+            <Link href="/dashboard" className="flex items-center justify-center w-full">
+              <Image
+                src="/logos/mascot/scrubbuddy-mascot-dark.svg"
+                alt="ScrubBuddy"
+                width={32}
+                height={32}
+                className="h-8 w-8"
+              />
             </Link>
           )}
           <button

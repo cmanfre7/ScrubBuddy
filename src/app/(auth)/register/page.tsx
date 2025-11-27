@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -58,8 +59,14 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center mb-4">
-            <span className="text-white font-bold text-xl">SB</span>
+          <div className="mx-auto mb-4 flex justify-center">
+            <Image
+              src="/logos/primary/scrubbuddy-logo-dark.svg"
+              alt="ScrubBuddy"
+              width={160}
+              height={40}
+              className="h-10 w-auto"
+            />
           </div>
           <CardTitle className="text-2xl">Create Account</CardTitle>
           <CardDescription>Start your clinical year journey with ScrubBuddy</CardDescription>

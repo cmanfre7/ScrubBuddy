@@ -1,0 +1,47 @@
+{
+  "name": "ScrubBuddy - Clinical Year Command Center",
+  "short_name": "ScrubBuddy",
+  "description": "Built for third-year medical students who refuse to burn out. Maximize shelf scores, track clinical growth, and let AI tell you exactly what to study next.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/logos/icons-dark/icon-192-dark.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logos/icons-dark/icon-512-dark.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["medical", "education", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "url": "/dashboard",
+      "description": "View your dashboard"
+    },
+    {
+      "name": "Clinical Notes",
+      "url": "/dashboard/clinical-notes",
+      "description": "Log patient encounters and study notes"
+    },
+    {
+      "name": "UWorld",
+      "url": "/dashboard/uworld",
+      "description": "Track UWorld progress"
+    },
+    {
+      "name": "AnKing",
+      "url": "/dashboard/anking",
+      "description": "Track AnKing progress"
+    }
+  ]
+}

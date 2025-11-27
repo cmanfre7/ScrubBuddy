@@ -4,9 +4,9 @@ import { useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Stethoscope } from 'lucide-react'
 
 export default function HomePage() {
   const router = useRouter()
@@ -45,13 +45,16 @@ export default function HomePage() {
       <div className="w-full max-w-sm">
         {/* Logo & Branding */}
         <div className="text-center mb-8">
-          <div className="mx-auto w-20 h-20 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mb-6 shadow-2xl shadow-purple-500/20">
-            <Stethoscope className="text-white" size={40} />
+          <div className="mx-auto mb-6 flex justify-center">
+            <Image
+              src="/logos/tagline/scrubbuddy-tagline-dark.svg"
+              alt="ScrubBuddy"
+              width={240}
+              height={80}
+              className="h-20 w-auto"
+              priority
+            />
           </div>
-          <h1 className="text-3xl font-bold text-slate-100">ScrubBuddy</h1>
-          <p className="mt-2 text-slate-400 text-sm">
-            Your clinical years command center
-          </p>
         </div>
 
         {/* Sign In Form */}

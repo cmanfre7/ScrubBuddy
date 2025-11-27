@@ -16,6 +16,16 @@ export const metadata: Metadata = {
   title: 'ScrubBuddy - Your AI-Powered Clinical Year Command Center',
   description:
     'Built for third-year medical students who refuse to burn out. Maximize shelf scores, track clinical growth, and let AI tell you exactly what to study next.',
+  icons: {
+    icon: [
+      { url: '/logos/icons-dark/favicon-16-dark.svg', sizes: '16x16', type: 'image/svg+xml' },
+      { url: '/logos/icons-dark/favicon-32-dark.svg', sizes: '32x32', type: 'image/svg+xml' },
+    ],
+    apple: [
+      { url: '/logos/icons-dark/icon-192-dark.svg', sizes: '192x192', type: 'image/svg+xml' },
+    ],
+  },
+  manifest: '/manifest.json',
 }
 
 export default function RootLayout({
