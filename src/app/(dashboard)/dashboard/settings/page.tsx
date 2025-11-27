@@ -72,12 +72,20 @@ export default function SettingsPage() {
 
   const updateRotationMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: typeof editRotation }) => {
+      // Convert empty shelfDate to null
+      const formattedData = {
+        ...data,
+        shelfDate: data.shelfDate || null,
+      }
       const res = await fetch(`/api/rotations/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(formattedData),
       })
-      if (!res.ok) throw new Error('Failed to update rotation')
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.error || 'Failed to update rotation')
+      }
       return res.json()
     },
     onSuccess: () => {
@@ -325,6 +333,7 @@ export default function SettingsPage() {
               { value: '', label: 'Select rotation...' },
               ...ROTATION_OPTIONS.map((r) => ({ value: r, label: r })),
             ]}
+            required
           />
           <div className="grid grid-cols-2 gap-4">
             <Input

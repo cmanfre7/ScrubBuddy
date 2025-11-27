@@ -36,7 +36,7 @@ const navigation = [
 
 const quickLinks = [
   { name: 'MyUniversity', url: '#', placeholder: true },
-  { name: 'NewInnovations', url: 'https://www.new-innov.com' },
+  { name: 'NewInnovations', url: 'https://www.new-innov.com/login/Login.aspx' },
   { name: 'VSLO', url: 'https://www.aamc.org/services/vslo' },
   { name: 'ERAS', url: 'https://www.aamc.org/services/eras' },
   { name: 'MyNBME', url: 'https://www.nbme.org' },
