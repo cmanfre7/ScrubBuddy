@@ -390,7 +390,7 @@ function AddPracticeExamModal({ onClose, onSuccess }: { onClose: () => void; onS
       examName: formData.examName,
       score: parseInt(formData.score),
       percentCorrect: formData.percentCorrect ? parseInt(formData.percentCorrect) : null,
-      date: formData.date,
+      date: new Date(formData.date).toISOString(),
       notes: formData.notes || null,
     })
   }

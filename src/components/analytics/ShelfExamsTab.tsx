@@ -431,7 +431,7 @@ function AddShelfScoreModal({ onClose, onSuccess }: { onClose: () => void; onSuc
       rotationName: formData.rotationName,
       score: parseInt(formData.score),
       percentile: formData.percentile ? parseInt(formData.percentile) : null,
-      date: formData.date,
+      date: new Date(formData.date).toISOString(),
     })
   }
 
@@ -552,7 +552,7 @@ function AddNBMEModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: 
       examName: formData.examName,
       score: parseInt(formData.score),
       percentCorrect: formData.percentCorrect ? parseFloat(formData.percentCorrect) : null,
-      date: formData.date,
+      date: new Date(formData.date).toISOString(),
       notes: formData.notes || null,
     })
   }

@@ -41,8 +41,8 @@ export function ExamDateButtons({ step2Date, comlexDate, rotations }: ExamDateBu
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          step2Date: boardFormData.step2Date || null,
-          comlexDate: boardFormData.comlexDate || null,
+          step2Date: boardFormData.step2Date ? new Date(boardFormData.step2Date).toISOString() : null,
+          comlexDate: boardFormData.comlexDate ? new Date(boardFormData.comlexDate).toISOString() : null,
         }),
       })
 
@@ -63,7 +63,7 @@ export function ExamDateButtons({ step2Date, comlexDate, rotations }: ExamDateBu
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          shelfDate: shelfFormData.shelfDate,
+          shelfDate: new Date(shelfFormData.shelfDate).toISOString(),
         }),
       })
 
