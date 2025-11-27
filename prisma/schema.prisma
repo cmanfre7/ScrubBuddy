@@ -1,0 +1,333 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== USER ====================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String
+  name          String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Settings
+  step2Date     DateTime?
+  comlexDate    DateTime?
+  dailyGoal     Int       @default(40)
+  weeklyGoal    Int       @default(200)
+
+  // Relations
+  rotations     Rotation[]
+  patients      Patient[]
+  procedures    UserProcedure[]
+  uworldLogs    UWorldLog[]
+  uworldIncorrects UWorldIncorrect[]
+  shelfScores   ShelfScore[]
+  practiceExams PracticeExam[]
+  tasks         Task[]
+  studyBlocks   StudyBlock[]
+  resources     Resource[]
+  aiConversations AIConversation[]
+}
+
+// ==================== ROTATIONS ====================
+
+model Rotation {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String    // "Psychiatry", "Pediatrics", etc.
+  startDate   DateTime
+  endDate     DateTime
+  shelfDate   DateTime?
+  isCurrent   Boolean   @default(false)
+
+  // Relations
+  patients    Patient[]
+  shelfScores ShelfScore[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+// ==================== PATIENTS ====================
+
+model Patient {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rotationId      String?
+  rotation        Rotation? @relation(fields: [rotationId], references: [id])
+
+  // Required
+  chiefComplaint  String
+  diagnosis       String
+  encounterDate   DateTime  @default(now())
+
+  // Optional
+  secondaryDx     String[]  @default([])
+  setting         String?   // "Inpatient", "Outpatient", "ED", "OR", etc.
+  ageGroup        String?   // "Neonate", "Pediatric", "Adult", "Geriatric"
+  attendingName   String?
+  learningPoints  String?   @db.Text
+  followUpNeeded  Boolean   @default(false)
+  followUpNotes   String?
+
+  // Relations
+  proceduresPerformed  PatientProcedure[] @relation("performed")
+  proceduresObserved   PatientProcedure[] @relation("observed")
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([rotationId])
+}
+
+model PatientProcedure {
+  id            String    @id @default(cuid())
+  patientId     String
+  procedureId   String
+  type          String    // "performed" or "observed"
+
+  patientPerformed  Patient?  @relation("performed", fields: [patientId], references: [id], onDelete: Cascade, map: "fk_performed")
+  patientObserved   Patient?  @relation("observed", fields: [patientId], references: [id], onDelete: Cascade, map: "fk_observed")
+  procedure         Procedure @relation(fields: [procedureId], references: [id])
+
+  @@index([patientId])
+  @@index([procedureId])
+}
+
+// ==================== PROCEDURES ====================
+
+model Procedure {
+  id                String    @id @default(cuid())
+
+  // Core info
+  name              String
+  category          String    // "General", "Advanced", "Specialty"
+  specialty         String    // "Surgery", "Medicine", "OB", etc.
+
+  // Content
+  indications       String[]  @default([])
+  contraindications String[]  @default([])
+  supplies          String[]  @default([])
+  steps             Json      // Array of step objects
+  pearls            String[]  @default([])
+  commonMistakes    String[]  @default([])
+  documentationTpl  String?   @db.Text
+
+  // Metadata
+  estimatedTime     String?
+  difficulty        Int       @default(1) // 1-5
+  videoUrl          String?
+
+  // Is this a default procedure or user-created?
+  isDefault         Boolean   @default(false)
+  createdByUserId   String?
+
+  // Relations
+  userProcedures    UserProcedure[]
+  patientProcedures PatientProcedure[]
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model UserProcedure {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  procedureId     String
+  procedure       Procedure @relation(fields: [procedureId], references: [id])
+
+  // User-specific tracking
+  timesPerformed  Int       @default(0)
+  timesObserved   Int       @default(0)
+  lastPerformed   DateTime?
+  confidenceLevel Int       @default(1) // 1-5
+  personalNotes   String?   @db.Text
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([userId, procedureId])
+  @@index([userId])
+}
+
+// ==================== UWORLD ====================
+
+model UWorldLog {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date          DateTime  @default(now())
+  questionsTotal Int
+  questionsCorrect Int
+  timeSpentMins Int?
+  mode          String?   // "timed", "tutor", "review"
+  blockName     String?
+
+  // Topic tracking
+  systems       String[]  @default([]) // ["Cardio", "Pulm"]
+  subjects      String[]  @default([]) // ["Pathology", "Pharm"]
+
+  notes         String?
+
+  createdAt     DateTime  @default(now())
+
+  @@index([userId])
+  @@index([date])
+}
+
+model UWorldIncorrect {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  questionId    String?   // Optional UWorld question ID
+  topic         String
+  concept       String?
+  whyWrong      String?   // "Misread", "Didn't Know", "Second-guessed", "Silly Mistake"
+  learningPoint String?   @db.Text
+
+  status        String    @default("needs_review") // "needs_review", "reviewed", "mastered"
+  reviewCount   Int       @default(0)
+  nextReviewAt  DateTime?
+  lastReviewedAt DateTime?
+
+  // Link to patient if relevant
+  patientId     String?
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+model ShelfScore {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rotationId  String?
+  rotation    Rotation? @relation(fields: [rotationId], references: [id])
+
+  rotationName String   // Denormalized for easy access
+  score       Int
+  percentile  Int?
+  goalScore   Int?
+  date        DateTime
+  notes       String?
+
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model PracticeExam {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  examName      String    // "NBME 9", "UWSA1", "Free 120"
+  score         Int
+  predictedScore Int?
+  percentCorrect Float?
+  date          DateTime
+  weakAreas     String[]  @default([])
+  actionItems   String?   @db.Text
+
+  createdAt     DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// ==================== TASKS ====================
+
+model Task {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  text        String
+  done        Boolean   @default(false)
+  dueDate     DateTime?
+  priority    Int       @default(0) // Higher = more important
+  recurring   String?   // "daily", "weekdays", "weekly", null
+  category    String?   // "study", "clinical", "personal"
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([done])
+}
+
+// ==================== STUDY PLANNER ====================
+
+model StudyBlock {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title       String
+  type        String    // "uworld", "anki", "review", "video", "reading"
+  topic       String?
+  startTime   DateTime
+  endTime     DateTime
+  recurring   String?   // "daily", "weekdays", etc.
+  completed   Boolean   @default(false)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([startTime])
+}
+
+// ==================== RESOURCES ====================
+
+model Resource {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String
+  url         String
+  category    String    // "qbank", "video", "anki", "guideline", "custom"
+  rotation    String?   // Link to specific rotation
+  tags        String[]  @default([])
+  lastAccessed DateTime?
+
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// ==================== AI ====================
+
+model AIConversation {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  messages    Json      // Array of {role, content, timestamp}
+  summary     String?   // AI-generated summary of conversation
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
+}
