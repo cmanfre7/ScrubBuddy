@@ -43,10 +43,7 @@ export function RotationWorkspace({ rotation }: RotationWorkspaceProps) {
         <div className="bg-gradient-to-r from-slate-800/50 to-slate-800/30 border border-slate-700/50 rounded-xl p-6">
           <div className="flex items-start justify-between">
             <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="text-3xl">{getRotationEmoji(rotation.name)}</div>
-                <h2 className="text-2xl font-bold text-slate-100">{rotation.name}</h2>
-              </div>
+              <h2 className="text-2xl font-bold text-slate-100 mb-2">{rotation.name}</h2>
               {rotation.isCurrent && weekNumber && totalWeeks && (
                 <p className="text-slate-400">
                   Week {weekNumber} of {totalWeeks} • Ends {formatDate(new Date(rotation.endDate))}
@@ -117,21 +114,6 @@ export function RotationWorkspace({ rotation }: RotationWorkspaceProps) {
 }
 
 // Helper functions
-function getRotationEmoji(rotationName: string): string {
-  const name = rotationName.toLowerCase()
-  if (name.includes('psych')) return '🧠'
-  if (name.includes('pedi')) return '👶'
-  if (name.includes('ob') || name.includes('gyn')) return '🤰'
-  if (name.includes('surg')) return '🔪'
-  if (name.includes('ortho')) return '🦴'
-  if (name.includes('medicine') || name.includes('internal')) return '🏥'
-  if (name.includes('neuro')) return '🧬'
-  if (name.includes('cardio')) return '❤️'
-  if (name.includes('emer')) return '🚨'
-  if (name.includes('family')) return '👨‍👩‍👧‍👦'
-  return '📋'
-}
-
 function getWeekNumber(startDate: string, endDate: string): number | null {
   const start = new Date(startDate)
   const now = new Date()
