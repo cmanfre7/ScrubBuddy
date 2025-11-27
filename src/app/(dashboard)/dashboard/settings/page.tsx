@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Modal } from '@/components/ui/modal'
 import { Select } from '@/components/ui/select'
 import { formatDate } from '@/lib/utils'
-import { Plus, Calendar, Trash2, Settings, Target } from 'lucide-react'
+import { Plus, Calendar, Trash2, Settings, Target, Edit2 } from 'lucide-react'
 import { ROTATION_OPTIONS } from '@/types'
 
 interface Rotation {
@@ -26,7 +26,17 @@ export default function SettingsPage() {
   const { data: session } = useSession()
   const queryClient = useQueryClient()
   const [isRotationModalOpen, setIsRotationModalOpen] = useState(false)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [selectedRotation, setSelectedRotation] = useState<Rotation | null>(null)
   const [newRotation, setNewRotation] = useState({
+    name: '',
+    startDate: '',
+    endDate: '',
+    shelfDate: '',
+    isCurrent: false,
+  })
+  const [editRotation, setEditRotation] = useState({
     name: '',
     startDate: '',
     endDate: '',
@@ -60,7 +70,56 @@ export default function SettingsPage() {
     },
   })
 
+  const updateRotationMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: typeof editRotation }) => {
+      const res = await fetch(`/api/rotations/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) throw new Error('Failed to update rotation')
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rotations'] })
+      setIsEditModalOpen(false)
+      setSelectedRotation(null)
+    },
+  })
+
+  const deleteRotationMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/rotations/${id}`, {
+        method: 'DELETE',
+      })
+      if (!res.ok) throw new Error('Failed to delete rotation')
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rotations'] })
+      setIsDeleteModalOpen(false)
+      setSelectedRotation(null)
+    },
+  })
+
   const rotations: Rotation[] = Array.isArray(rotationsData) ? rotationsData : []
+
+  const handleEditClick = (rotation: Rotation) => {
+    setSelectedRotation(rotation)
+    setEditRotation({
+      name: rotation.name,
+      startDate: rotation.startDate.split('T')[0],
+      endDate: rotation.endDate.split('T')[0],
+      shelfDate: rotation.shelfDate ? rotation.shelfDate.split('T')[0] : '',
+      isCurrent: rotation.isCurrent,
+    })
+    setIsEditModalOpen(true)
+  }
+
+  const handleDeleteClick = (rotation: Rotation) => {
+    setSelectedRotation(rotation)
+    setIsDeleteModalOpen(true)
+  }
 
   return (
     <div className="space-y-6">
@@ -140,6 +199,22 @@ export default function SettingsPage() {
                     <p className="text-xs text-slate-600 mt-1">
                       {rotation._count.patients} patients logged
                     </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleEditClick(rotation)}
+                    >
+                      <Edit2 size={16} />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      onClick={() => handleDeleteClick(rotation)}
+                    >
+                      <Trash2 size={16} />
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -229,6 +304,93 @@ export default function SettingsPage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Edit Rotation Modal */}
+      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Edit Rotation">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (selectedRotation) {
+              updateRotationMutation.mutate({ id: selectedRotation.id, data: editRotation })
+            }
+          }}
+          className="space-y-4"
+        >
+          <Select
+            label="Rotation *"
+            value={editRotation.name}
+            onChange={(e) => setEditRotation({ ...editRotation, name: e.target.value })}
+            options={[
+              { value: '', label: 'Select rotation...' },
+              ...ROTATION_OPTIONS.map((r) => ({ value: r, label: r })),
+            ]}
+          />
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Start Date *"
+              type="date"
+              value={editRotation.startDate}
+              onChange={(e) => setEditRotation({ ...editRotation, startDate: e.target.value })}
+              required
+            />
+            <Input
+              label="End Date *"
+              type="date"
+              value={editRotation.endDate}
+              onChange={(e) => setEditRotation({ ...editRotation, endDate: e.target.value })}
+              required
+            />
+          </div>
+          <Input
+            label="Shelf Exam Date"
+            type="date"
+            value={editRotation.shelfDate}
+            onChange={(e) => setEditRotation({ ...editRotation, shelfDate: e.target.value })}
+          />
+          <label className="flex items-center gap-2 text-sm text-slate-300">
+            <input
+              type="checkbox"
+              checked={editRotation.isCurrent}
+              onChange={(e) => setEditRotation({ ...editRotation, isCurrent: e.target.checked })}
+              className="rounded bg-slate-700 border-slate-600"
+            />
+            This is my current rotation
+          </label>
+          <div className="flex gap-3 pt-4">
+            <Button type="button" variant="secondary" onClick={() => setIsEditModalOpen(false)} className="flex-1">
+              Cancel
+            </Button>
+            <Button type="submit" isLoading={updateRotationMutation.isPending} className="flex-1">
+              Update Rotation
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} title="Delete Rotation">
+        <div className="space-y-4">
+          <p className="text-slate-300">
+            Are you sure you want to delete <span className="font-semibold text-slate-100">{selectedRotation?.name}</span>?
+          </p>
+          <p className="text-sm text-slate-500">
+            This will also delete {selectedRotation?._count.patients || 0} patient(s) logged for this rotation. This action cannot be undone.
+          </p>
+          <div className="flex gap-3 pt-4">
+            <Button type="button" variant="secondary" onClick={() => setIsDeleteModalOpen(false)} className="flex-1">
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => selectedRotation && deleteRotationMutation.mutate(selectedRotation.id)}
+              isLoading={deleteRotationMutation.isPending}
+              className="flex-1"
+            >
+              Delete Rotation
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   )

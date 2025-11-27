@@ -3,10 +3,6 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import Anthropic from '@anthropic-ai/sdk'
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-})
-
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -14,11 +10,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Check if API key is configured
+    if (!process.env.ANTHROPIC_API_KEY) {
+      console.error('ANTHROPIC_API_KEY is not configured')
+      return NextResponse.json(
+        { error: 'AI service not configured. Please set ANTHROPIC_API_KEY environment variable.' },
+        { status: 500 }
+      )
+    }
+
     const { messages } = await request.json()
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ error: 'Messages required' }, { status: 400 })
     }
+
+    const anthropic = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    })
 
     // System prompt for medical assistant
     const systemPrompt = `You are an AI Medical Assistant helping medical students during their clinical rotations.
@@ -62,10 +71,17 @@ Remember: You're a study companion and knowledge resource, not a replacement for
       : 'Sorry, I could not process that.'
 
     return NextResponse.json({ message: assistantMessage })
-  } catch (error) {
+  } catch (error: any) {
     console.error('AI chat error:', error)
+
+    // More detailed error messages
+    let errorMessage = 'Failed to get AI response'
+    if (error?.message) {
+      errorMessage = error.message
+    }
+
     return NextResponse.json(
-      { error: 'Failed to get AI response' },
+      { error: errorMessage },
       { status: 500 }
     )
   }
