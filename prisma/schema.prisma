@@ -39,6 +39,9 @@ model User {
   clinicalGuidelines ClinicalGuideline[]
   ankiProgress  AnkiProgress[]
   ankiGoal      AnkiGoal?
+  clinicalPearls ClinicalPearl[]
+  clinicalReferences ClinicalReference[]
+  pharmNotes    PharmNote[]
 }
 
 // ==================== ROTATIONS ====================
@@ -59,6 +62,9 @@ model Rotation {
   shelfScores ShelfScore[]
   studyNotes  StudyNote[]
   clinicalGuidelines ClinicalGuideline[]
+  clinicalPearls ClinicalPearl[]
+  clinicalReferences ClinicalReference[]
+  pharmNotes  PharmNote[]
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -418,4 +424,77 @@ model AnkiGoal {
   dailyReviewGoal Int       @default(200)   // Target reviews per day
 
   updatedAt       DateTime  @updatedAt
+}
+
+// ==================== CLINICAL PEARLS ====================
+
+model ClinicalPearl {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rotationId  String?
+  rotation    Rotation? @relation(fields: [rotationId], references: [id])
+
+  content     String    @db.Text
+  tags        String[]  @default([])
+  isHighYield Boolean   @default(false) // Marked for shelf exam review
+  source      String?   // "rounds", "attending", "patient", "reading", "other"
+
+  // Optional link to patient encounter
+  patientId   String?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([rotationId])
+  @@index([isHighYield])
+}
+
+// ==================== CLINICAL REFERENCES ====================
+
+model ClinicalReference {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rotationId  String?
+  rotation    Rotation? @relation(fields: [rotationId], references: [id])
+
+  title       String
+  category    String    // "guideline", "scale", "algorithm", "custom"
+  content     String    @db.Text
+  url         String?   // Optional external link
+  source      String?   // "UpToDate", "MDCalc", "Custom", etc.
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([rotationId])
+  @@index([category])
+}
+
+// ==================== PHARMACOLOGY ====================
+
+model PharmNote {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rotationId  String?
+  rotation    Rotation? @relation(fields: [rotationId], references: [id])
+
+  drugName    String
+  drugClass   String?   // "SSRI", "Beta Blocker", "Antibiotic", etc.
+  indication  String?
+  mechanism   String?   @db.Text
+  sideEffects String?   @db.Text
+  warnings    String?   @db.Text
+  pearls      String?   @db.Text // High-yield clinical pearls
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([rotationId])
+  @@index([drugClass])
 }

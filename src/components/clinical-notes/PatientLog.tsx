@@ -25,7 +25,11 @@ interface Patient {
   rotation: { id: string; name: string } | null
 }
 
-export function PatientLog() {
+interface PatientLogProps {
+  rotationId?: string
+}
+
+export function PatientLog({ rotationId }: PatientLogProps) {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -36,14 +40,15 @@ export function PatientLog() {
     ageGroup: '',
     attendingName: '',
     learningPoints: '',
-    rotationId: '',
+    rotationId: rotationId || '',
   })
 
   const { data, isLoading } = useQuery({
-    queryKey: ['patients', search],
+    queryKey: ['patients', search, rotationId],
     queryFn: async () => {
       const params = new URLSearchParams()
       if (search) params.set('search', search)
+      if (rotationId) params.set('rotationId', rotationId)
       const res = await fetch(`/api/patients?${params}`)
       return res.json()
     },
