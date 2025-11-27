@@ -6,7 +6,7 @@ import { signOut, useSession } from 'next-auth/react'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard,
-  Users,
+  FileText,
   Stethoscope,
   BookOpen,
   Calendar,
@@ -17,18 +17,30 @@ import {
   ChevronLeft,
   ChevronRight,
   MessageSquare,
+  Layers,
+  ExternalLink,
 } from 'lucide-react'
 import { useState } from 'react'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Patients', href: '/dashboard/patients', icon: Users },
+  { name: 'Clinical Notes', href: '/dashboard/clinical-notes', icon: FileText },
   { name: 'Procedures', href: '/dashboard/procedures', icon: Stethoscope },
   { name: 'UWorld', href: '/dashboard/uworld', icon: BookOpen },
+  { name: 'AnKing', href: '/dashboard/anking', icon: Layers },
   { name: 'Planner', href: '/dashboard/planner', icon: Calendar },
   { name: 'Resources', href: '/dashboard/resources', icon: FolderOpen },
   { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
-  { name: 'AI Coach', href: '/dashboard/ai', icon: MessageSquare },
+  { name: 'AI Medical Assistant', href: '/dashboard/ai', icon: MessageSquare },
+]
+
+const quickLinks = [
+  { name: 'MyUniversity', url: '#', placeholder: true },
+  { name: 'NewInnovations', url: 'https://www.new-innov.com' },
+  { name: 'VSLO', url: 'https://www.aamc.org/services/vslo' },
+  { name: 'ERAS', url: 'https://www.aamc.org/services/eras' },
+  { name: 'MyNBME', url: 'https://www.nbme.org' },
+  { name: 'UWorld', url: 'https://www.uworld.com' },
 ]
 
 export function Sidebar() {
@@ -83,6 +95,29 @@ export function Sidebar() {
             )
           })}
         </nav>
+
+        {/* Quick Links */}
+        {!collapsed && (
+          <div className="px-2 py-3 border-t border-slate-800">
+            <p className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              Quick Links
+            </p>
+            <div className="space-y-0.5">
+              {quickLinks.map((link) => (
+                <a
+                  key={link.name}
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 rounded transition-colors"
+                >
+                  <ExternalLink size={12} />
+                  <span>{link.name}</span>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* User & Settings */}
         <div className="border-t border-slate-800 p-2 space-y-1">

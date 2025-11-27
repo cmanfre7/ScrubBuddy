@@ -35,6 +35,10 @@ model User {
   studyBlocks   StudyBlock[]
   resources     Resource[]
   aiConversations AIConversation[]
+  studyNotes    StudyNote[]
+  clinicalGuidelines ClinicalGuideline[]
+  ankiProgress  AnkiProgress[]
+  ankiGoal      AnkiGoal?
 }
 
 // ==================== ROTATIONS ====================
@@ -53,6 +57,8 @@ model Rotation {
   // Relations
   patients    Patient[]
   shelfScores ShelfScore[]
+  studyNotes  StudyNote[]
+  clinicalGuidelines ClinicalGuideline[]
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -330,4 +336,86 @@ model AIConversation {
   updatedAt   DateTime  @updatedAt
 
   @@index([userId])
+}
+
+// ==================== STUDY NOTES ====================
+
+model StudyNote {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rotationId  String?
+  rotation    Rotation? @relation(fields: [rotationId], references: [id])
+
+  title       String
+  content     String    @db.Text
+  category    String    // "high_yield", "diagnosis", "preceptor_tip", "clinical_pearl", "other"
+  tags        String[]  @default([])
+  source      String?   // "preceptor", "uworld", "lecture", "reading", "patient"
+  isStarred   Boolean   @default(false)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([rotationId])
+  @@index([category])
+}
+
+// ==================== CLINICAL GUIDELINES ====================
+
+model ClinicalGuideline {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rotationId  String?
+  rotation    Rotation? @relation(fields: [rotationId], references: [id])
+
+  title       String    // "Breast Mass Workup"
+  description String?
+  specialty   String    // "OBGYN", "Surgery", "Medicine", etc.
+  content     Json      // Structured decision tree or algorithm
+  source      String?   // "UpToDate", "ACOG", "ACS", etc.
+  lastReviewed DateTime?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([rotationId])
+  @@index([specialty])
+}
+
+// ==================== ANKI TRACKING ====================
+
+model AnkiProgress {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date        DateTime  @default(now())
+  newCards    Int       @default(0)
+  reviewCards Int       @default(0)
+  totalTime   Int?      // minutes
+  deckName    String?   // "AnKing", "Zanki", etc.
+
+  createdAt   DateTime  @default(now())
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@index([date])
+}
+
+model AnkiGoal {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  totalCards      Int       @default(0)     // Total cards in deck
+  cardsCompleted  Int       @default(0)     // Cards already mature/learned
+  targetDate      DateTime?                  // Goal completion date (e.g., Step 2 date)
+  dailyNewGoal    Int       @default(30)    // Target new cards per day
+  dailyReviewGoal Int       @default(200)   // Target reviews per day
+
+  updatedAt       DateTime  @updatedAt
 }
