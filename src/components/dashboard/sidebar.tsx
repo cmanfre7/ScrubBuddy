@@ -28,10 +28,10 @@ const navigation = [
   { name: 'Clinical Notes', href: '/dashboard/clinical-notes', icon: FileText },
   { name: 'Procedures', href: '/dashboard/procedures', icon: Stethoscope },
   { name: 'UWorld', href: '/dashboard/uworld', icon: BookOpen },
-  { name: 'AnKing', href: '/dashboard/anking', icon: Layers },
+  { name: 'Board/Shelf Analytics', href: '/dashboard/analytics', icon: BarChart3 },
+  { name: 'Anki', href: '/dashboard/anking', icon: Layers },
   { name: 'Planner', href: '/dashboard/planner', icon: Calendar },
   { name: 'Resources', href: '/dashboard/resources', icon: FolderOpen },
-  { name: 'Board/Shelf Analytics', href: '/dashboard/analytics', icon: BarChart3 },
   { name: 'AI Medical Assistant', href: '/dashboard/ai', icon: MessageSquare },
 ]
 
