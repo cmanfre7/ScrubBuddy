@@ -72,6 +72,7 @@ export default function UWorldPage() {
     questionsCorrect: '',
     timeSpentMins: '',
     mode: '',
+    date: new Date().toISOString().split('T')[0],
     notes: '',
   })
 
@@ -93,6 +94,7 @@ export default function UWorldPage() {
           questionsTotal: parseInt(data.questionsTotal),
           questionsCorrect: parseInt(data.questionsCorrect),
           timeSpentMins: data.timeSpentMins ? parseInt(data.timeSpentMins) : null,
+          date: new Date(data.date).toISOString(),
         }),
       })
       if (!res.ok) throw new Error('Failed to create log')
@@ -106,6 +108,7 @@ export default function UWorldPage() {
         questionsCorrect: '',
         timeSpentMins: '',
         mode: '',
+        date: new Date().toISOString().split('T')[0],
         notes: '',
       })
     },
@@ -454,6 +457,13 @@ export default function UWorldPage() {
               ]}
             />
           </div>
+          <Input
+            label="Date *"
+            type="date"
+            value={newLog.date}
+            onChange={(e) => setNewLog({ ...newLog, date: e.target.value })}
+            required
+          />
           <div className="flex gap-3 pt-4">
             <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)} className="flex-1">
               Cancel
