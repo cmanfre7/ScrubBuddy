@@ -42,6 +42,7 @@ model User {
   clinicalPearls ClinicalPearl[]
   clinicalReferences ClinicalReference[]
   pharmNotes    PharmNote[]
+  boardExams    BoardExam[]
 }
 
 // ==================== ROTATIONS ====================
@@ -253,17 +254,20 @@ model PracticeExam {
   userId        String
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  examName      String    // "NBME 9", "UWSA1", "Free 120"
+  examType      String    // "NBME", "UWSA", "COMSAE", "FREE120"
+  examName      String    // "NBME 9", "UWSA1", "UWSA2", "COMSAE 105"
   score         Int
   predictedScore Int?
   percentCorrect Float?
   date          DateTime
   weakAreas     String[]  @default([])
+  notes         String?   @db.Text
   actionItems   String?   @db.Text
 
   createdAt     DateTime  @default(now())
 
   @@index([userId])
+  @@index([examType])
 }
 
 // ==================== TASKS ====================
@@ -497,4 +501,30 @@ model PharmNote {
   @@index([userId])
   @@index([rotationId])
   @@index([drugClass])
+}
+
+// ==================== BOARD EXAMS ====================
+
+model BoardExam {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  examType        String    // "USMLE_STEP_2_CK", "COMLEX_LEVEL_2_CE"
+  targetScore     Int       // User's target score
+  predictedScore  Int?      // Calculated predicted score
+  examDate        DateTime? // Scheduled exam date
+
+  // Readiness metrics
+  readinessPercent Int?     // 0-100 readiness score
+  daysUntilExam   Int?      // Calculated field
+
+  // For calculations
+  lastUpdated     DateTime  @default(now())
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([userId, examType])
+  @@index([userId])
 }

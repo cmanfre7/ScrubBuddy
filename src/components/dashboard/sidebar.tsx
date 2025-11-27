@@ -31,7 +31,7 @@ const navigation = [
   { name: 'AnKing', href: '/dashboard/anking', icon: Layers },
   { name: 'Planner', href: '/dashboard/planner', icon: Calendar },
   { name: 'Resources', href: '/dashboard/resources', icon: FolderOpen },
-  { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
+  { name: 'Board/Shelf Analytics', href: '/dashboard/analytics', icon: BarChart3 },
   { name: 'AI Medical Assistant', href: '/dashboard/ai', icon: MessageSquare },
 ]
 
