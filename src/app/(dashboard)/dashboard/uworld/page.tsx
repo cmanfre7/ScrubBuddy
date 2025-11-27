@@ -10,7 +10,7 @@ import { Select } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { formatDate, calculatePercentage } from '@/lib/utils'
 import { Plus, Target, TrendingUp, BookOpen, Clock } from 'lucide-react'
-import { UWORLD_SYSTEMS } from '@/types'
+import { SHELF_SUBJECTS } from '@/types'
 
 interface UWorldLog {
   id: string
@@ -265,21 +265,21 @@ export default function UWorldPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
-              Systems Covered
+              Shelf Subject
             </label>
             <div className="flex flex-wrap gap-2">
-              {UWORLD_SYSTEMS.map((system) => (
+              {SHELF_SUBJECTS.map((subject) => (
                 <button
-                  key={system}
+                  key={subject}
                   type="button"
-                  onClick={() => toggleSystem(system)}
+                  onClick={() => toggleSystem(subject)}
                   className={`px-3 py-1 text-sm rounded-lg transition-colors ${
-                    newLog.systems.includes(system)
+                    newLog.systems.includes(subject)
                       ? 'bg-blue-500/30 text-blue-300 border border-blue-500/50'
                       : 'bg-slate-700/50 text-slate-400 border border-slate-600 hover:border-slate-500'
                   }`}
                 >
-                  {system}
+                  {subject}
                 </button>
               ))}
             </div>

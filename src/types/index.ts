@@ -8,21 +8,16 @@ export type RotationName =
   | 'Heme/Oncology'
   | 'Family Medicine'
 
-export type UWorldSystem =
-  | 'Cardiovascular'
-  | 'Pulmonary'
-  | 'Gastrointestinal'
-  | 'Renal'
-  | 'Neurology'
-  | 'Musculoskeletal'
-  | 'Endocrine'
-  | 'Hematology/Oncology'
-  | 'Infectious Disease'
+export type ShelfSubject =
+  | 'Ambulatory Medicine'
+  | 'Clinical Neurology'
+  | 'Emergency Medicine'
+  | 'Family Medicine'
+  | 'Medicine'
+  | 'OBGYN'
+  | 'Pediatrics'
   | 'Psychiatry'
-  | 'Reproductive'
-  | 'Dermatology'
-  | 'Biostatistics/Epidemiology'
-  | 'Ethics/Legal'
+  | 'Surgery'
 
 export type UWorldSubject =
   | 'Anatomy'
@@ -97,21 +92,16 @@ export const ROTATION_OPTIONS: RotationName[] = [
   'Family Medicine',
 ]
 
-export const UWORLD_SYSTEMS: UWorldSystem[] = [
-  'Cardiovascular',
-  'Pulmonary',
-  'Gastrointestinal',
-  'Renal',
-  'Neurology',
-  'Musculoskeletal',
-  'Endocrine',
-  'Hematology/Oncology',
-  'Infectious Disease',
+export const SHELF_SUBJECTS: ShelfSubject[] = [
+  'Ambulatory Medicine',
+  'Clinical Neurology',
+  'Emergency Medicine',
+  'Family Medicine',
+  'Medicine',
+  'OBGYN',
+  'Pediatrics',
   'Psychiatry',
-  'Reproductive',
-  'Dermatology',
-  'Biostatistics/Epidemiology',
-  'Ethics/Legal',
+  'Surgery',
 ]
 
 export const UWORLD_SUBJECTS: UWorldSubject[] = [
