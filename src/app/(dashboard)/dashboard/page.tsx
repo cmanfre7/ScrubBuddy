@@ -133,7 +133,13 @@ async function getDashboardData(userId: string) {
     // Mock events - in a real app, fetch from calendar/events table
     const events: { type: 'clinical' | 'exam' | 'study' | 'off' | 'presentation'; label: string }[] = []
 
-    if (currentRotation && date >= currentRotation.startDate && date <= currentRotation.endDate) {
+    if (
+      currentRotation &&
+      currentRotation.startDate &&
+      currentRotation.endDate &&
+      date >= new Date(currentRotation.startDate) &&
+      date <= new Date(currentRotation.endDate)
+    ) {
       events.push({ type: 'clinical', label: `${currentRotation.name}` })
     }
 
@@ -179,12 +185,18 @@ export default async function DashboardPage() {
     data = await getDashboardData(user.id)
   } catch (error) {
     console.error('Dashboard data fetch error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    console.error('Error details:', errorMessage)
+
     // Return a fallback UI if data fetching fails
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-slate-100 mb-2">Unable to load dashboard</h1>
-          <p className="text-slate-400">Please try refreshing the page</p>
+          <p className="text-slate-400 mb-2">Please try refreshing the page</p>
+          {process.env.NODE_ENV === 'development' && (
+            <p className="text-xs text-red-400 mt-4 max-w-md mx-auto">{errorMessage}</p>
+          )}
         </div>
       </div>
     )
@@ -194,17 +206,21 @@ export default async function DashboardPage() {
   const daysUntilComlex = data.user?.comlexDate ? daysUntil(data.user.comlexDate) : null
 
   // Calculate rotation progress
-  const rotationTotalDays = data.currentRotation
-    ? Math.ceil(
-        (data.currentRotation.endDate.getTime() - data.currentRotation.startDate.getTime()) /
-          (1000 * 60 * 60 * 24)
-      ) + 1
-    : 0
-  const rotationCurrentDay = data.currentRotation
-    ? Math.ceil(
-        (new Date().getTime() - data.currentRotation.startDate.getTime()) / (1000 * 60 * 60 * 24)
-      ) + 1
-    : 0
+  const rotationTotalDays =
+    data.currentRotation && data.currentRotation.endDate && data.currentRotation.startDate
+      ? Math.ceil(
+          (new Date(data.currentRotation.endDate).getTime() -
+            new Date(data.currentRotation.startDate).getTime()) /
+            (1000 * 60 * 60 * 24)
+        ) + 1
+      : 0
+  const rotationCurrentDay =
+    data.currentRotation && data.currentRotation.startDate
+      ? Math.ceil(
+          (new Date().getTime() - new Date(data.currentRotation.startDate).getTime()) /
+            (1000 * 60 * 60 * 24)
+        ) + 1
+      : 0
 
   // Calculate shelf exam countdown
   const shelfRotation = data.rotations.find(
