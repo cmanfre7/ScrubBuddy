@@ -11,13 +11,25 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if API key is configured
-    if (!process.env.ANTHROPIC_API_KEY) {
-      console.error('ANTHROPIC_API_KEY is not configured')
+    const apiKey = process.env.ANTHROPIC_API_KEY
+    if (!apiKey) {
+      console.error('[AI Chat] ANTHROPIC_API_KEY is not configured')
       return NextResponse.json(
-        { error: 'AI service not configured. Please set ANTHROPIC_API_KEY environment variable.' },
+        { error: 'AI service not configured. Please set ANTHROPIC_API_KEY environment variable in Railway.' },
         { status: 500 }
       )
     }
+
+    // Validate API key format
+    if (!apiKey.startsWith('sk-ant-')) {
+      console.error('[AI Chat] ANTHROPIC_API_KEY has invalid format')
+      return NextResponse.json(
+        { error: 'Invalid API key format. Anthropic API keys should start with "sk-ant-"' },
+        { status: 500 }
+      )
+    }
+
+    console.log('[AI Chat] API key found and validated')
 
     const { messages } = await request.json()
 
@@ -25,9 +37,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Messages required' }, { status: 400 })
     }
 
-    const anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    })
+    console.log(`[AI Chat] Processing ${messages.length} messages`)
+
+    // Initialize Anthropic client
+    let anthropic: Anthropic
+    try {
+      anthropic = new Anthropic({
+        apiKey: apiKey,
+      })
+      console.log('[AI Chat] Anthropic client initialized')
+    } catch (initError: any) {
+      console.error('[AI Chat] Failed to initialize Anthropic client:', initError)
+      return NextResponse.json(
+        { error: `Failed to initialize AI client: ${initError.message}` },
+        { status: 500 }
+      )
+    }
 
     // System prompt for medical assistant
     const systemPrompt = `You are an AI Medical Assistant helping medical students during their clinical rotations.
@@ -56,6 +81,8 @@ You should NOT:
 
 Remember: You're a study companion and knowledge resource, not a replacement for clinical judgment or supervision.`
 
+    // Make API call to Anthropic
+    console.log('[AI Chat] Calling Anthropic API...')
     const response = await anthropic.messages.create({
       model: 'claude-3-5-sonnet-20241022',
       max_tokens: 1024,
@@ -66,23 +93,41 @@ Remember: You're a study companion and knowledge resource, not a replacement for
       })),
     })
 
+    console.log('[AI Chat] Received response from Anthropic')
+
     const assistantMessage = response.content[0].type === 'text'
       ? response.content[0].text
       : 'Sorry, I could not process that.'
 
     return NextResponse.json({ message: assistantMessage })
   } catch (error: any) {
-    console.error('AI chat error:', error)
+    console.error('[AI Chat] Error details:', {
+      message: error?.message,
+      status: error?.status,
+      type: error?.type,
+      error: error
+    })
 
-    // More detailed error messages
+    // More detailed error messages based on error type
     let errorMessage = 'Failed to get AI response'
-    if (error?.message) {
-      errorMessage = error.message
+    let statusCode = 500
+
+    if (error?.status === 401) {
+      errorMessage = 'Invalid API key. Please check your ANTHROPIC_API_KEY in Railway settings.'
+      statusCode = 401
+    } else if (error?.status === 429) {
+      errorMessage = 'Rate limit exceeded. Please try again in a moment.'
+      statusCode = 429
+    } else if (error?.status === 400) {
+      errorMessage = `Bad request: ${error?.message || 'Invalid request to AI service'}`
+      statusCode = 400
+    } else if (error?.message) {
+      errorMessage = `AI service error: ${error.message}`
     }
 
     return NextResponse.json(
       { error: errorMessage },
-      { status: 500 }
+      { status: statusCode }
     )
   }
 }
