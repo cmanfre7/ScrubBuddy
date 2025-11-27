@@ -151,12 +151,17 @@ async function getDashboardData(userId: string) {
     uworldPercentage,
     currentRotation,
     rotations,
-    tasks: tasks.map((t) => ({ ...t, category: t.category || 'General' })),
+    tasks: tasks.map((t) => ({
+      id: t.id,
+      text: t.text,
+      done: t.done,
+      category: t.category || 'General'
+    })),
     pearls: pearls.map((p) => ({
       id: p.id,
       content: p.content,
-      rotationName: p.rotation?.name || null,
-      createdAt: p.createdAt,
+      rotationName: p.rotation?.name ?? null,
+      createdAt: new Date(p.createdAt),
     })),
     weakAreas,
     last28Days,
@@ -169,7 +174,21 @@ export default async function DashboardPage() {
   const user = await getCurrentUser()
   if (!user) return null
 
-  const data = await getDashboardData(user.id)
+  let data
+  try {
+    data = await getDashboardData(user.id)
+  } catch (error) {
+    console.error('Dashboard data fetch error:', error)
+    // Return a fallback UI if data fetching fails
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-slate-100 mb-2">Unable to load dashboard</h1>
+          <p className="text-slate-400">Please try refreshing the page</p>
+        </div>
+      </div>
+    )
+  }
 
   const daysUntilStep2 = data.user?.step2Date ? daysUntil(data.user.step2Date) : null
   const daysUntilComlex = data.user?.comlexDate ? daysUntil(data.user.comlexDate) : null
