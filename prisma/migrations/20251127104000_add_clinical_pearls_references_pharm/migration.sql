@@ -64,14 +64,63 @@ CREATE INDEX IF NOT EXISTS "PharmNote_userId_idx" ON "PharmNote"("userId");
 CREATE INDEX IF NOT EXISTS "PharmNote_rotationId_idx" ON "PharmNote"("rotationId");
 CREATE INDEX IF NOT EXISTS "PharmNote_drugName_idx" ON "PharmNote"("drugName");
 
--- AddForeignKey
-ALTER TABLE "ClinicalPearl" ADD CONSTRAINT IF NOT EXISTS "ClinicalPearl_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "ClinicalPearl" ADD CONSTRAINT IF NOT EXISTS "ClinicalPearl_rotationId_fkey" FOREIGN KEY ("rotationId") REFERENCES "Rotation"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+-- AddForeignKey (using DO blocks to handle idempotency)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'ClinicalPearl_userId_fkey'
+    ) THEN
+        ALTER TABLE "ClinicalPearl" ADD CONSTRAINT "ClinicalPearl_userId_fkey"
+        FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+    END IF;
+END $$;
 
--- AddForeignKey
-ALTER TABLE "ClinicalReference" ADD CONSTRAINT IF NOT EXISTS "ClinicalReference_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "ClinicalReference" ADD CONSTRAINT IF NOT EXISTS "ClinicalReference_rotationId_fkey" FOREIGN KEY ("rotationId") REFERENCES "Rotation"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'ClinicalPearl_rotationId_fkey'
+    ) THEN
+        ALTER TABLE "ClinicalPearl" ADD CONSTRAINT "ClinicalPearl_rotationId_fkey"
+        FOREIGN KEY ("rotationId") REFERENCES "Rotation"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
 
--- AddForeignKey
-ALTER TABLE "PharmNote" ADD CONSTRAINT IF NOT EXISTS "PharmNote_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "PharmNote" ADD CONSTRAINT IF NOT EXISTS "PharmNote_rotationId_fkey" FOREIGN KEY ("rotationId") REFERENCES "Rotation"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'ClinicalReference_userId_fkey'
+    ) THEN
+        ALTER TABLE "ClinicalReference" ADD CONSTRAINT "ClinicalReference_userId_fkey"
+        FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'ClinicalReference_rotationId_fkey'
+    ) THEN
+        ALTER TABLE "ClinicalReference" ADD CONSTRAINT "ClinicalReference_rotationId_fkey"
+        FOREIGN KEY ("rotationId") REFERENCES "Rotation"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'PharmNote_userId_fkey'
+    ) THEN
+        ALTER TABLE "PharmNote" ADD CONSTRAINT "PharmNote_userId_fkey"
+        FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'PharmNote_rotationId_fkey'
+    ) THEN
+        ALTER TABLE "PharmNote" ADD CONSTRAINT "PharmNote_rotationId_fkey"
+        FOREIGN KEY ("rotationId") REFERENCES "Rotation"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
