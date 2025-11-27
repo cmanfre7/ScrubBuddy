@@ -14,6 +14,7 @@ import {
   Clock,
 } from 'lucide-react'
 import Link from 'next/link'
+import { DashboardCalendar } from '@/components/DashboardCalendar'
 
 async function getDashboardData(userId: string) {
   const today = new Date()
@@ -137,6 +138,9 @@ export default async function DashboardPage() {
           />
         )}
       </div>
+
+      {/* Calendar */}
+      <DashboardCalendar />
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
