@@ -84,8 +84,8 @@ Remember: You're a study companion and knowledge resource, not a replacement for
     // Make API call to Anthropic
     console.log('[AI Chat] Calling Anthropic API...')
     const response = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 1024,
+      model: 'claude-sonnet-4-5-20250929',
+      max_tokens: 2048,
       system: systemPrompt,
       messages: messages.map((msg: any) => ({
         role: msg.role,
