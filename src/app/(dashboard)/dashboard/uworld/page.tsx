@@ -10,6 +10,23 @@ import { Select } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { formatDate, calculatePercentage, cn } from '@/lib/utils'
 import { Plus, ArrowLeft, BookOpen, TrendingUp, Calendar, Clock } from 'lucide-react'
+
+// Get gradient color based on score (red -> yellow -> green)
+const getScoreColor = (score: number) => {
+  // Clamp score between 0 and 100
+  const s = Math.max(0, Math.min(100, score))
+
+  // Create a gradient: 0% = red, 50% = yellow, 100% = green
+  // Using HSL: red=0, yellow=60, green=120
+  const hue = (s / 100) * 120
+  return `hsl(${hue}, 70%, 45%)`
+}
+
+const getScoreBgColor = (score: number) => {
+  const s = Math.max(0, Math.min(100, score))
+  const hue = (s / 100) * 120
+  return `hsla(${hue}, 70%, 45%, 0.2)`
+}
 import { SHELF_SUBJECTS, ShelfSubject } from '@/types'
 import {
   LineChart,
@@ -353,13 +370,16 @@ export default function UWorldPage() {
                             <span className="font-medium text-slate-200">
                               {log.questionsCorrect}/{log.questionsTotal} correct
                             </span>
-                            <Badge
-                              variant={
-                                percentage >= 70 ? 'success' : percentage >= 60 ? 'warning' : 'danger'
-                              }
+                            <span
+                              className="px-2 py-0.5 text-xs font-medium rounded-full"
+                              style={{
+                                backgroundColor: getScoreBgColor(percentage),
+                                color: getScoreColor(percentage),
+                                border: `1px solid ${getScoreColor(percentage)}40`,
+                              }}
                             >
                               {percentage}%
-                            </Badge>
+                            </span>
                             {log.mode && <Badge variant="default">{log.mode}</Badge>}
                           </div>
                           {log.timeSpentMins && (
@@ -370,7 +390,12 @@ export default function UWorldPage() {
                           )}
                         </div>
                       </div>
-                      <div className={cn('text-2xl font-bold', colors.text)}>{percentage}%</div>
+                      <div
+                        className="text-2xl font-bold"
+                        style={{ color: getScoreColor(percentage) }}
+                      >
+                        {percentage}%
+                      </div>
                     </div>
                   )
                 })}
