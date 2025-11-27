@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams
     const search = searchParams.get('search')
-    const specialty = searchParams.get('specialty')
+    const rotationId = searchParams.get('rotationId')
 
     const guidelines = await prisma.clinicalGuideline.findMany({
       where: {
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
             { description: { contains: search, mode: 'insensitive' } },
           ],
         }),
-        ...(specialty && { specialty }),
+        ...(rotationId && { rotationId }),
       },
       include: {
         rotation: { select: { id: true, name: true } },
@@ -46,10 +46,10 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, description, specialty, content, source, rotationId } = body
+    const { title, description, content, source, rotationId } = body
 
-    if (!title || !specialty || !content) {
-      return NextResponse.json({ error: 'Title, specialty, and content are required' }, { status: 400 })
+    if (!title || !content) {
+      return NextResponse.json({ error: 'Title and content are required' }, { status: 400 })
     }
 
     const guideline = await prisma.clinicalGuideline.create({
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
         userId: session.user.id,
         title,
         description: description || null,
-        specialty,
+        specialty: 'General', // Keep for schema compatibility, not used in UI
         content,
         source: source || null,
         rotationId: rotationId || null,

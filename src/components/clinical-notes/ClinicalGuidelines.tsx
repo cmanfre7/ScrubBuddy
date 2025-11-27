@@ -17,7 +17,6 @@ interface ClinicalGuideline {
   id: string
   title: string
   description: string | null
-  specialty: string
   content: GuidelineStep[]
   source: string | null
   lastReviewed: string | null
@@ -30,25 +29,6 @@ interface GuidelineStep {
   text: string
   children?: GuidelineStep[]
 }
-
-const SPECIALTIES = [
-  'Internal Medicine',
-  'Surgery',
-  'OBGYN',
-  'Pediatrics',
-  'Psychiatry',
-  'Family Medicine',
-  'Emergency Medicine',
-  'Neurology',
-  'Cardiology',
-  'Pulmonology',
-  'GI/Hepatology',
-  'Nephrology',
-  'Endocrinology',
-  'Oncology',
-  'Orthopedics',
-  'Other',
-]
 
 function GuidelineTree({ steps, level = 0 }: { steps: GuidelineStep[]; level?: number }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
@@ -89,24 +69,23 @@ function GuidelineTree({ steps, level = 0 }: { steps: GuidelineStep[]; level?: n
 export function ClinicalGuidelines() {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
-  const [filterSpecialty, setFilterSpecialty] = useState('')
+  const [filterRotation, setFilterRotation] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [expandedGuideline, setExpandedGuideline] = useState<string | null>(null)
   const [newGuideline, setNewGuideline] = useState({
     title: '',
     description: '',
-    specialty: 'Internal Medicine',
     content: '',
     source: '',
     rotationId: '',
   })
 
   const { data, isLoading } = useQuery({
-    queryKey: ['clinical-guidelines', search, filterSpecialty],
+    queryKey: ['clinical-guidelines', search, filterRotation],
     queryFn: async () => {
       const params = new URLSearchParams()
       if (search) params.set('search', search)
-      if (filterSpecialty) params.set('specialty', filterSpecialty)
+      if (filterRotation) params.set('rotationId', filterRotation)
       const res = await fetch(`/api/clinical-guidelines?${params}`)
       return res.json()
     },
@@ -155,8 +134,11 @@ export function ClinicalGuidelines() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...data,
+          title: data.title,
+          description: data.description,
           content,
+          source: data.source,
+          rotationId: data.rotationId,
         }),
       })
       if (!res.ok) throw new Error('Failed to create guideline')
@@ -168,7 +150,6 @@ export function ClinicalGuidelines() {
       setNewGuideline({
         title: '',
         description: '',
-        specialty: 'Internal Medicine',
         content: '',
         source: '',
         rotationId: '',
@@ -220,11 +201,11 @@ export function ClinicalGuidelines() {
           />
         </div>
         <Select
-          value={filterSpecialty}
-          onChange={(e) => setFilterSpecialty(e.target.value)}
+          value={filterRotation}
+          onChange={(e) => setFilterRotation(e.target.value)}
           options={[
-            { value: '', label: 'All Specialties' },
-            ...SPECIALTIES.map(s => ({ value: s, label: s })),
+            { value: '', label: 'All Rotations' },
+            ...rotations.map((r: { id: string; name: string }) => ({ value: r.id, label: r.name })),
           ]}
           className="w-48"
         />
@@ -263,12 +244,11 @@ export function ClinicalGuidelines() {
                       )}
                       <h3 className="font-semibold text-slate-100">{guideline.title}</h3>
                     </button>
-                    <div className="flex items-center gap-2 mt-2 ml-6">
-                      <Badge variant="default">{guideline.specialty}</Badge>
-                      {guideline.rotation && (
+                    {guideline.rotation && (
+                      <div className="flex items-center gap-2 mt-2 ml-6">
                         <Badge variant="info">{guideline.rotation.name}</Badge>
-                      )}
-                    </div>
+                      </div>
+                    )}
                     {guideline.description && (
                       <p className="text-sm text-slate-400 mt-2 ml-6">{guideline.description}</p>
                     )}
@@ -322,23 +302,15 @@ export function ClinicalGuidelines() {
             value={newGuideline.description}
             onChange={(e) => setNewGuideline({ ...newGuideline, description: e.target.value })}
           />
-          <div className="grid grid-cols-2 gap-4">
-            <Select
-              label="Specialty"
-              value={newGuideline.specialty}
-              onChange={(e) => setNewGuideline({ ...newGuideline, specialty: e.target.value })}
-              options={SPECIALTIES.map(s => ({ value: s, label: s }))}
-            />
-            <Select
-              label="Rotation"
-              value={newGuideline.rotationId}
-              onChange={(e) => setNewGuideline({ ...newGuideline, rotationId: e.target.value })}
-              options={[
-                { value: '', label: 'Select rotation...' },
-                ...rotations.map((r: { id: string; name: string }) => ({ value: r.id, label: r.name })),
-              ]}
-            />
-          </div>
+          <Select
+            label="Rotation *"
+            value={newGuideline.rotationId}
+            onChange={(e) => setNewGuideline({ ...newGuideline, rotationId: e.target.value })}
+            options={[
+              { value: '', label: 'Select rotation...' },
+              ...rotations.map((r: { id: string; name: string }) => ({ value: r.id, label: r.name })),
+            ]}
+          />
           <Textarea
             label="Algorithm/Decision Tree *"
             placeholder={`Use indentation for hierarchy:\n- Patient presents with breast mass\n  - Age < 30\n    - Ultrasound first\n  - Age >= 30\n    - Mammogram + Ultrasound`}
