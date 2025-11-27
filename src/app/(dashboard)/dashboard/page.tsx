@@ -288,12 +288,6 @@ export default async function DashboardPage() {
             >
               Procedure Lookup
             </Link>
-            <Link
-              href="/dashboard/ai"
-              className="px-4 py-2 bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 rounded-lg hover:bg-yellow-500/30 transition-colors text-sm font-medium"
-            >
-              AI Study Coach
-            </Link>
           </div>
         </CardContent>
       </Card>

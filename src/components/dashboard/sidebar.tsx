@@ -32,7 +32,6 @@ const navigation = [
   { name: 'Anki', href: '/dashboard/anking', icon: Layers },
   { name: 'Planner', href: '/dashboard/planner', icon: Calendar },
   { name: 'Resources', href: '/dashboard/resources', icon: FolderOpen },
-  { name: 'AI Medical Assistant', href: '/dashboard/ai', icon: MessageSquare },
 ]
 
 const quickLinks = [
