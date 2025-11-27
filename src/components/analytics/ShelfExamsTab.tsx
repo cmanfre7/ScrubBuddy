@@ -241,7 +241,7 @@ export function ShelfExamsTab() {
             <div className="flex gap-2">
               <Button onClick={() => setShowAddPracticeModal(true)} className="bg-purple-600 hover:bg-purple-700">
                 <Plus size={16} />
-                Add NBME
+                NBME SA Score
               </Button>
               <Button onClick={() => setShowAddModal(true)}>
                 <Plus size={16} />
@@ -367,7 +367,7 @@ export function ShelfExamsTab() {
               <div className="flex gap-2 justify-center">
                 <Button onClick={() => setShowAddPracticeModal(true)} className="bg-purple-600 hover:bg-purple-700">
                   <Plus size={16} />
-                  Add NBME
+                  NBME SA Score
                 </Button>
                 <Button onClick={() => setShowAddModal(true)}>
                   <Plus size={16} />
