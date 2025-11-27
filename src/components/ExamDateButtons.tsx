@@ -79,21 +79,23 @@ export function ExamDateButtons({ step2Date, comlexDate, rotations }: ExamDateBu
 
   return (
     <>
-      <button
-        onClick={() => setShowBoardExamModal(true)}
-        className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-lg hover:bg-blue-500/30 transition-colors text-sm font-medium"
-      >
-        <Calendar size={16} />
-        {step2Date || comlexDate ? 'Update' : 'Set'} Board Exam Dates
-      </button>
+      <div className="flex gap-3">
+        <button
+          onClick={() => setShowBoardExamModal(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-lg hover:bg-blue-500/30 transition-colors text-sm font-medium whitespace-nowrap"
+        >
+          <Calendar size={16} />
+          {step2Date || comlexDate ? 'Update' : 'Set'} Board Exams
+        </button>
 
-      <button
-        onClick={() => setShowShelfModal(true)}
-        className="flex items-center gap-2 px-4 py-2 bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-lg hover:bg-purple-500/30 transition-colors text-sm font-medium"
-      >
-        <Plus size={16} />
-        Set Shelf Exam Date
-      </button>
+        <button
+          onClick={() => setShowShelfModal(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-lg hover:bg-purple-500/30 transition-colors text-sm font-medium whitespace-nowrap"
+        >
+          <Plus size={16} />
+          Set Shelf Date
+        </button>
+      </div>
 
       {/* Board Exam Dates Modal */}
       {showBoardExamModal && (

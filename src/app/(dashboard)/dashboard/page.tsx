@@ -99,15 +99,26 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-slate-100">
-          Welcome back{user.name ? `, ${user.name.split(' ')[0]}` : ''}
-        </h1>
-        <p className="text-slate-400 mt-1">
-          {data.currentRotation
-            ? `Currently on ${data.currentRotation.name}`
-            : 'Set up your rotations to get started'}
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-100">
+            Welcome back{user.name ? `, ${user.name.split(' ')[0]}` : ''}
+          </h1>
+          <p className="text-slate-400 mt-1">
+            {data.currentRotation
+              ? `Currently on ${data.currentRotation.name}`
+              : 'Set up your rotations to get started'}
+          </p>
+        </div>
+        <ExamDateButtons
+          step2Date={data.user?.step2Date?.toISOString() || null}
+          comlexDate={data.user?.comlexDate?.toISOString() || null}
+          rotations={data.rotations.map(r => ({
+            id: r.id,
+            name: r.name,
+            shelfDate: r.shelfDate?.toISOString() || null,
+          }))}
+        />
       </div>
 
       {/* Stats Grid */}
@@ -283,22 +294,6 @@ export default async function DashboardPage() {
             >
               AI Study Coach
             </Link>
-          </div>
-
-          {/* Exam Date Buttons */}
-          <div className="mt-6 pt-6 border-t border-slate-700/50">
-            <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-4">
-              Exam Dates
-            </h3>
-            <ExamDateButtons
-              step2Date={data.user?.step2Date?.toISOString() || null}
-              comlexDate={data.user?.comlexDate?.toISOString() || null}
-              rotations={data.rotations.map(r => ({
-                id: r.id,
-                name: r.name,
-                shelfDate: r.shelfDate?.toISOString() || null,
-              }))}
-            />
           </div>
         </CardContent>
       </Card>
