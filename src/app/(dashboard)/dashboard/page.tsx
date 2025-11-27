@@ -1,21 +1,16 @@
 import { getCurrentUser } from '@/lib/session'
 import prisma from '@/lib/prisma'
-import { StatCard } from '@/components/ui/stat-card'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { daysUntil, calculatePercentage, formatDate } from '@/lib/utils'
-import {
-  Target,
-  BookOpen,
-  Users,
-  Calendar,
-  TrendingUp,
-  CheckCircle2,
-  Clock,
-} from 'lucide-react'
-import Link from 'next/link'
-import { DashboardCalendar } from '@/components/DashboardCalendar'
+import { daysUntil, calculatePercentage } from '@/lib/utils'
+import { CountdownWidget } from '@/components/dashboard-widgets/CountdownWidget'
+import { UWorldProgressWidget } from '@/components/dashboard-widgets/UWorldProgressWidget'
+import { GoalsWidget } from '@/components/dashboard-widgets/GoalsWidget'
+import { WeekCalendarWidget } from '@/components/dashboard-widgets/WeekCalendarWidget'
+import { QuickActionsWidget } from '@/components/dashboard-widgets/QuickActionsWidget'
+import { WeakAreasWidget } from '@/components/dashboard-widgets/WeakAreasWidget'
+import { PearlsWidget } from '@/components/dashboard-widgets/PearlsWidget'
+import { StreakWidget } from '@/components/dashboard-widgets/StreakWidget'
 import { ExamDateButtons } from '@/components/ExamDateButtons'
+import { Calendar as CalendarIcon, Target, FileText, Stethoscope } from 'lucide-react'
 
 async function getDashboardData(userId: string) {
   const today = new Date()
@@ -29,14 +24,15 @@ async function getDashboardData(userId: string) {
     todayLogs,
     weekLogs,
     allLogs,
-    recentPatients,
-    tasks,
+    incorrects,
     currentRotation,
     rotations,
+    tasks,
+    pearls,
   ] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
-      select: { dailyGoal: true, weeklyGoal: true, step2Date: true, comlexDate: true },
+      select: { name: true, step2Date: true, comlexDate: true, dailyGoal: true },
     }),
     prisma.uWorldLog.findMany({
       where: { userId, date: { gte: today } },
@@ -46,17 +42,12 @@ async function getDashboardData(userId: string) {
     }),
     prisma.uWorldLog.findMany({
       where: { userId },
+      orderBy: { date: 'asc' },
     }),
-    prisma.patient.findMany({
+    prisma.uWorldIncorrect.groupBy({
+      by: ['topic'],
       where: { userId },
-      orderBy: { encounterDate: 'desc' },
-      take: 5,
-      include: { rotation: true },
-    }),
-    prisma.task.findMany({
-      where: { userId, done: false },
-      orderBy: { priority: 'desc' },
-      take: 5,
+      _count: { id: true },
     }),
     prisma.rotation.findFirst({
       where: { userId, isCurrent: true },
@@ -66,24 +57,111 @@ async function getDashboardData(userId: string) {
       orderBy: { startDate: 'asc' },
       select: { id: true, name: true, shelfDate: true },
     }),
+    prisma.task.findMany({
+      where: { userId, done: false },
+      orderBy: { priority: 'desc' },
+      take: 5,
+      select: { id: true, text: true, done: true, category: true },
+    }),
+    prisma.clinicalPearl.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 3,
+      include: { rotation: { select: { name: true } } },
+    }),
   ])
 
+  // Calculate UWorld stats
   const questionsToday = todayLogs.reduce((sum, log) => sum + log.questionsTotal, 0)
+  const correctToday = todayLogs.reduce((sum, log) => sum + log.questionsCorrect, 0)
   const questionsThisWeek = weekLogs.reduce((sum, log) => sum + log.questionsTotal, 0)
+  const correctThisWeek = weekLogs.reduce((sum, log) => sum + log.questionsCorrect, 0)
   const totalQuestions = allLogs.reduce((sum, log) => sum + log.questionsTotal, 0)
   const totalCorrect = allLogs.reduce((sum, log) => sum + log.questionsCorrect, 0)
+  const uworldPercentage = calculatePercentage(totalCorrect, totalQuestions)
+
+  // Calculate weak areas (topics with most incorrect answers)
+  const weakAreas = incorrects
+    .map((inc) => {
+      // Calculate a rough percentage based on incorrect count
+      // Lower percentage means more incorrect (weaker area)
+      const incorrectCount = inc._count.id
+      // Assume max 20 questions per topic, so percentage = (20 - incorrectCount) / 20 * 100
+      const estimatedPercentage = Math.max(0, Math.round(((20 - incorrectCount) / 20) * 100))
+      return { name: inc.topic, percentage: estimatedPercentage }
+    })
+    .filter((area) => area.percentage < 70)
+    .sort((a, b) => a.percentage - b.percentage)
+    .slice(0, 4)
+
+  // Calculate study streak
+  const last28Days = Array.from({ length: 28 }, (_, i) => {
+    const date = new Date(today)
+    date.setDate(date.getDate() - (27 - i))
+    const dayLogs = allLogs.filter((log) => {
+      const logDate = new Date(log.date)
+      return logDate.toDateString() === date.toDateString()
+    })
+    const dayQuestions = dayLogs.reduce((sum, log) => sum + log.questionsTotal, 0)
+    // Map questions to intensity level (0-4)
+    if (dayQuestions === 0) return 0
+    if (dayQuestions < 20) return 1
+    if (dayQuestions < 40) return 2
+    if (dayQuestions < 60) return 3
+    return 4
+  })
+
+  // Calculate current streak
+  let currentStreak = 0
+  for (let i = last28Days.length - 1; i >= 0; i--) {
+    if (last28Days[i] > 0) {
+      currentStreak++
+    } else {
+      break
+    }
+  }
+
+  // Calculate this week's calendar
+  const weekDays = Array.from({ length: 6 }, (_, i) => {
+    const date = new Date(today)
+    date.setDate(date.getDate() + i)
+    const isToday = i === 0
+    const dayName = isToday
+      ? 'TODAY'
+      : date.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' })
+
+    // Mock events - in a real app, fetch from calendar/events table
+    const events: { type: 'clinical' | 'exam' | 'study' | 'off' | 'presentation'; label: string }[] = []
+
+    if (currentRotation && date >= currentRotation.startDate && date <= currentRotation.endDate) {
+      events.push({ type: 'clinical', label: `${currentRotation.name}` })
+    }
+
+    return { dayName, isToday, events }
+  })
 
   return {
     user,
     questionsToday,
+    correctToday,
     questionsThisWeek,
+    correctThisWeek,
     totalQuestions,
     totalCorrect,
-    uworldPercentage: calculatePercentage(totalCorrect, totalQuestions),
-    recentPatients,
-    tasks,
+    uworldPercentage,
     currentRotation,
     rotations,
+    tasks: tasks.map((t) => ({ ...t, category: t.category || 'General' })),
+    pearls: pearls.map((p) => ({
+      id: p.id,
+      content: p.content,
+      rotationName: p.rotation?.name || null,
+      createdAt: p.createdAt,
+    })),
+    weakAreas,
+    last28Days,
+    currentStreak,
+    weekDays,
   }
 }
 
@@ -96,8 +174,34 @@ export default async function DashboardPage() {
   const daysUntilStep2 = data.user?.step2Date ? daysUntil(data.user.step2Date) : null
   const daysUntilComlex = data.user?.comlexDate ? daysUntil(data.user.comlexDate) : null
 
+  // Calculate rotation progress
+  const rotationTotalDays = data.currentRotation
+    ? Math.ceil(
+        (data.currentRotation.endDate.getTime() - data.currentRotation.startDate.getTime()) /
+          (1000 * 60 * 60 * 24)
+      ) + 1
+    : 0
+  const rotationCurrentDay = data.currentRotation
+    ? Math.ceil(
+        (new Date().getTime() - data.currentRotation.startDate.getTime()) / (1000 * 60 * 60 * 24)
+      ) + 1
+    : 0
+
+  // Calculate shelf exam countdown
+  const shelfRotation = data.rotations.find(
+    (r) => r.shelfDate && new Date(r.shelfDate) > new Date()
+  )
+  const daysUntilShelf = shelfRotation?.shelfDate ? daysUntil(new Date(shelfRotation.shelfDate)) : null
+  const shelfDateFormatted = shelfRotation?.shelfDate
+    ? new Date(shelfRotation.shelfDate).toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      })
+    : null
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
@@ -105,15 +209,20 @@ export default async function DashboardPage() {
             Welcome back{user.name ? `, ${user.name.split(' ')[0]}` : ''}
           </h1>
           <p className="text-slate-400 mt-1">
-            {data.currentRotation
-              ? `Currently on ${data.currentRotation.name}`
-              : 'Set up your rotations to get started'}
+            {data.currentRotation ? (
+              <>
+                Currently on <span className="text-blue-400 font-medium">{data.currentRotation.name}</span> ·
+                Day {rotationCurrentDay} of {rotationTotalDays}
+              </>
+            ) : (
+              'Set up your rotations to get started'
+            )}
           </p>
         </div>
         <ExamDateButtons
           step2Date={data.user?.step2Date?.toISOString() || null}
           comlexDate={data.user?.comlexDate?.toISOString() || null}
-          rotations={data.rotations.map(r => ({
+          rotations={data.rotations.map((r) => ({
             id: r.id,
             name: r.name,
             shelfDate: r.shelfDate?.toISOString() || null,
@@ -121,176 +230,106 @@ export default async function DashboardPage() {
         />
       </div>
 
-      {/* Stats Grid */}
+      {/* Countdown Widgets */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="UWorld Score"
-          value={`${data.uworldPercentage}%`}
-          trend={data.uworldPercentage >= 70 ? 'up' : data.uworldPercentage >= 60 ? 'stable' : 'down'}
-          icon={<Target size={20} />}
-        />
-        <StatCard
-          label="Questions Today"
-          value={`${data.questionsToday}/${data.user?.dailyGoal || 40}`}
-          trend={data.questionsToday >= (data.user?.dailyGoal || 40) ? 'up' : 'stable'}
-          icon={<BookOpen size={20} />}
-        />
-        <StatCard
-          label="This Week"
-          value={data.questionsThisWeek}
-          icon={<TrendingUp size={20} />}
-        />
+        {data.currentRotation && (
+          <CountdownWidget
+            title="Current Rotation"
+            icon={<Stethoscope size={16} />}
+            iconBgColor="bg-red-900/40"
+            currentDay={rotationCurrentDay}
+            totalDays={rotationTotalDays}
+            href="/dashboard/settings"
+          />
+        )}
+        {daysUntilShelf !== null && shelfRotation && (
+          <CountdownWidget
+            title="Shelf Exam"
+            icon={<FileText size={16} />}
+            iconBgColor="bg-amber-900/40"
+            daysLeft={daysUntilShelf}
+            examDate={shelfDateFormatted || undefined}
+            predicted="72-78"
+            href="/dashboard/analytics?tab=shelf"
+          />
+        )}
         {daysUntilStep2 !== null && daysUntilStep2 > 0 && (
-          <StatCard
-            label="Days Until STEP 2"
-            value={daysUntilStep2}
-            trend={daysUntilStep2 <= 30 ? 'down' : 'stable'}
-            icon={<Calendar size={20} />}
+          <CountdownWidget
+            title="Step 2 CK"
+            icon={<Target size={16} />}
+            iconBgColor="bg-blue-900/40"
+            daysLeft={daysUntilStep2}
+            examDate={
+              data.user?.step2Date
+                ? new Date(data.user.step2Date).toLocaleDateString('en-US', {
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })
+                : undefined
+            }
+            predicted="245"
+            target="250"
+            href="/dashboard/analytics"
           />
         )}
-        {daysUntilComlex !== null && daysUntilComlex > 0 && !daysUntilStep2 && (
-          <StatCard
-            label="Days Until COMLEX"
-            value={daysUntilComlex}
-            trend={daysUntilComlex <= 30 ? 'down' : 'stable'}
-            icon={<Calendar size={20} />}
+        {daysUntilComlex !== null && daysUntilComlex > 0 && (
+          <CountdownWidget
+            title="COMLEX Level 2"
+            icon={<CalendarIcon size={16} />}
+            iconBgColor="bg-green-900/40"
+            daysLeft={daysUntilComlex}
+            examDate={
+              data.user?.comlexDate
+                ? new Date(data.user.comlexDate).toLocaleDateString('en-US', {
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })
+                : undefined
+            }
+            predicted="585"
+            target="600"
+            href="/dashboard/analytics"
           />
         )}
       </div>
 
-      {/* Calendar */}
-      <DashboardCalendar />
-
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Tasks */}
-        <Card className="lg:col-span-1">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <CheckCircle2 size={18} className="text-green-400" />
-              Tasks
-            </CardTitle>
-            <Link
-              href="/dashboard/tasks"
-              className="text-sm text-blue-400 hover:text-blue-300"
-            >
-              View all
-            </Link>
-          </CardHeader>
-          <CardContent>
-            {data.tasks.length === 0 ? (
-              <p className="text-slate-500 text-sm">No pending tasks</p>
-            ) : (
-              <ul className="space-y-3">
-                {data.tasks.map((task) => (
-                  <li
-                    key={task.id}
-                    className="flex items-start gap-3 p-3 bg-slate-800/30 rounded-lg"
-                  >
-                    <div
-                      className={`mt-0.5 w-4 h-4 rounded border-2 ${
-                        task.done
-                          ? 'bg-green-500 border-green-500'
-                          : 'border-slate-600'
-                      }`}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-slate-200 truncate">{task.text}</p>
-                      {task.dueDate && (
-                        <p className="text-xs text-slate-500 mt-1">
-                          Due: {formatDate(task.dueDate)}
-                        </p>
-                      )}
-                    </div>
-                    {task.category && (
-                      <Badge variant="default" className="text-xs">
-                        {task.category}
-                      </Badge>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Recent Patients */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Users size={18} className="text-blue-400" />
-              Recent Patients
-            </CardTitle>
-            <Link
-              href="/dashboard/patients"
-              className="text-sm text-blue-400 hover:text-blue-300"
-            >
-              View all
-            </Link>
-          </CardHeader>
-          <CardContent>
-            {data.recentPatients.length === 0 ? (
-              <p className="text-slate-500 text-sm">No patients logged yet</p>
-            ) : (
-              <div className="space-y-3">
-                {data.recentPatients.map((patient) => (
-                  <div
-                    key={patient.id}
-                    className="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-200">
-                        {patient.diagnosis}
-                      </p>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        {patient.chiefComplaint}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      {patient.rotation && (
-                        <Badge variant="info">{patient.rotation.name}</Badge>
-                      )}
-                      <span className="text-xs text-slate-500 flex items-center gap-1">
-                        <Clock size={12} />
-                        {formatDate(patient.encounterDate)}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      {/* UWorld + Goals */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <UWorldProgressWidget
+          percentage={
+            data.totalQuestions > 0
+              ? Math.round((data.totalQuestions / 3000) * 100)
+              : 0
+          }
+          questionsDone={data.totalQuestions}
+          totalQuestions={3000}
+          overallCorrect={data.uworldPercentage}
+          todayQuestions={data.questionsToday}
+          todayCorrect={data.correctToday}
+          weekQuestions={data.questionsThisWeek}
+          weekCorrect={data.correctThisWeek}
+        />
+        <GoalsWidget initialGoals={data.tasks} />
       </div>
 
-      {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href="/dashboard/patients/new"
-              className="px-4 py-2 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-lg hover:bg-blue-500/30 transition-colors text-sm font-medium"
-            >
-              Log Patient
-            </Link>
-            <Link
-              href="/dashboard/uworld/log"
-              className="px-4 py-2 bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-lg hover:bg-purple-500/30 transition-colors text-sm font-medium"
-            >
-              Log UWorld
-            </Link>
-            <Link
-              href="/dashboard/procedures"
-              className="px-4 py-2 bg-green-500/20 text-green-400 border border-green-500/30 rounded-lg hover:bg-green-500/30 transition-colors text-sm font-medium"
-            >
-              Procedure Lookup
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Week Calendar + Quick Actions */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <WeekCalendarWidget days={data.weekDays} />
+        <QuickActionsWidget />
+      </div>
+
+      {/* Weak Areas + Recent Pearls */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <WeakAreasWidget weakAreas={data.weakAreas} />
+        <PearlsWidget pearls={data.pearls} />
+      </div>
+
+      {/* Study Streak */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <StreakWidget currentStreak={data.currentStreak} last28Days={data.last28Days} />
+      </div>
     </div>
   )
 }
