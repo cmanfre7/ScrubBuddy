@@ -46,8 +46,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ user }, { status: 201 })
   } catch (error) {
     console.error('Registration error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
-      { error: 'Something went wrong' },
+      { error: errorMessage },
       { status: 500 }
     )
   }
