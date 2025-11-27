@@ -28,7 +28,6 @@ async function getDashboardData(userId: string) {
     currentRotation,
     rotations,
     tasks,
-    pearls,
   ] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
@@ -63,13 +62,27 @@ async function getDashboardData(userId: string) {
       take: 5,
       select: { id: true, text: true, done: true, category: true },
     }),
-    prisma.clinicalPearl.findMany({
+  ])
+
+  // Fetch pearls separately with error handling (table may not exist yet)
+  let pearls: Array<{
+    id: string
+    content: string
+    createdAt: Date
+    rotation: { name: string } | null
+  }> = []
+
+  try {
+    pearls = await prisma.clinicalPearl.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
       take: 3,
       include: { rotation: { select: { name: true } } },
-    }),
-  ])
+    })
+  } catch (error) {
+    // ClinicalPearl table doesn't exist yet - that's okay
+    console.log('ClinicalPearl table not found, skipping pearls widget')
+  }
 
   // Calculate UWorld stats
   const questionsToday = todayLogs.reduce((sum, log) => sum + log.questionsTotal, 0)
