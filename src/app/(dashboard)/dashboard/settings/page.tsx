@@ -37,7 +37,8 @@ export default function SettingsPage() {
   const { data: rotationsData } = useQuery({
     queryKey: ['rotations'],
     queryFn: async () => {
-      const res = await fetch('/api/rotations')
+      const res = await fetch('/api/rotations?includeCounts=true')
+      if (!res.ok) throw new Error('Failed to fetch rotations')
       return res.json()
     },
   })
@@ -59,7 +60,7 @@ export default function SettingsPage() {
     },
   })
 
-  const rotations: Rotation[] = rotationsData?.rotations || []
+  const rotations: Rotation[] = Array.isArray(rotationsData) ? rotationsData : []
 
   return (
     <div className="space-y-6">
