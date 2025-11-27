@@ -55,10 +55,17 @@ export default function SettingsPage() {
 
   const createRotationMutation = useMutation({
     mutationFn: async (data: typeof newRotation) => {
+      // Convert date strings to ISO-8601 DateTime format
+      const formattedData = {
+        ...data,
+        startDate: new Date(data.startDate).toISOString(),
+        endDate: new Date(data.endDate).toISOString(),
+        shelfDate: data.shelfDate ? new Date(data.shelfDate).toISOString() : null,
+      }
       const res = await fetch('/api/rotations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(formattedData),
       })
       if (!res.ok) throw new Error('Failed to create rotation')
       return res.json()
@@ -72,10 +79,12 @@ export default function SettingsPage() {
 
   const updateRotationMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: typeof editRotation }) => {
-      // Convert empty shelfDate to null
+      // Convert date strings to ISO-8601 DateTime format
       const formattedData = {
         ...data,
-        shelfDate: data.shelfDate || null,
+        startDate: new Date(data.startDate).toISOString(),
+        endDate: new Date(data.endDate).toISOString(),
+        shelfDate: data.shelfDate ? new Date(data.shelfDate).toISOString() : null,
       }
       const res = await fetch(`/api/rotations/${id}`, {
         method: 'PATCH',
@@ -271,6 +280,7 @@ export default function SettingsPage() {
               { value: '', label: 'Select rotation...' },
               ...ROTATION_OPTIONS.map((r) => ({ value: r, label: r })),
             ]}
+            required
           />
           <div className="grid grid-cols-2 gap-4">
             <Input
