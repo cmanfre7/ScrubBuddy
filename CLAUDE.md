@@ -104,6 +104,8 @@ scrubbuddy/
 12. **StudyBlock** - Scheduled study sessions
 13. **Resource** - Saved study resources/links
 14. **AIConversation** - AI chat history (future feature)
+15. **CalendarEvent** - Calendar events with Google sync support
+16. **GoogleCalendarSync** - Google Calendar OAuth and sync settings
 
 ### Planned Models (4th Year Features - NOT YET BUILT)
 - **ResidencyProgram** - Programs being considered
@@ -162,6 +164,15 @@ scrubbuddy/
 - Rotation management
 - Profile settings
 
+### Calendar (`/dashboard/calendar`)
+- Month, Week, and Day views
+- Create/edit/delete calendar events
+- Event types: Clinical, Exam, Study, Lecture, Presentation, Meeting, Appointment, Personal
+- All-day and timed events
+- Event reminders (15min, 30min, 1hr, 1day, 1week)
+- Today's Schedule widget on dashboard
+- Database schema ready for Google Calendar sync
+
 ---
 
 ## Planned Features (NOT YET BUILT)
@@ -188,6 +199,14 @@ scrubbuddy/
    - Pre-interview prep notes
    - Post-interview reflections
    - Rank list builder
+
+### Calendar Integration (Pending)
+- **Google Calendar OAuth** - Two-way sync with Google Calendar
+  - OAuth 2.0 setup in Google Cloud Console
+  - Sync direction: both, to Google, or from Google
+  - Select which Google calendars to sync
+  - Conflict resolution preferences
+- **Apple Calendar Sync** - CalDAV integration (future)
 
 ### AI Features (Future)
 - Daily study recommendations
