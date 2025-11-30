@@ -10,15 +10,58 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Handle manual entry (JSON)
-    const body = await request.json()
-    const { totalCorrect, totalIncorrect, notes } = body
+    const contentType = request.headers.get('content-type') || ''
 
-    if (totalCorrect === undefined || totalIncorrect === undefined) {
-      return NextResponse.json(
-        { error: 'totalCorrect and totalIncorrect are required' },
-        { status: 400 }
-      )
+    let totalCorrect: number
+    let totalIncorrect: number
+    let notes: string | undefined
+
+    // Handle PDF upload (FormData)
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await request.formData()
+      const file = formData.get('file') as File
+      notes = (formData.get('notes') as string) || undefined
+
+      if (!file) {
+        return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+      }
+
+      // Convert File to Buffer
+      const arrayBuffer = await file.arrayBuffer()
+      const buffer = Buffer.from(arrayBuffer)
+
+      // Parse PDF using CommonJS require
+      const pdfParse = require('pdf-parse')
+      const pdfData = await pdfParse(buffer)
+      const text = pdfData.text
+
+      // Extract stats from PDF text
+      const correctMatch = text.match(/Total Correct\s+(\d+)/i)
+      const incorrectMatch = text.match(/Total Incorrect\s+(\d+)/i)
+
+      if (!correctMatch || !incorrectMatch) {
+        return NextResponse.json(
+          { error: 'Could not extract stats from PDF. Please ensure it contains "Total Correct" and "Total Incorrect" fields.' },
+          { status: 400 }
+        )
+      }
+
+      totalCorrect = parseInt(correctMatch[1])
+      totalIncorrect = parseInt(incorrectMatch[1])
+    }
+    // Handle manual entry (JSON)
+    else {
+      const body = await request.json()
+      totalCorrect = body.totalCorrect
+      totalIncorrect = body.totalIncorrect
+      notes = body.notes
+
+      if (totalCorrect === undefined || totalIncorrect === undefined) {
+        return NextResponse.json(
+          { error: 'totalCorrect and totalIncorrect are required' },
+          { status: 400 }
+        )
+      }
     }
 
     const totalQuestions = totalCorrect + totalIncorrect
