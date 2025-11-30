@@ -24,18 +24,28 @@ export function PearlsWidget({ pearls }: PearlsWidgetProps) {
   }
 
   return (
-    <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-5 transition-all hover:border-slate-600/50">
-      <div className="flex items-center justify-between mb-4">
-        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Recent Pearls</span>
-        <Link href="/dashboard/clinical-notes?tab=pearls" className="text-xs text-blue-400 hover:text-blue-300">
+    <div
+      className="backdrop-blur-sm rounded-xl p-6 transition-all"
+      style={{
+        backgroundColor: '#111827',
+        border: '1px solid #1e293b'
+      }}
+    >
+      <div className="flex items-center justify-between mb-5">
+        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Recent Pearls</span>
+        <Link href="/dashboard/clinical-notes?tab=pearls" className="text-xs text-blue-400 hover:text-blue-300 font-medium">
           View All →
         </Link>
       </div>
 
       <div className="space-y-3">
         {pearls.length > 0 ? (
-          pearls.map((pearl) => (
-            <div key={pearl.id} className="py-3 border-b border-slate-700/50 last:border-b-0">
+          pearls.map((pearl, index) => (
+            <div
+              key={pearl.id}
+              className="py-3"
+              style={index !== pearls.length - 1 ? { borderBottom: '1px solid #1e293b' } : {}}
+            >
               <div className="text-sm text-slate-200 leading-relaxed mb-2">
                 &ldquo;{pearl.content}&rdquo;
               </div>

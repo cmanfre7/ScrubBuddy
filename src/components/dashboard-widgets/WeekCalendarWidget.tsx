@@ -25,10 +25,16 @@ export function WeekCalendarWidget({ days }: WeekCalendarWidgetProps) {
   }
 
   return (
-    <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-5 transition-all hover:border-slate-600/50">
-      <div className="flex items-center justify-between mb-4">
-        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">This Week</span>
-        <Link href="/dashboard/planner" className="text-xs text-blue-400 hover:text-blue-300">
+    <div
+      className="backdrop-blur-sm rounded-xl p-6 transition-all"
+      style={{
+        backgroundColor: '#111827',
+        border: '1px solid #1e293b'
+      }}
+    >
+      <div className="flex items-center justify-between mb-5">
+        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">This Week</span>
+        <Link href="/dashboard/planner" className="text-xs text-blue-400 hover:text-blue-300 font-medium">
           Open Planner →
         </Link>
       </div>
@@ -37,11 +43,12 @@ export function WeekCalendarWidget({ days }: WeekCalendarWidgetProps) {
         {days.map((day, index) => (
           <li
             key={index}
-            className={`flex gap-4 py-2.5 border-b border-slate-700/50 last:border-b-0 text-sm ${
+            className={`flex gap-4 py-2.5 text-sm ${
               day.isToday
-                ? 'bg-blue-900/10 -mx-5 px-5 border-l-4 border-l-blue-500 border-b-slate-700/50'
+                ? 'bg-blue-900/10 -mx-6 px-6 border-l-4 border-l-blue-500'
                 : ''
             }`}
+            style={index !== days.length - 1 ? { borderBottom: '1px solid #1e293b' } : {}}
           >
             <span
               className={`w-20 flex-shrink-0 ${

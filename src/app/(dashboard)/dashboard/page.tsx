@@ -285,15 +285,15 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-100">
+          <h1 className="text-4xl font-bold text-white mb-2">
             Welcome back{user.name ? `, ${user.name.split(' ')[0]}` : ''}
           </h1>
-          <p className="text-slate-400 mt-1">
+          <p className="text-slate-400 text-lg">
             {data.currentRotation ? (
               <>
-                Currently on <span className="text-blue-400 font-medium">{data.currentRotation.name}</span> ·
+                Currently on <span className="text-blue-400 font-semibold">{data.currentRotation.name}</span> ·
                 Day {rotationCurrentDay} of {rotationTotalDays}
               </>
             ) : (
@@ -313,7 +313,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Countdown Widgets */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {data.currentRotation && (
           <CountdownWidget
             title="Current Rotation"

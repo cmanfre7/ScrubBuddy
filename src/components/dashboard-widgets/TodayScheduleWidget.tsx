@@ -54,15 +54,21 @@ export function TodayScheduleWidget({ events }: TodayScheduleWidgetProps) {
   }
 
   return (
-    <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-lg p-6">
-      <div className="flex items-center justify-between mb-4">
+    <div
+      className="backdrop-blur-sm rounded-xl p-6"
+      style={{
+        backgroundColor: '#111827',
+        border: '1px solid #1e293b'
+      }}
+    >
+      <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2">
           <Calendar size={20} className="text-blue-400" />
-          <h2 className="text-lg font-semibold text-slate-100">Today's Schedule</h2>
+          <h2 className="text-lg font-semibold text-white">Today's Schedule</h2>
         </div>
         <Link
           href="/dashboard/calendar"
-          className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+          className="text-xs text-blue-400 hover:text-blue-300 transition-colors font-medium"
         >
           View Calendar
         </Link>

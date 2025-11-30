@@ -11,15 +11,25 @@ interface WeakAreasWidgetProps {
 
 export function WeakAreasWidget({ weakAreas }: WeakAreasWidgetProps) {
   return (
-    <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-5 transition-all hover:border-slate-600/50">
-      <div className="mb-4">
-        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Weak Areas to Review</span>
+    <div
+      className="backdrop-blur-sm rounded-xl p-6 transition-all"
+      style={{
+        backgroundColor: '#111827',
+        border: '1px solid #1e293b'
+      }}
+    >
+      <div className="mb-5">
+        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Weak Areas to Review</span>
       </div>
 
       <div className="space-y-3">
         {weakAreas.length > 0 ? (
           weakAreas.map((area, index) => (
-            <div key={index} className="flex items-center gap-3 py-2 border-b border-slate-700/50 last:border-b-0">
+            <div
+              key={index}
+              className="flex items-center gap-3 py-2"
+              style={index !== weakAreas.length - 1 ? { borderBottom: '1px solid #1e293b' } : {}}
+            >
               <span className="flex-1 text-sm text-slate-300">{area.name}</span>
               <div className="w-24 h-1.5 bg-slate-700/50 rounded-full overflow-hidden">
                 <div
@@ -41,7 +51,11 @@ export function WeakAreasWidget({ weakAreas }: WeakAreasWidgetProps) {
 
       <Link
         href="/dashboard/uworld?tab=incorrects"
-        className="block w-full mt-4 py-2.5 bg-slate-700/30 border border-slate-600/30 rounded-lg text-center text-sm font-medium text-blue-400 hover:bg-blue-900/10 hover:border-blue-500/50 transition-all"
+        className="block w-full mt-4 py-2.5 rounded-lg text-center text-sm font-medium text-blue-400 hover:bg-blue-900/10 transition-all"
+        style={{
+          backgroundColor: '#1a2332',
+          border: '1px solid #1e293b'
+        }}
       >
         Review These Topics →
       </Link>

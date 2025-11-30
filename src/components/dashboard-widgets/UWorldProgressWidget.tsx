@@ -30,10 +30,16 @@ export function UWorldProgressWidget({
   const weekPercentage = weekQuestions > 0 ? Math.round((weekCorrect / weekQuestions) * 100) : 0
 
   return (
-    <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-5 transition-all hover:border-slate-600/50">
-      <div className="flex items-center justify-between mb-4">
-        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">UWorld Progress</span>
-        <Link href="/dashboard/uworld" className="text-xs text-blue-400 hover:text-blue-300">
+    <div
+      className="backdrop-blur-sm rounded-xl p-6 transition-all"
+      style={{
+        backgroundColor: '#111827',
+        border: '1px solid #1e293b'
+      }}
+    >
+      <div className="flex items-center justify-between mb-5">
+        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">UWorld Progress</span>
+        <Link href="/dashboard/uworld" className="text-xs text-blue-400 hover:text-blue-300 font-medium">
           View Details →
         </Link>
       </div>
@@ -77,25 +83,25 @@ export function UWorldProgressWidget({
 
         {/* Stats */}
         <div className="flex-1 space-y-2">
-          <div className="flex justify-between items-center py-2 border-b border-slate-700/50">
-            <span className="text-sm text-slate-500">Questions Done</span>
+          <div className="flex justify-between items-center py-2" style={{ borderBottom: '1px solid #1e293b' }}>
+            <span className="text-sm text-slate-400">Questions Done</span>
             <span className="text-sm font-semibold text-blue-400">
               {questionsDone.toLocaleString()} / {totalQuestions.toLocaleString()}
             </span>
           </div>
-          <div className="flex justify-between items-center py-2 border-b border-slate-700/50">
-            <span className="text-sm text-slate-500">Overall Correct</span>
+          <div className="flex justify-between items-center py-2" style={{ borderBottom: '1px solid #1e293b' }}>
+            <span className="text-sm text-slate-400">Overall Correct</span>
             <span className="text-sm font-semibold text-green-400">{overallCorrect}%</span>
           </div>
-          <div className="flex justify-between items-center py-2 border-b border-slate-700/50">
-            <span className="text-sm text-slate-500">Today</span>
-            <span className="text-sm font-semibold">
+          <div className="flex justify-between items-center py-2" style={{ borderBottom: '1px solid #1e293b' }}>
+            <span className="text-sm text-slate-400">Today</span>
+            <span className="text-sm font-semibold text-slate-200">
               {todayQuestions} Qs · <span className="text-green-400">{todayPercentage}%</span>
             </span>
           </div>
           <div className="flex justify-between items-center py-2">
-            <span className="text-sm text-slate-500">This Week</span>
-            <span className="text-sm font-semibold">
+            <span className="text-sm text-slate-400">This Week</span>
+            <span className="text-sm font-semibold text-slate-200">
               {weekQuestions} Qs · {weekPercentage}% avg
             </span>
           </div>

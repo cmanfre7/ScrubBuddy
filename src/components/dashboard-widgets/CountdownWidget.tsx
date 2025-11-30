@@ -32,10 +32,16 @@ export function CountdownWidget({
   const isUrgent = daysLeft !== undefined && daysLeft <= 30
 
   const content = (
-    <div className={`bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-5 transition-all hover:border-slate-600/50 ${href ? 'cursor-pointer' : ''}`}>
+    <div
+      className={`backdrop-blur-sm rounded-xl p-6 transition-all ${href ? 'cursor-pointer hover:border-slate-600' : ''}`}
+      style={{
+        backgroundColor: '#111827',
+        border: '1px solid #1e293b'
+      }}
+    >
       <div className="flex items-center justify-between mb-4">
-        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{title}</span>
-        <div className={`w-8 h-8 rounded-lg ${iconBgColor} flex items-center justify-center text-sm`}>
+        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">{title}</span>
+        <div className={`w-9 h-9 rounded-lg ${iconBgColor} flex items-center justify-center`}>
           {icon}
         </div>
       </div>
@@ -58,18 +64,18 @@ export function CountdownWidget({
         </>
       ) : (
         <>
-          <div className={`text-3xl font-bold mb-1 ${isUrgent ? 'text-amber-400' : 'text-blue-400'}`}>
+          <div className={`text-4xl font-bold mb-1 ${isUrgent ? 'text-amber-400' : 'text-blue-400'}`}>
             {daysLeft ?? 0}
           </div>
-          <div className="text-xs text-slate-500 mb-1">days remaining</div>
+          <div className="text-xs text-slate-400 mb-1">days remaining</div>
           {examDate && (
-            <div className="text-sm text-slate-400 mb-3">{examDate}</div>
+            <div className="text-sm text-slate-300 mb-3">{examDate}</div>
           )}
           {predicted && (
-            <div className="mt-3 pt-3 border-t border-slate-700/50 text-sm">
-              <span className="text-slate-500">{predictedLabel} </span>
+            <div className="mt-3 pt-3 text-sm" style={{ borderTop: '1px solid #1e293b' }}>
+              <span className="text-slate-400">{predictedLabel} </span>
               <span className="text-blue-400 font-semibold">{predicted}</span>
-              {target && <span className="text-slate-500"> / Target: {target}</span>}
+              {target && <span className="text-slate-400"> / Target: {target}</span>}
             </div>
           )}
         </>

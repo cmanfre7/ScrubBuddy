@@ -51,13 +51,17 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        'fixed left-0 top-0 z-40 h-screen bg-slate-900 border-r border-slate-800 transition-all duration-300',
+        'fixed left-0 top-0 z-40 h-screen border-r transition-all duration-300',
         collapsed ? 'w-16' : 'w-64'
       )}
+      style={{
+        backgroundColor: '#0f1419',
+        borderRightColor: '#1e293b'
+      }}
     >
       <div className="flex flex-col h-full">
         {/* Logo */}
-        <div className="flex items-center justify-between h-16 px-4 border-b border-slate-800">
+        <div className="flex items-center justify-between h-16 px-4 border-b" style={{ borderBottomColor: '#1e293b' }}>
           {!collapsed && (
             <Link href="/dashboard" className="flex items-center gap-2">
               <Image
@@ -112,8 +116,8 @@ export function Sidebar() {
 
         {/* Quick Links */}
         {!collapsed && (
-          <div className="px-2 py-3 border-t border-slate-800">
-            <p className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+          <div className="px-2 py-3 border-t" style={{ borderTopColor: '#1e293b' }}>
+            <p className="px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
               Quick Links
             </p>
             <div className="space-y-0.5">
@@ -134,7 +138,7 @@ export function Sidebar() {
         )}
 
         {/* User & Settings */}
-        <div className="border-t border-slate-800 p-2 space-y-1">
+        <div className="border-t p-2 space-y-1" style={{ borderTopColor: '#1e293b' }}>
           <Link
             href="/dashboard/settings"
             className={cn(
@@ -156,7 +160,7 @@ export function Sidebar() {
 
         {/* User Info */}
         {!collapsed && session?.user && (
-          <div className="p-4 border-t border-slate-800">
+          <div className="p-4 border-t" style={{ borderTopColor: '#1e293b' }}>
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
                 <span className="text-white text-sm font-medium">

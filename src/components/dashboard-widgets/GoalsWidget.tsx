@@ -49,20 +49,27 @@ export function GoalsWidget({ initialGoals }: GoalsWidgetProps) {
   }
 
   return (
-    <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-5 transition-all hover:border-slate-600/50">
-      <div className="flex items-center justify-between mb-4">
-        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Today&apos;s Goals</span>
-        <span className="text-xs text-slate-500">
+    <div
+      className="backdrop-blur-sm rounded-xl p-6 transition-all"
+      style={{
+        backgroundColor: '#111827',
+        border: '1px solid #1e293b'
+      }}
+    >
+      <div className="flex items-center justify-between mb-5">
+        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Today&apos;s Goals</span>
+        <span className="text-xs text-slate-400">
           {completedCount}/{goals.length} complete
         </span>
       </div>
 
       <ul className="space-y-0">
-        {goals.map((goal) => (
+        {goals.map((goal, index) => (
           <li
             key={goal.id}
             onClick={() => toggleGoal(goal.id)}
-            className="flex items-center gap-3 py-2.5 border-b border-slate-700/50 last:border-b-0 cursor-pointer hover:bg-slate-700/20 -mx-5 px-5 transition-colors"
+            className="flex items-center gap-3 py-2.5 cursor-pointer hover:bg-slate-700/20 -mx-6 px-6 transition-colors"
+            style={index !== goals.length - 1 ? { borderBottom: '1px solid #1e293b' } : {}}
           >
             <div
               className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ${
@@ -89,7 +96,8 @@ export function GoalsWidget({ initialGoals }: GoalsWidgetProps) {
 
       <Link
         href="/dashboard/tasks"
-        className="flex items-center gap-2 mt-3 pt-3 text-sm text-blue-400 hover:text-blue-300"
+        className="flex items-center gap-2 mt-4 pt-4 text-sm text-blue-400 hover:text-blue-300 font-medium"
+        style={{ borderTop: '1px solid #1e293b' }}
       >
         + Add goal
       </Link>

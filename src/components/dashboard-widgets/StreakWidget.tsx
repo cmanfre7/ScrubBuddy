@@ -24,17 +24,23 @@ export function StreakWidget({ currentStreak, last28Days }: StreakWidgetProps) {
   }
 
   return (
-    <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-5 transition-all hover:border-slate-600/50">
-      <div className="mb-4">
-        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Study Streak</span>
+    <div
+      className="backdrop-blur-sm rounded-xl p-6 transition-all"
+      style={{
+        backgroundColor: '#111827',
+        border: '1px solid #1e293b'
+      }}
+    >
+      <div className="mb-5">
+        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Study Streak</span>
       </div>
 
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl">🔥</span>
-          <span className="text-4xl font-bold text-amber-400">{currentStreak}</span>
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-3">
+          <span className="text-3xl">🔥</span>
+          <span className="text-5xl font-bold text-amber-400">{currentStreak}</span>
         </div>
-        <span className="text-xs text-slate-500">day streak!</span>
+        <span className="text-sm text-slate-400">day streak!</span>
       </div>
 
       <div className="grid grid-cols-7 gap-1 mb-1">

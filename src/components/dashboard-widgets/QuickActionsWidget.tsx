@@ -49,9 +49,15 @@ export function QuickActionsWidget() {
   ]
 
   return (
-    <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-5 transition-all hover:border-slate-600/50">
-      <div className="mb-4">
-        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Quick Actions</span>
+    <div
+      className="backdrop-blur-sm rounded-xl p-6 transition-all"
+      style={{
+        backgroundColor: '#111827',
+        border: '1px solid #1e293b'
+      }}
+    >
+      <div className="mb-5">
+        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Quick Actions</span>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
@@ -59,7 +65,11 @@ export function QuickActionsWidget() {
           <Link
             key={index}
             href={action.href}
-            className="flex flex-col items-center gap-2 p-3 bg-slate-700/30 border border-slate-600/30 rounded-lg hover:border-blue-500/50 hover:bg-blue-900/10 transition-all"
+            className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-blue-900/10 transition-all"
+            style={{
+              backgroundColor: '#1a2332',
+              border: '1px solid #1e293b'
+            }}
           >
             <div className={`w-10 h-10 rounded-lg ${action.bgColor} flex items-center justify-center text-slate-300`}>
               {action.icon}

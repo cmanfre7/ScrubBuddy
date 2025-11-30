@@ -17,7 +17,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   return (
     <SessionProvider>
       <QueryProvider>
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <div className="min-h-screen" style={{ backgroundColor: '#0a0f1a' }}>
           <Sidebar />
           <main className="pl-64 min-h-screen">
             <div className="p-8">{children}</div>
