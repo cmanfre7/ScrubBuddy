@@ -33,6 +33,7 @@ export function ExamDateButtons({ step2Date, comlexDate, rotations }: ExamDateBu
   const [shelfFormData, setShelfFormData] = useState({
     rotationId: '',
     shelfDate: '',
+    shelfTarget: '',
   })
 
   const handleSaveBoardDates = async () => {
@@ -64,12 +65,13 @@ export function ExamDateButtons({ step2Date, comlexDate, rotations }: ExamDateBu
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           shelfDate: new Date(shelfFormData.shelfDate).toISOString(),
+          shelfTarget: shelfFormData.shelfTarget ? parseInt(shelfFormData.shelfTarget) : null,
         }),
       })
 
       if (res.ok) {
         setShowShelfModal(false)
-        setShelfFormData({ rotationId: '', shelfDate: '' })
+        setShelfFormData({ rotationId: '', shelfDate: '', shelfTarget: '' })
         router.refresh()
       }
     } catch (error) {
@@ -166,6 +168,21 @@ export function ExamDateButtons({ step2Date, comlexDate, rotations }: ExamDateBu
                 value={shelfFormData.shelfDate}
                 onChange={(e) => setShelfFormData({ ...shelfFormData, shelfDate: e.target.value })}
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Target Score (optional)
+              </label>
+              <Input
+                type="number"
+                value={shelfFormData.shelfTarget}
+                onChange={(e) => setShelfFormData({ ...shelfFormData, shelfTarget: e.target.value })}
+                placeholder="e.g., 75"
+                min="0"
+                max="100"
+              />
+              <p className="text-xs text-slate-500 mt-1">Your goal percentage for this shelf exam</p>
             </div>
 
             <div className="flex gap-3 pt-4">

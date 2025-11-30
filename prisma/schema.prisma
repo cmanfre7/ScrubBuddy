@@ -58,6 +58,7 @@ model Rotation {
   startDate   DateTime
   endDate     DateTime
   shelfDate   DateTime?
+  shelfTarget Int?      // Target score for shelf exam (e.g., 75)
   isCurrent   Boolean   @default(false)
 
   // Relations
