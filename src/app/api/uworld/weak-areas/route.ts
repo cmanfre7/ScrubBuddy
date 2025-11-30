@@ -35,6 +35,7 @@ export async function GET() {
     }
 
     // Calculate averages and sort by count
+    // Return ALL weak areas - client-side filters by subject
     const weakAreas = Object.entries(topicCounts)
       .map(([topic, data]) => ({
         topic,
@@ -44,7 +45,6 @@ export async function GET() {
         avgPercentOthers: Math.round(data.avgPercentOthers / data.count),
       }))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 10) // Top 10 weak areas
 
     // Group by system for summary
     const systemCounts: Record<string, number> = {}
