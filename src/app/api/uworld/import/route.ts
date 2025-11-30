@@ -174,16 +174,19 @@ export async function POST(request: NextRequest) {
         console.log('Parsing PDF with pdfjs-dist (legacy)...')
         const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs')
 
-        // Disable worker (not needed in Node.js server environment)
-        pdfjsLib.GlobalWorkerOptions.workerSrc = ''
+        // Set a fake worker source to prevent the "no workerSrc" error
+        // Then disable the worker in document options
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'data:,'
 
         // Load the PDF document with worker disabled
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const loadingTask = pdfjsLib.getDocument({
           data: uint8Array,
+          disableWorker: true,
           useWorkerFetch: false,
           isEvalSupported: false,
           useSystemFonts: true,
-        })
+        } as any)
         const pdf = await loadingTask.promise
 
         // Extract text from all pages
