@@ -282,11 +282,19 @@ model UWorldIncorrect {
   userId        String
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  questionId    String?   // Optional UWorld question ID
-  topic         String
-  concept       String?
+  questionId    String?   // Optional UWorld question ID (e.g., "104520")
+  topic         String    // Topic from PDF (e.g., "Hypovolemic shock")
+  concept       String?   // Optional additional concept
   whyWrong      String?   // "Misread", "Didn't Know", "Second-guessed", "Silly Mistake"
   learningPoint String?   @db.Text
+
+  // New fields from PDF import
+  subject       String?   // Subject (e.g., "Surgery", "Medicine")
+  system        String?   // System (e.g., "Hematology & Oncology", "Pulmonary & Critical Care")
+  category      String?   // Category (e.g., "Hemostasis and thrombosis", "Critical care and trauma medicine")
+  percentOthers Int?      // % of others who got it correct
+  timeSpent     Int?      // Time spent in seconds
+  testName      String?   // Test name for grouping (e.g., "18 - Surgery")
 
   status        String    @default("needs_review") // "needs_review", "reviewed", "mastered"
   reviewCount   Int       @default(0)
@@ -299,8 +307,11 @@ model UWorldIncorrect {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
+  @@unique([userId, questionId]) // Prevent duplicate questions per user
   @@index([userId])
   @@index([status])
+  @@index([subject])
+  @@index([system])
 }
 
 model ShelfScore {

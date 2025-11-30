@@ -9,7 +9,7 @@ import { Modal } from '@/components/ui/modal'
 import { Select } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { formatDate, calculatePercentage, cn } from '@/lib/utils'
-import { Plus, ArrowLeft, BookOpen, TrendingUp, Calendar, Clock, Trash2, Upload, Pencil, Settings } from 'lucide-react'
+import { Plus, ArrowLeft, BookOpen, TrendingUp, Calendar, Clock, Trash2, Upload, Pencil, Settings, AlertTriangle } from 'lucide-react'
 import { ImportModal } from '@/components/uworld/ImportModal'
 import { LogSessionModal } from '@/components/uworld/LogSessionModal'
 import { EditSessionModal } from '@/components/uworld/EditSessionModal'
@@ -132,6 +132,15 @@ export default function UWorldPage() {
     queryKey: ['uworld-settings'],
     queryFn: async () => {
       const res = await fetch('/api/uworld/settings')
+      return res.json()
+    },
+  })
+
+  // Fetch weak areas data
+  const { data: weakAreasData } = useQuery({
+    queryKey: ['uworld-weak-areas'],
+    queryFn: async () => {
+      const res = await fetch('/api/uworld/weak-areas')
       return res.json()
     },
   })
@@ -301,11 +310,65 @@ export default function UWorldPage() {
           })}
         </div>
 
+        {/* Weak Areas to Review */}
+        {weakAreasData?.weakAreas && weakAreasData.weakAreas.length > 0 && (
+          <Card className="bg-slate-800/50 border-slate-700/50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-red-400">
+                <AlertTriangle className="w-5 h-5" />
+                Weak Areas to Review
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {weakAreasData.weakAreas.slice(0, 8).map((area: { topic: string; count: number; system: string | null; subject: string | null; avgPercentOthers: number }, index: number) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg border border-slate-700/30"
+                  >
+                    <div className="flex-1">
+                      <p className="text-slate-200 font-medium">{area.topic}</p>
+                      <div className="flex gap-2 mt-1">
+                        {area.subject && (
+                          <Badge variant="info" className="text-xs">
+                            {area.subject}
+                          </Badge>
+                        )}
+                        {area.system && (
+                          <span className="text-xs text-slate-500">{area.system}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <p className="text-red-400 font-bold">{area.count}x</p>
+                        <p className="text-xs text-slate-500">missed</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-slate-400">{area.avgPercentOthers}%</p>
+                        <p className="text-xs text-slate-500">others correct</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {weakAreasData.totalIncorrects > 0 && (
+                <p className="text-slate-500 text-sm mt-4 text-center">
+                  {weakAreasData.totalIncorrects} total incorrect questions tracked
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Import Modal */}
         <ImportModal
           isOpen={isImportModalOpen}
           onClose={() => setIsImportModalOpen(false)}
-          onSuccess={() => queryClient.invalidateQueries({ queryKey: ['uworld'] })}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ['uworld'] })
+            queryClient.invalidateQueries({ queryKey: ['uworld-weak-areas'] })
+          }}
         />
       </div>
     )

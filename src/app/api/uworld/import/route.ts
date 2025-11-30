@@ -3,28 +3,151 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 
+// Interface for parsed question data
+interface ParsedQuestion {
+  isCorrect: boolean
+  questionId: string
+  subject: string
+  system: string
+  category: string
+  topic: string
+  percentOthers: number
+  timeSpent: number
+}
+
+// Parse question-level data from Test Results tab
+function parseQuestionRows(text: string): ParsedQuestion[] {
+  const questions: ParsedQuestion[] = []
+
+  // Pattern to match question rows: × or ✓ followed by row number, questionId, and data
+  // Example: × 1 - 104520 Surgery Hematology & Oncology Hemostasis and thrombosis Hypovolemic shock 37% 31 sec 99 sec
+  // or: ✓ 5 - 103312 Surgery Gastrointestinal & Nutrition Intestinal and colorectal disorders Rectal prolapse 72% 34 sec 73 sec
+
+  // Split text into lines and look for question rows
+  const lines = text.split('\n')
+
+  for (const line of lines) {
+    // Match pattern: (×|✓) number - questionId ... percent% time sec avgtime sec
+    const match = line.match(/^([×✓])\s*(\d+)\s*-\s*(\d+)\s+(.+?)\s+(\d+)%\s+(\d+)\s*sec\s+\d+\s*sec/)
+
+    if (match) {
+      const isCorrect = match[1] === '✓'
+      const questionId = match[3]
+      const middlePart = match[4].trim()
+      const percentOthers = parseInt(match[5])
+      const timeSpent = parseInt(match[6])
+
+      // Parse the middle part: Subject System Category Topic
+      // Known subjects: Surgery, Medicine, Psychiatry, Pediatrics, OBGYN
+      // Systems often contain & (like "Hematology & Oncology", "Pulmonary & Critical Care")
+
+      // Strategy: First word is usually Subject, last words are Topic, middle is System + Category
+      const words = middlePart.split(/\s+/)
+
+      if (words.length >= 4) {
+        const subject = words[0]
+
+        // Find where the system/category boundary might be
+        // Common systems: "Hematology & Oncology", "Pulmonary & Critical Care", "Gastrointestinal & Nutrition", "Ophthalmology"
+        let systemEndIndex = 1
+
+        // Look for common system patterns
+        for (let i = 1; i < words.length - 2; i++) {
+          if (words[i] === '&' && i + 1 < words.length - 2) {
+            systemEndIndex = i + 2 // Include the word after &
+            break
+          } else if (['Ophthalmology', 'Dermatology', 'Neurology', 'Cardiology', 'Immunology'].includes(words[i])) {
+            systemEndIndex = i + 1
+            break
+          }
+        }
+
+        // If no & found, assume second word is system
+        if (systemEndIndex === 1) {
+          systemEndIndex = 2
+        }
+
+        const system = words.slice(1, systemEndIndex).join(' ')
+
+        // Everything after system until the last 1-3 words is category + topic
+        // Topic is usually the last 1-3 words
+        const remaining = words.slice(systemEndIndex)
+
+        // Heuristic: category is often longer, topic is shorter (1-3 words)
+        // Look for natural breaks or just split roughly
+        let categoryEndIndex = Math.max(1, remaining.length - 2)
+
+        const category = remaining.slice(0, categoryEndIndex).join(' ')
+        const topic = remaining.slice(categoryEndIndex).join(' ')
+
+        questions.push({
+          isCorrect,
+          questionId,
+          subject,
+          system,
+          category: category || topic, // fallback if parsing is off
+          topic: topic || category,
+          percentOthers,
+          timeSpent
+        })
+      }
+    }
+  }
+
+  console.log(`Parsed ${questions.length} question rows from PDF`)
+  return questions
+}
+
 // Helper function to parse test performance PDFs with subject breakdown
 async function handleTestPdf(userId: string, text: string, notes?: string) {
   try {
-    // Extract test name and ID
-    const testIdMatch = text.match(/TestId\s*:\s*(.+)/i)
-    const testName = testIdMatch ? testIdMatch[1].trim() : 'Unknown Test'
+    // Extract test name - try multiple patterns
+    let testName = 'Unknown Test'
 
-    // Extract overall stats
-    const correctMatch = text.match(/Total Correct\s+(\d+)/i)
-    const incorrectMatch = text.match(/Total Incorrect\s+(\d+)/i)
-    const omittedMatch = text.match(/Total Omitted\s+(\d+)/i)
-
-    if (!correctMatch || !incorrectMatch) {
-      return NextResponse.json(
-        { error: 'Could not extract test stats from PDF.' },
-        { status: 400 }
-      )
+    // Try "Test Name: X" pattern first
+    const testNameMatch = text.match(/Test\s*Name\s*[:.]?\s*(\d+)/i)
+    if (testNameMatch) {
+      testName = `Test ${testNameMatch[1]}`
     }
 
-    const totalCorrect = parseInt(correctMatch[1])
-    const totalIncorrect = parseInt(incorrectMatch[1])
-    const totalOmitted = omittedMatch ? parseInt(omittedMatch[1]) : 0
+    // Also try CustomTestId pattern
+    const testIdMatch = text.match(/Custom\s*Test\s*Id\s*[:.]?\s*(\d+)/i)
+    if (testIdMatch && testName === 'Unknown Test') {
+      testName = testIdMatch[1]
+    }
+
+    // Parse question-level data for incorrect tracking
+    const parsedQuestions = parseQuestionRows(text)
+    const incorrectQuestions = parsedQuestions.filter(q => !q.isCorrect)
+
+    console.log(`Found ${incorrectQuestions.length} incorrect questions to save`)
+
+    // Calculate stats from parsed questions if available, otherwise use regex
+    let totalCorrect: number
+    let totalIncorrect: number
+    let totalOmitted = 0
+
+    if (parsedQuestions.length > 0) {
+      totalCorrect = parsedQuestions.filter(q => q.isCorrect).length
+      totalIncorrect = parsedQuestions.filter(q => !q.isCorrect).length
+    } else {
+      // Fallback to regex extraction
+      const correctMatch = text.match(/Total Correct\s+(\d+)/i)
+      const incorrectMatch = text.match(/Total Incorrect\s+(\d+)/i)
+      const omittedMatch = text.match(/Total Omitted\s+(\d+)/i)
+
+      if (!correctMatch || !incorrectMatch) {
+        return NextResponse.json(
+          { error: 'Could not extract test stats from PDF.' },
+          { status: 400 }
+        )
+      }
+
+      totalCorrect = parseInt(correctMatch[1])
+      totalIncorrect = parseInt(incorrectMatch[1])
+      totalOmitted = omittedMatch ? parseInt(omittedMatch[1]) : 0
+    }
+
     const totalQuestions = totalCorrect + totalIncorrect + totalOmitted
     const percentCorrect = Math.round((totalCorrect / (totalCorrect + totalIncorrect)) * 100)
 
@@ -163,6 +286,59 @@ async function handleTestPdf(userId: string, text: string, notes?: string) {
       },
     })
 
+    // Save incorrect questions for weak areas tracking
+    let savedIncorrects = 0
+    if (incorrectQuestions.length > 0) {
+      for (const q of incorrectQuestions) {
+        try {
+          // Check if question already exists
+          const existing = await prisma.uWorldIncorrect.findFirst({
+            where: {
+              userId,
+              questionId: q.questionId
+            }
+          })
+
+          if (existing) {
+            // Update existing record
+            await prisma.uWorldIncorrect.update({
+              where: { id: existing.id },
+              data: {
+                topic: q.topic,
+                subject: q.subject,
+                system: q.system,
+                category: q.category,
+                percentOthers: q.percentOthers,
+                timeSpent: q.timeSpent,
+                testName,
+                status: 'needs_review',
+              }
+            })
+          } else {
+            // Create new record
+            await prisma.uWorldIncorrect.create({
+              data: {
+                userId,
+                questionId: q.questionId,
+                topic: q.topic,
+                subject: q.subject,
+                system: q.system,
+                category: q.category,
+                percentOthers: q.percentOthers,
+                timeSpent: q.timeSpent,
+                testName,
+                status: 'needs_review',
+              }
+            })
+          }
+          savedIncorrects++
+        } catch (err) {
+          console.error(`Failed to save incorrect question ${q.questionId}:`, err)
+        }
+      }
+      console.log(`Saved ${savedIncorrects} incorrect questions for weak areas`)
+    }
+
     return NextResponse.json({
       success: true,
       type: 'test',
@@ -173,7 +349,8 @@ async function handleTestPdf(userId: string, text: string, notes?: string) {
         totalIncorrect,
         totalQuestions,
         percentCorrect,
-        subjectsCount: subjects.length
+        subjectsCount: subjects.length,
+        incorrectsSaved: savedIncorrects
       }
     })
   } catch (error) {
