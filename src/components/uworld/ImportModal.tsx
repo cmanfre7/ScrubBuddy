@@ -5,7 +5,7 @@ import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { AlertCircle, Upload } from 'lucide-react'
+import { AlertCircle, Upload, ClipboardPaste } from 'lucide-react'
 
 interface ImportModalProps {
   isOpen: boolean
@@ -14,7 +14,7 @@ interface ImportModalProps {
 }
 
 export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
-  const [activeTab, setActiveTab] = useState<'manual' | 'pdf'>('manual')
+  const [activeTab, setActiveTab] = useState<'manual' | 'pdf' | 'paste'>('paste')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
@@ -27,6 +27,12 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
   // PDF upload state
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isDragging, setIsDragging] = useState(false)
+
+  // Paste text state
+  const [testName, setTestName] = useState('')
+  const [pasteText, setPasteText] = useState('')
+  const [pasteTotalQuestions, setPasteTotalQuestions] = useState('')
+  const [isIncorrectOnly, setIsIncorrectOnly] = useState(true)
 
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -146,6 +152,63 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
     }
   }
 
+  const handlePasteSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!testName.trim() || !pasteText.trim()) {
+      setError('Please enter a test name and paste the table data')
+      return
+    }
+
+    setError(null)
+    setSuccess(null)
+    setIsLoading(true)
+
+    try {
+      const res = await fetch('/api/uworld/import-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          testName: testName.trim(),
+          text: pasteText.trim(),
+          totalQuestions: pasteTotalQuestions ? parseInt(pasteTotalQuestions) : undefined,
+          isIncorrectOnly,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to import data')
+      }
+
+      const stats = data.stats
+      setSuccess(
+        `Successfully imported ${stats.questionsSaved} incorrect questions from "${stats.testName}"! ` +
+        (stats.totalQuestions > 0
+          ? `Test score: ${stats.totalCorrect}/${stats.totalQuestions} (${stats.percentCorrect}%)`
+          : `Subjects: ${stats.subjects.slice(0, 3).join(', ')}${stats.subjects.length > 3 ? '...' : ''}`)
+      )
+      setTimeout(() => {
+        onSuccess()
+        onClose()
+      }, 2000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Count lines in pasted text (excluding empty and header lines)
+  const pasteLineCount = pasteText.trim()
+    .split('\n')
+    .filter(line => {
+      const trimmed = line.trim()
+      if (!trimmed) return false
+      if (trimmed.includes('SUBJECTS') || trimmed.includes('SYSTEMS')) return false
+      return /\d+\s*[-–]\s*\d{5,}/.test(trimmed) // Has question ID pattern
+    }).length
+
   const totalQuestions =
     totalCorrect && totalIncorrect
       ? parseInt(totalCorrect) + parseInt(totalIncorrect)
@@ -161,14 +224,14 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
       <div className="flex gap-2 mb-6 border-b border-slate-700">
         <button
           type="button"
-          onClick={() => setActiveTab('manual')}
+          onClick={() => setActiveTab('paste')}
           className={`px-4 py-2 font-medium transition-colors ${
-            activeTab === 'manual'
+            activeTab === 'paste'
               ? 'text-blue-400 border-b-2 border-blue-400'
               : 'text-slate-400 hover:text-slate-300'
           }`}
         >
-          Manual Entry
+          Paste Text
         </button>
         <button
           type="button"
@@ -180,6 +243,17 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
           }`}
         >
           Upload PDF
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('manual')}
+          className={`px-4 py-2 font-medium transition-colors ${
+            activeTab === 'manual'
+              ? 'text-blue-400 border-b-2 border-blue-400'
+              : 'text-slate-400 hover:text-slate-300'
+          }`}
+        >
+          Manual Entry
         </button>
       </div>
 
@@ -194,6 +268,111 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
         <div className="bg-green-900/30 border border-green-700/50 text-green-400 p-3 rounded-lg text-sm mb-4">
           {success}
         </div>
+      )}
+
+      {/* Paste Text Tab */}
+      {activeTab === 'paste' && (
+        <form onSubmit={handlePasteSubmit} className="space-y-4">
+          <div className="bg-blue-900/20 border border-blue-700/30 p-3 rounded-lg text-xs text-blue-300">
+            <p className="font-medium mb-1">Copy table data from UWorld:</p>
+            <p className="text-blue-400">
+              1. Filter your test results by Incorrect questions<br />
+              2. Select all rows in the table and copy (Cmd+C)<br />
+              3. Paste the data below
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Test Name
+            </label>
+            <Input
+              type="text"
+              value={testName}
+              onChange={(e) => setTestName(e.target.value)}
+              placeholder="e.g., Surgery Test 1"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Paste Table Data
+            </label>
+            <Textarea
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              placeholder="Paste the copied table rows here...&#10;&#10;Example:&#10;1 - 118154&#9;OBGYN&#9;Pregnancy&#9;Normal&#9;Topic Name&#9;52%&#9;45 sec"
+              rows={6}
+              className="font-mono text-xs"
+              required
+            />
+            {pasteLineCount > 0 && (
+              <p className="text-xs text-slate-500 mt-1">
+                Detected {pasteLineCount} question{pasteLineCount !== 1 ? 's' : ''}
+              </p>
+            )}
+          </div>
+
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isIncorrectOnly}
+                onChange={(e) => setIsIncorrectOnly(e.target.checked)}
+                className="rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500"
+              />
+              Only pasting incorrect questions
+            </label>
+          </div>
+
+          {isIncorrectOnly && (
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Total Questions on Test (optional)
+              </label>
+              <Input
+                type="number"
+                value={pasteTotalQuestions}
+                onChange={(e) => setPasteTotalQuestions(e.target.value)}
+                placeholder="e.g., 40"
+                min="1"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Enter total test size to calculate your score
+              </p>
+            </div>
+          )}
+
+          {isIncorrectOnly && pasteTotalQuestions && pasteLineCount > 0 && (
+            <div
+              className="p-3 rounded-lg"
+              style={{ backgroundColor: '#111827', border: '1px solid #1e293b' }}
+            >
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-400">Questions Correct:</span>
+                <span className="font-semibold text-green-400">
+                  {parseInt(pasteTotalQuestions) - pasteLineCount} / {pasteTotalQuestions}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm mt-1">
+                <span className="text-slate-400">Estimated Score:</span>
+                <span className="font-semibold text-blue-400">
+                  {Math.round(((parseInt(pasteTotalQuestions) - pasteLineCount) / parseInt(pasteTotalQuestions)) * 100)}%
+                </span>
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-3 justify-end pt-4">
+            <Button variant="secondary" onClick={onClose} disabled={isLoading}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isLoading || !testName.trim() || !pasteText.trim()}>
+              {isLoading ? 'Importing...' : 'Import Questions'}
+            </Button>
+          </div>
+        </form>
       )}
 
       {/* Manual Entry Tab */}
