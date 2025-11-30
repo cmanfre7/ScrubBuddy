@@ -20,6 +20,17 @@ interface CalendarEvent {
   reminderMins: number[]
 }
 
+// Format a Date as a local datetime-local string (YYYY-MM-DDTHH:mm)
+// This is needed because datetime-local inputs expect LOCAL time, not UTC
+function toDatetimeLocalString(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day}T${hours}:${minutes}`
+}
+
 interface EventModalProps {
   event: CalendarEvent | null
   initialDate: Date | null
@@ -81,8 +92,8 @@ export function EventModal({
         title: event.title,
         description: event.description || '',
         location: event.location || '',
-        startTime: start.toISOString().slice(0, 16),
-        endTime: end.toISOString().slice(0, 16),
+        startTime: toDatetimeLocalString(start),
+        endTime: toDatetimeLocalString(end),
         isAllDay: event.isAllDay,
         eventType: event.eventType,
         category: event.category || '',
@@ -96,8 +107,8 @@ export function EventModal({
 
       setFormData({
         ...formData,
-        startTime: start.toISOString().slice(0, 16),
-        endTime: end.toISOString().slice(0, 16),
+        startTime: toDatetimeLocalString(start),
+        endTime: toDatetimeLocalString(end),
       })
     }
   }, [event, initialDate])
