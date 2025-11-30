@@ -41,33 +41,50 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts'
-import { format } from 'date-fns'
+// Removed date-fns format to avoid timezone issues - using custom local formatters instead
 
-// Helper function to get local date string without timezone conversion
+// Helper function to get local date parts from an ISO date string
 // This prevents dates from shifting when displayed across timezones
-const getLocalDateKey = (dateString: string) => {
+const getLocalDateParts = (dateString: string) => {
   const date = new Date(dateString)
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+  return {
+    year: date.getFullYear(),
+    month: date.getMonth(), // 0-indexed
+    day: date.getDate(),
+    hours: date.getHours(),
+    minutes: date.getMinutes(),
+  }
 }
 
-const formatLocalDate = (dateString: string, formatStr: string) => {
-  const date = new Date(dateString)
-  // For "MMM d" format, we use local date parts
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-  if (formatStr === 'MMM d') {
-    return `${months[date.getMonth()]} ${date.getDate()}`
-  }
-  if (formatStr === 'h:mm a') {
-    const hours = date.getHours()
-    const minutes = String(date.getMinutes()).padStart(2, '0')
-    const ampm = hours >= 12 ? 'PM' : 'AM'
-    const displayHours = hours % 12 || 12
-    return `${displayHours}:${minutes} ${ampm}`
-  }
-  return format(date, formatStr)
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+// Format a date string to "MMM d" using LOCAL timezone
+const formatDateMMM_d = (dateString: string) => {
+  const { month, day } = getLocalDateParts(dateString)
+  return `${MONTHS[month]} ${day}`
+}
+
+// Format a date string to "h:mm a" using LOCAL timezone
+const formatTime = (dateString: string) => {
+  const { hours, minutes } = getLocalDateParts(dateString)
+  const ampm = hours >= 12 ? 'PM' : 'AM'
+  const displayHours = hours % 12 || 12
+  return `${displayHours}:${String(minutes).padStart(2, '0')} ${ampm}`
+}
+
+// Get a date key (YYYY-MM-DD) using LOCAL timezone for grouping
+const getLocalDateKey = (dateString: string) => {
+  const { year, month, day } = getLocalDateParts(dateString)
+  return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
+// Format a YYYY-MM-DD date key string to "MMM d" (no timezone conversion needed)
+const formatDateKeyToDisplay = (dateKey: string) => {
+  // dateKey is "YYYY-MM-DD", parse directly without Date object to avoid UTC issues
+  const [year, monthStr, dayStr] = dateKey.split('-')
+  const monthIndex = parseInt(monthStr, 10) - 1
+  const day = parseInt(dayStr, 10)
+  return `${MONTHS[monthIndex]} ${day}`
 }
 
 interface UWorldLog {
@@ -206,7 +223,7 @@ export default function UWorldPage() {
       const average = Math.round((avgCorrect / avgTotal) * 100)
 
       chartData.push({
-        date: formatLocalDate(dateKey, 'MMM d'),
+        date: formatDateKeyToDisplay(dateKey),
         score,
         average,
       })
@@ -460,10 +477,10 @@ export default function UWorldPage() {
                       <div className="flex items-center gap-4">
                         <div className="text-center min-w-[60px]">
                           <p className="text-lg font-bold text-slate-100">
-                            {formatLocalDate(log.date, 'MMM d')}
+                            {formatDateMMM_d(log.date)}
                           </p>
                           <p className="text-xs text-slate-500">
-                            {formatLocalDate(log.date, 'h:mm a')}
+                            {formatTime(log.date)}
                           </p>
                         </div>
                         <div className="h-10 w-px bg-slate-700" />
