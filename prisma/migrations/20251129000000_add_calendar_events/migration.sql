@@ -68,23 +68,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS "GoogleCalendarSync_userId_key" ON "GoogleCale
 -- CreateIndex
 CREATE INDEX IF NOT EXISTS "GoogleCalendarSync_userId_idx" ON "GoogleCalendarSync"("userId");
 
--- AddForeignKey
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'CalendarEvent_userId_fkey'
-    ) THEN
-        ALTER TABLE "CalendarEvent" ADD CONSTRAINT "CalendarEvent_userId_fkey"
-        FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-    END IF;
-END $$;
+-- AddForeignKey (simplified)
+ALTER TABLE "CalendarEvent" DROP CONSTRAINT IF EXISTS "CalendarEvent_userId_fkey";
+ALTER TABLE "CalendarEvent" ADD CONSTRAINT "CalendarEvent_userId_fkey"
+    FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'GoogleCalendarSync_userId_fkey'
-    ) THEN
-        ALTER TABLE "GoogleCalendarSync" ADD CONSTRAINT "GoogleCalendarSync_userId_fkey"
-        FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-    END IF;
-END $$;
+ALTER TABLE "GoogleCalendarSync" DROP CONSTRAINT IF EXISTS "GoogleCalendarSync_userId_fkey";
+ALTER TABLE "GoogleCalendarSync" ADD CONSTRAINT "GoogleCalendarSync_userId_fkey"
+    FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
