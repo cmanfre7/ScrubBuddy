@@ -402,13 +402,34 @@ export async function POST(request: NextRequest) {
         // Convert File to ArrayBuffer for unpdf
         const arrayBuffer = await file.arrayBuffer()
 
-        // Parse PDF using unpdf (serverless-friendly, no DOM deps)
-        console.log('Parsing PDF with unpdf...')
-        const { extractText } = await import('unpdf')
+        // Parse PDF using unpdf first, fallback to pdf-parse if text extraction fails
+        let text = ''
 
-        const result = await extractText(arrayBuffer)
-        // unpdf returns text as an array of strings (one per page), join them
-        const text = Array.isArray(result.text) ? result.text.join('\n') : result.text
+        // Try unpdf first (serverless-friendly)
+        console.log('Parsing PDF with unpdf...')
+        try {
+          const { extractText } = await import('unpdf')
+          const result = await extractText(arrayBuffer)
+          text = Array.isArray(result.text) ? result.text.join('\n') : result.text
+          console.log('unpdf extracted text length:', text.length)
+        } catch (unpdfError) {
+          console.log('unpdf failed:', unpdfError)
+        }
+
+        // If unpdf didn't extract enough text, try pdf-parse as fallback
+        if (text.length < 50) {
+          console.log('unpdf extracted insufficient text, trying pdf-parse fallback...')
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            const pdfParse = require('pdf-parse')
+            const buffer = Buffer.from(arrayBuffer)
+            const pdfData = await pdfParse(buffer)
+            text = pdfData.text
+            console.log('pdf-parse extracted text length:', text.length)
+          } catch (pdfParseError) {
+            console.log('pdf-parse also failed:', pdfParseError)
+          }
+        }
 
         console.log('PDF parsed successfully. Text length:', text.length)
 
