@@ -18,36 +18,53 @@ export async function POST(request: NextRequest) {
 
     // Handle PDF upload (FormData)
     if (contentType.includes('multipart/form-data')) {
-      const formData = await request.formData()
-      const file = formData.get('file') as File
-      notes = (formData.get('notes') as string) || undefined
+      try {
+        const formData = await request.formData()
+        const file = formData.get('file') as File
+        notes = (formData.get('notes') as string) || undefined
 
-      if (!file) {
-        return NextResponse.json({ error: 'No file provided' }, { status: 400 })
-      }
+        if (!file) {
+          return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+        }
 
-      // Convert File to Buffer
-      const arrayBuffer = await file.arrayBuffer()
-      const buffer = Buffer.from(arrayBuffer)
+        console.log('Processing PDF:', file.name, 'Size:', file.size)
 
-      // Parse PDF using CommonJS require
-      const pdfParse = require('pdf-parse')
-      const pdfData = await pdfParse(buffer)
-      const text = pdfData.text
+        // Convert File to Buffer
+        const arrayBuffer = await file.arrayBuffer()
+        const buffer = Buffer.from(arrayBuffer)
 
-      // Extract stats from PDF text
-      const correctMatch = text.match(/Total Correct\s+(\d+)/i)
-      const incorrectMatch = text.match(/Total Incorrect\s+(\d+)/i)
+        // Parse PDF using CommonJS require (pdf-parse is a CommonJS module)
+        console.log('Parsing PDF with pdf-parse...')
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const pdfParse = require('pdf-parse')
+        const pdfData = await pdfParse(buffer)
+        const text = pdfData.text
+        console.log('PDF parsed successfully. Text length:', text.length)
 
-      if (!correctMatch || !incorrectMatch) {
+        // Extract stats from PDF text
+        const correctMatch = text.match(/Total Correct\s+(\d+)/i)
+        const incorrectMatch = text.match(/Total Incorrect\s+(\d+)/i)
+
+        console.log('Regex matches:', { correctMatch: correctMatch?.[1], incorrectMatch: incorrectMatch?.[1] })
+
+        if (!correctMatch || !incorrectMatch) {
+          console.error('Failed to extract stats. PDF text sample:', text.substring(0, 500))
+          return NextResponse.json(
+            { error: 'Could not extract stats from PDF. Please ensure it contains "Total Correct" and "Total Incorrect" fields.' },
+            { status: 400 }
+          )
+        }
+
+        totalCorrect = parseInt(correctMatch[1])
+        totalIncorrect = parseInt(incorrectMatch[1])
+        console.log('Extracted stats:', { totalCorrect, totalIncorrect })
+      } catch (pdfError) {
+        console.error('PDF processing error:', pdfError)
         return NextResponse.json(
-          { error: 'Could not extract stats from PDF. Please ensure it contains "Total Correct" and "Total Incorrect" fields.' },
-          { status: 400 }
+          { error: `PDF processing failed: ${pdfError instanceof Error ? pdfError.message : 'Unknown error'}` },
+          { status: 500 }
         )
       }
-
-      totalCorrect = parseInt(correctMatch[1])
-      totalIncorrect = parseInt(incorrectMatch[1])
     }
     // Handle manual entry (JSON)
     else {
