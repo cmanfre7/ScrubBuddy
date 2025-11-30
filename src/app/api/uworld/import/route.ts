@@ -213,33 +213,74 @@ async function handleTestPdf(userId: string, text: string, notes?: string) {
 
     console.log(`Extracted ${subjects.length} subjects:`, subjects.map(s => s.name))
 
-    // Create the test record with subjects
-    const test = await prisma.uWorldTest.create({
-      data: {
+    // Check for existing test record to prevent duplicates
+    const existingTest = await prisma.uWorldTest.findFirst({
+      where: {
         userId,
         testName,
-        testId: testName, // Use testName as testId for now
-        totalCorrect,
-        totalIncorrect,
-        totalOmitted,
-        percentCorrect,
-        notes,
-        subjects: {
-          create: subjects.map(s => ({
-            subjectName: s.name,
-            category: s.category,
-            totalQuestions: s.total,
-            correct: s.correct,
-            incorrect: s.incorrect,
-            omitted: s.omitted,
-            percentCorrect: s.percent
-          }))
-        }
       },
-      include: {
-        subjects: true
-      }
+      include: { subjects: true },
     })
+
+    let test
+    if (existingTest) {
+      // Update existing test record
+      console.log(`Updating existing UWorldTest: ${testName}`)
+      // Delete old subjects and recreate
+      await prisma.uWorldTestSubject.deleteMany({
+        where: { testId: existingTest.id },
+      })
+      test = await prisma.uWorldTest.update({
+        where: { id: existingTest.id },
+        data: {
+          totalCorrect,
+          totalIncorrect,
+          totalOmitted,
+          percentCorrect,
+          notes,
+          subjects: {
+            create: subjects.map(s => ({
+              subjectName: s.name,
+              category: s.category,
+              totalQuestions: s.total,
+              correct: s.correct,
+              incorrect: s.incorrect,
+              omitted: s.omitted,
+              percentCorrect: s.percent
+            }))
+          }
+        },
+        include: { subjects: true },
+      })
+    } else {
+      // Create new test record with subjects
+      test = await prisma.uWorldTest.create({
+        data: {
+          userId,
+          testName,
+          testId: testName, // Use testName as testId for now
+          totalCorrect,
+          totalIncorrect,
+          totalOmitted,
+          percentCorrect,
+          notes,
+          subjects: {
+            create: subjects.map(s => ({
+              subjectName: s.name,
+              category: s.category,
+              totalQuestions: s.total,
+              correct: s.correct,
+              incorrect: s.incorrect,
+              omitted: s.omitted,
+              percentCorrect: s.percent
+            }))
+          }
+        },
+        include: {
+          subjects: true
+        }
+      })
+    }
 
     // Also create a UWorldLog entry so stats show up on the main page
     // Determine the primary system/subject from parsed questions first, then fall back to test name
@@ -282,20 +323,44 @@ async function handleTestPdf(userId: string, text: string, notes?: string) {
       }
     }
 
-    await prisma.uWorldLog.create({
-      data: {
+    // Check for existing UWorldLog with the same test name to prevent duplicates
+    const existingLog = await prisma.uWorldLog.findFirst({
+      where: {
         userId,
-        date: new Date(),
-        questionsTotal: totalQuestions,
-        questionsCorrect: totalCorrect,
-        timeSpentMins: 0,
-        mode: 'Test',
         blockName: testName,
-        systems: systemsFromQuestions,
-        subjects: subjects.map(s => s.name),
-        notes: notes || `Imported from test: ${testName}`,
       },
     })
+
+    if (existingLog) {
+      // Update existing log instead of creating duplicate
+      console.log(`Updating existing UWorldLog for test: ${testName}`)
+      await prisma.uWorldLog.update({
+        where: { id: existingLog.id },
+        data: {
+          questionsTotal: totalQuestions,
+          questionsCorrect: totalCorrect,
+          systems: systemsFromQuestions,
+          subjects: subjects.map(s => s.name),
+          notes: notes || `Imported from test: ${testName}`,
+        },
+      })
+    } else {
+      // Create new log entry
+      await prisma.uWorldLog.create({
+        data: {
+          userId,
+          date: new Date(),
+          questionsTotal: totalQuestions,
+          questionsCorrect: totalCorrect,
+          timeSpentMins: 0,
+          mode: 'Test',
+          blockName: testName,
+          systems: systemsFromQuestions,
+          subjects: subjects.map(s => s.name),
+          notes: notes || `Imported from test: ${testName}`,
+        },
+      })
+    }
 
     // Save incorrect questions for weak areas tracking
     let savedIncorrects = 0
@@ -402,6 +467,10 @@ export async function POST(request: NextRequest) {
         // Convert File to ArrayBuffer for unpdf
         const arrayBuffer = await file.arrayBuffer()
 
+        // Create a Buffer copy immediately before any processing
+        // This prevents "detached ArrayBuffer" errors when unpdf transfers the buffer
+        const bufferCopy = Buffer.from(new Uint8Array(arrayBuffer))
+
         // Parse PDF using unpdf first, fallback to pdf-parse if text extraction fails
         let text = ''
 
@@ -422,8 +491,8 @@ export async function POST(request: NextRequest) {
           try {
             // eslint-disable-next-line @typescript-eslint/no-require-imports
             const pdfParse = require('pdf-parse')
-            const buffer = Buffer.from(arrayBuffer)
-            const pdfData = await pdfParse(buffer)
+            // Use the pre-copied buffer to avoid detached ArrayBuffer issues
+            const pdfData = await pdfParse(bufferCopy)
             text = pdfData.text
             console.log('pdf-parse extracted text length:', text.length)
           } catch (pdfParseError) {
