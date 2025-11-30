@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { formatDate, calculatePercentage, cn } from '@/lib/utils'
 import { Plus, ArrowLeft, BookOpen, TrendingUp, Calendar, Clock, Trash2, Upload } from 'lucide-react'
 import { ImportModal } from '@/components/uworld/ImportModal'
+import { LogSessionModal } from '@/components/uworld/LogSessionModal'
 
 // Get gradient color based on score (red -> yellow -> green)
 const getScoreColor = (score: number) => {
@@ -68,50 +69,12 @@ export default function UWorldPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
   const [isConfirmClearOpen, setIsConfirmClearOpen] = useState(false)
-  const [newLog, setNewLog] = useState({
-    questionsTotal: '',
-    questionsCorrect: '',
-    timeSpentMins: '',
-    mode: '',
-    date: new Date().toISOString().split('T')[0],
-    notes: '',
-  })
 
   const { data, isLoading } = useQuery({
     queryKey: ['uworld'],
     queryFn: async () => {
       const res = await fetch('/api/uworld')
       return res.json()
-    },
-  })
-
-  const createMutation = useMutation({
-    mutationFn: async (data: typeof newLog & { systems: string[] }) => {
-      const res = await fetch('/api/uworld', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...data,
-          questionsTotal: parseInt(data.questionsTotal),
-          questionsCorrect: parseInt(data.questionsCorrect),
-          timeSpentMins: data.timeSpentMins ? parseInt(data.timeSpentMins) : null,
-          date: new Date(data.date).toISOString(),
-        }),
-      })
-      if (!res.ok) throw new Error('Failed to create log')
-      return res.json()
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['uworld'] })
-      setIsModalOpen(false)
-      setNewLog({
-        questionsTotal: '',
-        questionsCorrect: '',
-        timeSpentMins: '',
-        mode: '',
-        date: new Date().toISOString().split('T')[0],
-        notes: '',
-      })
     },
   })
 
@@ -446,73 +409,15 @@ export default function UWorldPage() {
         </CardContent>
       </Card>
 
-      {/* Add Session Modal */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`Log ${selectedSubject} Session`}>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            createMutation.mutate({
-              ...newLog,
-              systems: [selectedSubject],
-            })
-          }}
-          className="space-y-4"
-        >
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Questions Completed *"
-              type="number"
-              placeholder="40"
-              value={newLog.questionsTotal}
-              onChange={(e) => setNewLog({ ...newLog, questionsTotal: e.target.value })}
-              required
-            />
-            <Input
-              label="Questions Correct *"
-              type="number"
-              placeholder="32"
-              value={newLog.questionsCorrect}
-              onChange={(e) => setNewLog({ ...newLog, questionsCorrect: e.target.value })}
-              required
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Time Spent (minutes)"
-              type="number"
-              placeholder="60"
-              value={newLog.timeSpentMins}
-              onChange={(e) => setNewLog({ ...newLog, timeSpentMins: e.target.value })}
-            />
-            <Select
-              label="Mode"
-              value={newLog.mode}
-              onChange={(e) => setNewLog({ ...newLog, mode: e.target.value })}
-              options={[
-                { value: '', label: 'Select mode...' },
-                { value: 'timed', label: 'Timed' },
-                { value: 'tutor', label: 'Tutor' },
-                { value: 'review', label: 'Review' },
-              ]}
-            />
-          </div>
-          <Input
-            label="Date *"
-            type="date"
-            value={newLog.date}
-            onChange={(e) => setNewLog({ ...newLog, date: e.target.value })}
-            required
-          />
-          <div className="flex gap-3 pt-4">
-            <Button type="button" variant="secondary" onClick={() => setIsModalOpen(false)} className="flex-1">
-              Cancel
-            </Button>
-            <Button type="submit" isLoading={createMutation.isPending} className="flex-1">
-              Save Session
-            </Button>
-          </div>
-        </form>
-      </Modal>
+      {/* Log Session Modal */}
+      {selectedSubject && (
+        <LogSessionModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSuccess={() => queryClient.invalidateQueries({ queryKey: ['uworld'] })}
+          subject={selectedSubject}
+        />
+      )}
 
       {/* Confirm Clear Data Modal */}
       <Modal
