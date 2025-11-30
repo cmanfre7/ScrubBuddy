@@ -9,11 +9,9 @@ export type RotationName =
   | 'Family Medicine'
 
 export type ShelfSubject =
-  | 'Ambulatory Medicine'
-  | 'Clinical Neurology'
   | 'Emergency Medicine'
   | 'Family Medicine'
-  | 'Medicine'
+  | 'Internal Medicine'
   | 'OBGYN'
   | 'Pediatrics'
   | 'Psychiatry'
@@ -93,11 +91,9 @@ export const ROTATION_OPTIONS: RotationName[] = [
 ]
 
 export const SHELF_SUBJECTS: ShelfSubject[] = [
-  'Ambulatory Medicine',
-  'Clinical Neurology',
   'Emergency Medicine',
   'Family Medicine',
-  'Medicine',
+  'Internal Medicine',
   'OBGYN',
   'Pediatrics',
   'Psychiatry',

@@ -9,7 +9,7 @@ import { Modal } from '@/components/ui/modal'
 import { Select } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { formatDate, calculatePercentage, cn } from '@/lib/utils'
-import { Plus, ArrowLeft, BookOpen, TrendingUp, Calendar, Clock } from 'lucide-react'
+import { Plus, ArrowLeft, BookOpen, TrendingUp, Calendar, Clock, Trash2 } from 'lucide-react'
 
 // Get gradient color based on score (red -> yellow -> green)
 const getScoreColor = (score: number) => {
@@ -52,11 +52,9 @@ interface UWorldLog {
 }
 
 const SHELF_COLORS: Record<ShelfSubject, { bg: string; text: string; border: string }> = {
-  'Ambulatory Medicine': { bg: 'bg-blue-500/20', text: 'text-blue-400', border: 'border-blue-500/30' },
-  'Clinical Neurology': { bg: 'bg-purple-500/20', text: 'text-purple-400', border: 'border-purple-500/30' },
   'Emergency Medicine': { bg: 'bg-red-500/20', text: 'text-red-400', border: 'border-red-500/30' },
   'Family Medicine': { bg: 'bg-green-500/20', text: 'text-green-400', border: 'border-green-500/30' },
-  'Medicine': { bg: 'bg-orange-500/20', text: 'text-orange-400', border: 'border-orange-500/30' },
+  'Internal Medicine': { bg: 'bg-orange-500/20', text: 'text-orange-400', border: 'border-orange-500/30' },
   'OBGYN': { bg: 'bg-pink-500/20', text: 'text-pink-400', border: 'border-pink-500/30' },
   'Pediatrics': { bg: 'bg-cyan-500/20', text: 'text-cyan-400', border: 'border-cyan-500/30' },
   'Psychiatry': { bg: 'bg-indigo-500/20', text: 'text-indigo-400', border: 'border-indigo-500/30' },
@@ -67,6 +65,7 @@ export default function UWorldPage() {
   const queryClient = useQueryClient()
   const [selectedSubject, setSelectedSubject] = useState<ShelfSubject | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isConfirmClearOpen, setIsConfirmClearOpen] = useState(false)
   const [newLog, setNewLog] = useState({
     questionsTotal: '',
     questionsCorrect: '',
@@ -111,6 +110,23 @@ export default function UWorldPage() {
         date: new Date().toISOString().split('T')[0],
         notes: '',
       })
+    },
+  })
+
+  const clearDataMutation = useMutation({
+    mutationFn: async (subject: string) => {
+      const res = await fetch('/api/uworld/clear', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject }),
+      })
+      if (!res.ok) throw new Error('Failed to clear data')
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['uworld'] })
+      setIsConfirmClearOpen(false)
+      setSelectedSubject(null)
     },
   })
 
@@ -247,10 +263,18 @@ export default function UWorldPage() {
             </p>
           </div>
         </div>
-        <Button onClick={() => setIsModalOpen(true)}>
-          <Plus size={18} className="mr-2" />
-          Log Session
-        </Button>
+        <div className="flex gap-2">
+          {subjectLogs.length > 0 && (
+            <Button variant="secondary" onClick={() => setIsConfirmClearOpen(true)}>
+              <Trash2 size={18} className="mr-2" />
+              Clear Data
+            </Button>
+          )}
+          <Button onClick={() => setIsModalOpen(true)}>
+            <Plus size={18} className="mr-2" />
+            Log Session
+          </Button>
+        </div>
       </div>
 
       {/* Stats Row */}
@@ -473,6 +497,43 @@ export default function UWorldPage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Confirm Clear Data Modal */}
+      <Modal
+        isOpen={isConfirmClearOpen}
+        onClose={() => setIsConfirmClearOpen(false)}
+        title="Clear All Data?"
+      >
+        <div className="space-y-4">
+          <p className="text-slate-300">
+            Are you sure you want to delete all {selectedSubject} data? This will remove:
+          </p>
+          <ul className="list-disc list-inside text-slate-400 space-y-1">
+            <li>{subjectStats?.sessions} sessions</li>
+            <li>{subjectStats?.totalQuestions} questions</li>
+            <li>All performance history</li>
+          </ul>
+          <p className="text-red-400 font-medium">This action cannot be undone.</p>
+          <div className="flex gap-3 pt-4">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setIsConfirmClearOpen(false)}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => selectedSubject && clearDataMutation.mutate(selectedSubject)}
+              isLoading={clearDataMutation.isPending}
+              className="flex-1 bg-red-600 hover:bg-red-700"
+            >
+              Delete All Data
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   )
