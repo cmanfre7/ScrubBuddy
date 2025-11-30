@@ -166,16 +166,31 @@ export async function POST(request: NextRequest) {
 
         console.log('Processing PDF:', file.name, 'Size:', file.size)
 
-        // Convert File to Buffer
+        // Convert File to ArrayBuffer for PDF.js
         const arrayBuffer = await file.arrayBuffer()
-        const buffer = Buffer.from(arrayBuffer)
+        const uint8Array = new Uint8Array(arrayBuffer)
 
-        // Parse PDF using CommonJS require (pdf-parse is a CommonJS module)
-        console.log('Parsing PDF with pdf-parse...')
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const pdfParse = require('pdf-parse')
-        const pdfData = await pdfParse(buffer)
-        const text = pdfData.text
+        // Parse PDF using pdfjs-dist (pure JavaScript, no native deps)
+        console.log('Parsing PDF with pdfjs-dist...')
+        const pdfjsLib = await import('pdfjs-dist')
+
+        // Load the PDF document
+        const loadingTask = pdfjsLib.getDocument({ data: uint8Array })
+        const pdf = await loadingTask.promise
+
+        // Extract text from all pages
+        let text = ''
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i)
+          const textContent = await page.getTextContent()
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const pageText = (textContent.items as any[])
+            .filter((item) => 'str' in item && item.str)
+            .map((item) => item.str)
+            .join(' ')
+          text += pageText + '\n'
+        }
+
         console.log('PDF parsed successfully. Text length:', text.length)
 
         // Check if this is a test performance PDF (has "TestId:" field) or overall performance PDF
