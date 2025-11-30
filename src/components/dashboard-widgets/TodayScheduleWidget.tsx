@@ -46,7 +46,22 @@ export function TodayScheduleWidget({ events }: TodayScheduleWidgetProps) {
     endTime: event.endTime instanceof Date ? event.endTime : new Date(event.endTime),
   }))
 
-  const sortedEvents = [...normalizedEvents].sort(
+  // Filter to only events that are "today" in the user's local timezone
+  // Server fetches a wider window to handle timezone differences
+  const todayEvents = normalizedEvents.filter((event) => {
+    const now = new Date()
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+
+    // Event is "today" if it starts today, ends today, or spans across today
+    const startsToday = event.startTime >= todayStart && event.startTime <= todayEnd
+    const endsToday = event.endTime >= todayStart && event.endTime <= todayEnd
+    const spansToday = event.startTime <= todayStart && event.endTime >= todayEnd
+
+    return startsToday || endsToday || spansToday
+  })
+
+  const sortedEvents = [...todayEvents].sort(
     (a, b) => a.startTime.getTime() - b.startTime.getTime()
   )
 

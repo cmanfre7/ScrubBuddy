@@ -25,6 +25,15 @@ async function getDashboardData(userId: string) {
   const todayEnd = new Date(today)
   todayEnd.setHours(23, 59, 59, 999)
 
+  // For calendar events, expand the query window to account for timezone differences
+  // This ensures events that are "today" in any US timezone get fetched
+  // The client-side will display them correctly based on local time
+  const eventQueryStart = new Date(today)
+  eventQueryStart.setHours(-12, 0, 0, 0) // 12 hours before midnight (covers ahead timezones)
+
+  const eventQueryEnd = new Date(today)
+  eventQueryEnd.setHours(35, 59, 59, 999) // 12 hours after end of day (covers behind timezones)
+
   const [
     user,
     todayLogs,
@@ -74,9 +83,9 @@ async function getDashboardData(userId: string) {
       where: {
         userId,
         OR: [
-          { startTime: { gte: today, lte: todayEnd } },
-          { endTime: { gte: today, lte: todayEnd } },
-          { AND: [{ startTime: { lte: today } }, { endTime: { gte: todayEnd } }] },
+          { startTime: { gte: eventQueryStart, lte: eventQueryEnd } },
+          { endTime: { gte: eventQueryStart, lte: eventQueryEnd } },
+          { AND: [{ startTime: { lte: eventQueryStart } }, { endTime: { gte: eventQueryEnd } }] },
         ],
       },
       orderBy: { startTime: 'asc' },
