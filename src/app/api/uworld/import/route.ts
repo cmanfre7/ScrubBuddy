@@ -166,41 +166,16 @@ export async function POST(request: NextRequest) {
 
         console.log('Processing PDF:', file.name, 'Size:', file.size)
 
-        // Convert File to ArrayBuffer for PDF.js
+        // Convert File to ArrayBuffer for unpdf
         const arrayBuffer = await file.arrayBuffer()
-        const uint8Array = new Uint8Array(arrayBuffer)
 
-        // Parse PDF using pdfjs-dist legacy build (for Node.js - no DOM deps)
-        console.log('Parsing PDF with pdfjs-dist (legacy)...')
-        const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs')
+        // Parse PDF using unpdf (serverless-friendly, no DOM deps)
+        console.log('Parsing PDF with unpdf...')
+        const { extractText } = await import('unpdf')
 
-        // Set a fake worker source to prevent the "no workerSrc" error
-        // Then disable the worker in document options
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'data:,'
-
-        // Load the PDF document with worker disabled
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const loadingTask = pdfjsLib.getDocument({
-          data: uint8Array,
-          disableWorker: true,
-          useWorkerFetch: false,
-          isEvalSupported: false,
-          useSystemFonts: true,
-        } as any)
-        const pdf = await loadingTask.promise
-
-        // Extract text from all pages
-        let text = ''
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i)
-          const textContent = await page.getTextContent()
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const pageText = (textContent.items as any[])
-            .filter((item) => 'str' in item && item.str)
-            .map((item) => item.str)
-            .join(' ')
-          text += pageText + '\n'
-        }
+        const result = await extractText(arrayBuffer)
+        // unpdf returns text as an array of strings (one per page), join them
+        const text = Array.isArray(result.text) ? result.text.join('\n') : result.text
 
         console.log('PDF parsed successfully. Text length:', text.length)
 
