@@ -10,6 +10,7 @@ export function formatDate(date: Date | string): string {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
+    timeZone: 'UTC', // Display date in UTC to match stored value
   })
 }
 
@@ -19,6 +20,7 @@ export function formatDateTime(date: Date | string): string {
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
+    timeZone: 'UTC', // Display datetime in UTC to match stored value
   })
 }
 

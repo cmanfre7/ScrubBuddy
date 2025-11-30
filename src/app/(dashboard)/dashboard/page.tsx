@@ -235,16 +235,16 @@ export default async function DashboardPage() {
         ) + 1
       : 0
 
-  // Calculate shelf exam countdown
-  const shelfRotation = data.rotations.find(
-    (r) => r.shelfDate && new Date(r.shelfDate) > new Date()
-  )
-  const daysUntilShelf = shelfRotation?.shelfDate ? daysUntil(new Date(shelfRotation.shelfDate)) : null
-  const shelfDateFormatted = shelfRotation?.shelfDate
-    ? new Date(shelfRotation.shelfDate).toLocaleDateString('en-US', {
+  // Calculate shelf exam countdown - use current rotation's shelf date
+  const daysUntilShelf = data.currentRotation?.shelfDate
+    ? daysUntil(new Date(data.currentRotation.shelfDate))
+    : null
+  const shelfDateFormatted = data.currentRotation?.shelfDate
+    ? new Date(data.currentRotation.shelfDate).toLocaleDateString('en-US', {
         month: 'long',
         day: 'numeric',
         year: 'numeric',
+        timeZone: 'UTC', // Fix timezone issue - display date in UTC to match stored value
       })
     : null
 
@@ -290,7 +290,7 @@ export default async function DashboardPage() {
             href="/dashboard/settings"
           />
         )}
-        {daysUntilShelf !== null && shelfRotation && (
+        {daysUntilShelf !== null && data.currentRotation?.shelfDate && (
           <CountdownWidget
             title="Shelf Exam"
             icon={<FileText size={16} />}
