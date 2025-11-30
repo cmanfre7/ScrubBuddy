@@ -30,7 +30,7 @@ const navigation = [
   { name: 'UWorld', href: '/dashboard/uworld', icon: BookOpen },
   { name: 'Board/Shelf Analytics', href: '/dashboard/analytics', icon: BarChart3 },
   { name: 'Anki', href: '/dashboard/anking', icon: Layers },
-  { name: 'Planner', href: '/dashboard/planner', icon: Calendar },
+  { name: 'Calendar', href: '/dashboard/calendar', icon: Calendar },
   { name: 'Resources', href: '/dashboard/resources', icon: FolderOpen },
 ]
 

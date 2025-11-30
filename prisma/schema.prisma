@@ -43,6 +43,8 @@ model User {
   clinicalReferences ClinicalReference[]
   pharmNotes    PharmNote[]
   boardExams    BoardExam[]
+  calendarEvents CalendarEvent[]
+  googleCalendarSync GoogleCalendarSync?
 }
 
 // ==================== ROTATIONS ====================
@@ -526,5 +528,81 @@ model BoardExam {
   updatedAt       DateTime  @updatedAt
 
   @@unique([userId, examType])
+  @@index([userId])
+}
+
+// ==================== CALENDAR ====================
+
+model CalendarEvent {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Event details
+  title           String
+  description     String?   @db.Text
+  location        String?
+
+  // Timing
+  startTime       DateTime
+  endTime         DateTime
+  isAllDay        Boolean   @default(false)
+  timeZone        String    @default("America/New_York")
+
+  // Categorization
+  eventType       String    // "clinical", "exam", "study", "lecture", "presentation", "personal", "meeting", "appointment"
+  category        String?   // Optional subcategory
+  color           String?   // Hex color for display
+
+  // Recurrence
+  isRecurring     Boolean   @default(false)
+  recurrenceRule  String?   // RRULE format (e.g., "FREQ=WEEKLY;BYDAY=MO,WE,FR")
+  recurrenceEnd   DateTime?
+  parentEventId   String?   // For recurring event instances
+
+  // Reminders
+  reminderMins    Int[]     @default([]) // e.g., [15, 60] for 15min and 1hr before
+
+  // External sync
+  googleEventId   String?   @unique
+  googleCalendarId String?  // Which Google Calendar this came from
+  isSynced        Boolean   @default(false)
+  lastSyncedAt    DateTime?
+
+  // Links to other entities
+  rotationId      String?
+  taskId          String?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([startTime])
+  @@index([eventType])
+  @@index([googleEventId])
+}
+
+model GoogleCalendarSync {
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // OAuth tokens
+  accessToken       String    @db.Text
+  refreshToken      String    @db.Text
+  tokenExpiresAt    DateTime
+
+  // Sync settings
+  syncEnabled       Boolean   @default(true)
+  selectedCalendars String[]  @default([]) // Google Calendar IDs to sync
+  lastSyncAt        DateTime?
+  syncDirection     String    @default("both") // "both", "to_google", "from_google"
+
+  // Conflict resolution
+  preferLocal       Boolean   @default(false) // On conflict, prefer local or Google changes
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
   @@index([userId])
 }
