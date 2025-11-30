@@ -242,33 +242,44 @@ async function handleTestPdf(userId: string, text: string, notes?: string) {
     })
 
     // Also create a UWorldLog entry so stats show up on the main page
-    // Determine the primary system/subject from the test name
-    const systemsFromName: string[] = []
-    const testNameLower = testName.toLowerCase()
-    if (testNameLower.includes('obgyn') || testNameLower.includes('ob/gyn') || testNameLower.includes('obstetrics')) {
-      systemsFromName.push('OBGYN')
+    // Determine the primary system/subject from parsed questions first, then fall back to test name
+    const systemsFromQuestions: string[] = []
+
+    // Extract unique subjects from parsed questions (this is the most reliable source)
+    if (parsedQuestions.length > 0) {
+      const uniqueSubjects = new Set(parsedQuestions.map(q => q.subject))
+      systemsFromQuestions.push(...Array.from(uniqueSubjects))
+      console.log('Systems from parsed questions:', systemsFromQuestions)
     }
-    if (testNameLower.includes('medicine') || testNameLower.includes('internal')) {
-      systemsFromName.push('Medicine')
-    }
-    if (testNameLower.includes('surgery')) {
-      systemsFromName.push('Surgery')
-    }
-    if (testNameLower.includes('pediatrics') || testNameLower.includes('peds')) {
-      systemsFromName.push('Pediatrics')
-    }
-    if (testNameLower.includes('psychiatry') || testNameLower.includes('psych')) {
-      systemsFromName.push('Psychiatry')
-    }
-    if (testNameLower.includes('family') || testNameLower.includes('ambulatory')) {
-      systemsFromName.push('Family Medicine')
-    }
-    if (testNameLower.includes('neuro')) {
-      systemsFromName.push('Neurology')
-    }
-    // Default to Medicine if no match
-    if (systemsFromName.length === 0) {
-      systemsFromName.push('Medicine')
+
+    // If no systems from questions, fall back to test name
+    if (systemsFromQuestions.length === 0) {
+      const testNameLower = testName.toLowerCase()
+      if (testNameLower.includes('obgyn') || testNameLower.includes('ob/gyn') || testNameLower.includes('obstetrics')) {
+        systemsFromQuestions.push('OBGYN')
+      }
+      if (testNameLower.includes('medicine') || testNameLower.includes('internal')) {
+        systemsFromQuestions.push('Medicine')
+      }
+      if (testNameLower.includes('surgery')) {
+        systemsFromQuestions.push('Surgery')
+      }
+      if (testNameLower.includes('pediatrics') || testNameLower.includes('peds')) {
+        systemsFromQuestions.push('Pediatrics')
+      }
+      if (testNameLower.includes('psychiatry') || testNameLower.includes('psych')) {
+        systemsFromQuestions.push('Psychiatry')
+      }
+      if (testNameLower.includes('family') || testNameLower.includes('ambulatory')) {
+        systemsFromQuestions.push('Family Medicine')
+      }
+      if (testNameLower.includes('neuro')) {
+        systemsFromQuestions.push('Neurology')
+      }
+      // Default to Medicine if no match
+      if (systemsFromQuestions.length === 0) {
+        systemsFromQuestions.push('Medicine')
+      }
     }
 
     await prisma.uWorldLog.create({
@@ -280,7 +291,7 @@ async function handleTestPdf(userId: string, text: string, notes?: string) {
         timeSpentMins: 0,
         mode: 'Test',
         blockName: testName,
-        systems: systemsFromName,
+        systems: systemsFromQuestions,
         subjects: subjects.map(s => s.name),
         notes: notes || `Imported from test: ${testName}`,
       },
