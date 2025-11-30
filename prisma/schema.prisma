@@ -28,6 +28,7 @@ model User {
   patients      Patient[]
   procedures    UserProcedure[]
   uworldLogs    UWorldLog[]
+  uworldTests   UWorldTest[]
   uworldIncorrects UWorldIncorrect[]
   shelfScores   ShelfScore[]
   practiceExams PracticeExam[]
@@ -205,6 +206,58 @@ model UWorldLog {
 
   @@index([userId])
   @@index([date])
+}
+
+// Individual UWorld Test with detailed subject breakdown
+model UWorldTest {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  testName        String    // "16 - Week 1 - OBGYN"
+  testId          String?   // Optional UWorld test ID
+  date            DateTime  @default(now())
+
+  // Overall stats
+  totalCorrect    Int
+  totalIncorrect  Int
+  totalOmitted    Int       @default(0)
+  percentCorrect  Int       // Calculated percentage
+
+  // Test metadata
+  mode            String?   // "timed", "tutor", "review"
+  timeSpentMins   Int?
+  notes           String?   @db.Text
+
+  // Relations
+  subjects        UWorldTestSubject[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([date])
+}
+
+// Subject/System performance breakdown for each test
+model UWorldTestSubject {
+  id            String    @id @default(cuid())
+  testId        String
+  test          UWorldTest @relation(fields: [testId], references: [id], onDelete: Cascade)
+
+  subjectName   String    // "Pregnancy, Childbirth & Puerperium", "Female Reproductive System & Breast", etc.
+  category      String    // "Medicine", "OBGYN", "Surgery", etc. - the top-level category
+
+  totalQuestions  Int
+  correct         Int
+  incorrect       Int
+  omitted         Int     @default(0)
+  percentCorrect  Int     // Calculated percentage
+
+  createdAt     DateTime  @default(now())
+
+  @@index([testId])
+  @@index([subjectName])
 }
 
 model UWorldIncorrect {

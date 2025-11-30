@@ -92,9 +92,16 @@ export function ImportModal({ isOpen, onClose, onSuccess }: ImportModalProps) {
         throw new Error(data.error || 'Failed to import PDF')
       }
 
-      setSuccess(
-        `Successfully imported ${data.stats.totalQuestions} questions (${data.stats.percentage}% correct)!`
-      )
+      // Different success messages based on import type
+      if (data.type === 'test') {
+        setSuccess(
+          `Successfully imported test "${data.stats.testName}" - ${data.stats.totalQuestions} questions (${data.stats.percentCorrect}% correct) with ${data.stats.subjectsCount} subject breakdown!`
+        )
+      } else {
+        setSuccess(
+          `Successfully imported ${data.stats.totalQuestions} questions (${data.stats.percentage}% correct)!`
+        )
+      }
       setTimeout(() => {
         onSuccess()
         onClose()
