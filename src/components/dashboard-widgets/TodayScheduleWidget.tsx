@@ -32,10 +32,10 @@ export function TodayScheduleWidget({ events }: TodayScheduleWidgetProps) {
   )
 
   const formatTime = (date: Date) => {
+    // Use local timezone (browser's default) - no timeZone specified
     return date.toLocaleTimeString('en-US', {
       hour: 'numeric',
       minute: '2-digit',
-      timeZone: 'UTC',
     })
   }
 
