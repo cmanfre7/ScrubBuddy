@@ -401,11 +401,19 @@ export async function POST(request: NextRequest) {
 
         console.log('PDF parsed successfully. Text length:', text.length)
 
-        // Check if this is a test performance PDF (has "TestId:" field) or overall performance PDF
-        const testIdMatch = text.match(/TestId\s*:\s*(.+)/i)
+        // Check if this is a test performance PDF
+        // Detect by: "Custom Test Id", "TestId", or presence of question rows (× or ✓ patterns)
+        const hasCustomTestId = text.match(/Custom\s*Test\s*Id\s*[:.]?\s*\d+/i)
+        const hasTestId = text.match(/TestId\s*:\s*(.+)/i)
+        const hasQuestionRows = text.match(/[×✓]\s*\d+\s*-\s*\d+/)
+        const hasTestName = text.match(/Test\s*Name\s*[:.]?\s*\d+/i)
 
-        if (testIdMatch) {
-          // This is a TEST PERFORMANCE PDF with subject breakdown
+        const isTestPdf = hasCustomTestId || hasTestId || hasQuestionRows || hasTestName
+
+        console.log('PDF Detection:', { hasCustomTestId: !!hasCustomTestId, hasTestId: !!hasTestId, hasQuestionRows: !!hasQuestionRows, hasTestName: !!hasTestName })
+
+        if (isTestPdf) {
+          // This is a TEST PERFORMANCE PDF with question-level data
           console.log('Detected: Test Performance PDF')
           return await handleTestPdf(session.user.id, text, notes)
         } else {
