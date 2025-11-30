@@ -170,9 +170,9 @@ export async function POST(request: NextRequest) {
         const arrayBuffer = await file.arrayBuffer()
         const uint8Array = new Uint8Array(arrayBuffer)
 
-        // Parse PDF using pdfjs-dist (pure JavaScript, no native deps)
-        console.log('Parsing PDF with pdfjs-dist...')
-        const pdfjsLib = await import('pdfjs-dist')
+        // Parse PDF using pdfjs-dist legacy build (for Node.js - no DOM deps)
+        console.log('Parsing PDF with pdfjs-dist (legacy)...')
+        const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs')
 
         // Load the PDF document
         const loadingTask = pdfjsLib.getDocument({ data: uint8Array })
