@@ -138,22 +138,10 @@ async function getDashboardData(userId: string) {
   }, 0)
 
   // Calculate weak areas (topics with most incorrect answers)
-  // Filter by current rotation's subject if one is set
-  // Handle flexible matching: "General Surgery" rotation should match "Surgery" subject
-  const rotationName = currentRotation?.name || null
-  const incorrectsForSubject = rotationName
-    ? allIncorrects.filter((inc) => {
-        if (!inc.subject) return false
-        // Check if rotation name contains subject or subject contains rotation name
-        const rotationLower = rotationName.toLowerCase()
-        const subjectLower = inc.subject.toLowerCase()
-        return rotationLower.includes(subjectLower) || subjectLower.includes(rotationLower)
-      })
-    : allIncorrects
-
+  // Show ALL weak areas - UWorld questions overlap subjects (e.g., Gastric cancer in a Surgery test)
   // Group by topic and count
   const topicCounts: Record<string, number> = {}
-  for (const inc of incorrectsForSubject) {
+  for (const inc of allIncorrects) {
     topicCounts[inc.topic] = (topicCounts[inc.topic] || 0) + 1
   }
 
