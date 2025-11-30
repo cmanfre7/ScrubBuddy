@@ -74,10 +74,10 @@ async function getDashboardData(userId: string) {
       select: { id: true, name: true, shelfDate: true },
     }),
     prisma.task.findMany({
-      where: { userId, done: false },
-      orderBy: { priority: 'desc' },
-      take: 5,
-      select: { id: true, text: true, done: true, category: true },
+      where: { userId },
+      orderBy: [{ done: 'asc' }, { priority: 'desc' }],
+      take: 10,
+      select: { id: true, text: true, done: true, category: true, priority: true, recurring: true },
     }),
     prisma.calendarEvent.findMany({
       where: {
@@ -260,7 +260,9 @@ async function getDashboardData(userId: string) {
       id: t.id,
       text: t.text,
       done: t.done,
-      category: t.category || 'General'
+      category: t.category || 'General',
+      priority: t.priority,
+      recurring: t.recurring,
     })),
     pearls: pearls.map((p) => ({
       id: p.id,
