@@ -63,7 +63,9 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
     queryFn: async () => {
       const res = await fetch('/api/rotations')
       if (!res.ok) throw new Error('Failed to fetch rotations')
-      return res.json()
+      const data = await res.json()
+      // API returns { rotations: [...] } so we need to extract the array
+      return data.rotations || []
     },
   })
 
