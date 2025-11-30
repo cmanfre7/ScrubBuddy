@@ -29,7 +29,7 @@ async function getDashboardData(userId: string) {
     todayLogs,
     weekLogs,
     allLogs,
-    incorrects,
+    allIncorrects,
     currentRotation,
     rotations,
     tasks,
@@ -50,10 +50,9 @@ async function getDashboardData(userId: string) {
       where: { userId },
       orderBy: { date: 'asc' },
     }),
-    prisma.uWorldIncorrect.groupBy({
-      by: ['topic'],
+    prisma.uWorldIncorrect.findMany({
       where: { userId },
-      _count: { id: true },
+      select: { topic: true, subject: true },
     }),
     prisma.rotation.findFirst({
       where: { userId, isCurrent: true },
@@ -139,14 +138,32 @@ async function getDashboardData(userId: string) {
   }, 0)
 
   // Calculate weak areas (topics with most incorrect answers)
-  const weakAreas = incorrects
-    .map((inc) => {
+  // Filter by current rotation's subject if one is set
+  // Handle flexible matching: "General Surgery" rotation should match "Surgery" subject
+  const rotationName = currentRotation?.name || null
+  const incorrectsForSubject = rotationName
+    ? allIncorrects.filter((inc) => {
+        if (!inc.subject) return false
+        // Check if rotation name contains subject or subject contains rotation name
+        const rotationLower = rotationName.toLowerCase()
+        const subjectLower = inc.subject.toLowerCase()
+        return rotationLower.includes(subjectLower) || subjectLower.includes(rotationLower)
+      })
+    : allIncorrects
+
+  // Group by topic and count
+  const topicCounts: Record<string, number> = {}
+  for (const inc of incorrectsForSubject) {
+    topicCounts[inc.topic] = (topicCounts[inc.topic] || 0) + 1
+  }
+
+  const weakAreas = Object.entries(topicCounts)
+    .map(([topic, count]) => {
       // Calculate a rough percentage based on incorrect count
       // Lower percentage means more incorrect (weaker area)
-      const incorrectCount = inc._count.id
-      // Assume max 20 questions per topic, so percentage = (20 - incorrectCount) / 20 * 100
-      const estimatedPercentage = Math.max(0, Math.round(((20 - incorrectCount) / 20) * 100))
-      return { name: inc.topic, percentage: estimatedPercentage }
+      // Assume max 20 questions per topic, so percentage = (20 - count) / 20 * 100
+      const estimatedPercentage = Math.max(0, Math.round(((20 - count) / 20) * 100))
+      return { name: topic, percentage: estimatedPercentage }
     })
     .filter((area) => area.percentage < 70)
     .sort((a, b) => a.percentage - b.percentage)

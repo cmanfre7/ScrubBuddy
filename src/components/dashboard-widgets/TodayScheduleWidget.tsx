@@ -1,5 +1,17 @@
+'use client'
+
 import Link from 'next/link'
 import { Calendar, MapPin, Clock } from 'lucide-react'
+
+interface ScheduleEventInput {
+  id: string
+  title: string
+  startTime: Date | string
+  endTime: Date | string
+  location?: string
+  eventType: string
+  isAllDay: boolean
+}
 
 interface ScheduleEvent {
   id: string
@@ -12,7 +24,7 @@ interface ScheduleEvent {
 }
 
 interface TodayScheduleWidgetProps {
-  events: ScheduleEvent[]
+  events: ScheduleEventInput[]
 }
 
 const EVENT_TYPE_COLORS: Record<string, string> = {
@@ -27,7 +39,14 @@ const EVENT_TYPE_COLORS: Record<string, string> = {
 }
 
 export function TodayScheduleWidget({ events }: TodayScheduleWidgetProps) {
-  const sortedEvents = [...events].sort(
+  // Convert string dates to Date objects (needed when data is serialized from server to client)
+  const normalizedEvents: ScheduleEvent[] = events.map((event) => ({
+    ...event,
+    startTime: event.startTime instanceof Date ? event.startTime : new Date(event.startTime),
+    endTime: event.endTime instanceof Date ? event.endTime : new Date(event.endTime),
+  }))
+
+  const sortedEvents = [...normalizedEvents].sort(
     (a, b) => a.startTime.getTime() - b.startTime.getTime()
   )
 
