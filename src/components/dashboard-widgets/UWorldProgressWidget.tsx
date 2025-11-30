@@ -29,6 +29,13 @@ export function UWorldProgressWidget({
   const todayPercentage = todayQuestions > 0 ? Math.round((todayCorrect / todayQuestions) * 100) : 0
   const weekPercentage = weekQuestions > 0 ? Math.round((weekCorrect / weekQuestions) * 100) : 0
 
+  // Get color class based on percentage (red < 50, yellow 50-69, green >= 70)
+  const getScoreColor = (pct: number) => {
+    if (pct >= 70) return 'text-green-400'
+    if (pct >= 50) return 'text-yellow-400'
+    return 'text-red-400'
+  }
+
   return (
     <div
       className="backdrop-blur-sm rounded-xl p-6 transition-all"
@@ -96,13 +103,13 @@ export function UWorldProgressWidget({
           <div className="flex justify-between items-center py-2" style={{ borderBottom: '1px solid #1e293b' }}>
             <span className="text-sm text-slate-400">Today</span>
             <span className="text-sm font-semibold text-slate-200">
-              {todayQuestions} Qs · <span className="text-green-400">{todayPercentage}%</span>
+              {todayQuestions} Qs · <span className={getScoreColor(todayPercentage)}>{todayPercentage}%</span>
             </span>
           </div>
           <div className="flex justify-between items-center py-2">
             <span className="text-sm text-slate-400">This Week</span>
             <span className="text-sm font-semibold text-slate-200">
-              {weekQuestions} Qs · {weekPercentage}% avg
+              {weekQuestions} Qs · <span className={getScoreColor(weekPercentage)}>{weekPercentage}% avg</span>
             </span>
           </div>
         </div>
