@@ -9,9 +9,10 @@ import { Modal } from '@/components/ui/modal'
 import { Select } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { formatDate, calculatePercentage, cn } from '@/lib/utils'
-import { Plus, ArrowLeft, BookOpen, TrendingUp, Calendar, Clock, Trash2, Upload } from 'lucide-react'
+import { Plus, ArrowLeft, BookOpen, TrendingUp, Calendar, Clock, Trash2, Upload, Pencil } from 'lucide-react'
 import { ImportModal } from '@/components/uworld/ImportModal'
 import { LogSessionModal } from '@/components/uworld/LogSessionModal'
+import { EditSessionModal } from '@/components/uworld/EditSessionModal'
 
 // Get gradient color based on score (red -> yellow -> green)
 const getScoreColor = (score: number) => {
@@ -49,6 +50,7 @@ interface UWorldLog {
   questionsCorrect: number
   timeSpentMins: number | null
   mode: string | null
+  blockName: string | null
   systems: string[]
   notes: string | null
 }
@@ -69,6 +71,7 @@ export default function UWorldPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
   const [isConfirmClearOpen, setIsConfirmClearOpen] = useState(false)
+  const [editingSession, setEditingSession] = useState<UWorldLog | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['uworld'],
@@ -358,7 +361,8 @@ export default function UWorldPage() {
                   return (
                     <div
                       key={log.id}
-                      className="flex items-center justify-between p-4 bg-slate-800/30 rounded-lg hover:bg-slate-800/50 transition-colors cursor-pointer"
+                      onClick={() => setEditingSession(log)}
+                      className="flex items-center justify-between p-4 bg-slate-800/30 rounded-lg hover:bg-slate-800/50 transition-colors cursor-pointer group"
                     >
                       <div className="flex items-center gap-4">
                         <div className="text-center min-w-[60px]">
@@ -387,6 +391,9 @@ export default function UWorldPage() {
                             </span>
                             {log.mode && <Badge variant="default">{log.mode}</Badge>}
                           </div>
+                          {log.blockName && (
+                            <p className="text-sm text-slate-400 mt-1">{log.blockName}</p>
+                          )}
                           {log.timeSpentMins && (
                             <p className="text-sm text-slate-500 flex items-center gap-1 mt-1">
                               <Clock size={12} />
@@ -395,11 +402,14 @@ export default function UWorldPage() {
                           )}
                         </div>
                       </div>
-                      <div
-                        className="text-2xl font-bold"
-                        style={{ color: getScoreColor(percentage) }}
-                      >
-                        {percentage}%
+                      <div className="flex items-center gap-4">
+                        <div
+                          className="text-2xl font-bold"
+                          style={{ color: getScoreColor(percentage) }}
+                        >
+                          {percentage}%
+                        </div>
+                        <Pencil size={16} className="text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
                     </div>
                   )
@@ -455,6 +465,17 @@ export default function UWorldPage() {
           </div>
         </div>
       </Modal>
+
+      {/* Edit Session Modal */}
+      <EditSessionModal
+        isOpen={!!editingSession}
+        onClose={() => setEditingSession(null)}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['uworld'] })
+          setEditingSession(null)
+        }}
+        session={editingSession}
+      />
     </div>
   )
 }
