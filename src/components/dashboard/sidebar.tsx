@@ -21,7 +21,7 @@ import {
   Layers,
   ExternalLink,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useSidebar } from '@/components/providers/sidebar-provider'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -46,7 +46,7 @@ const quickLinks = [
 export function Sidebar() {
   const pathname = usePathname()
   const { data: session } = useSession()
-  const [collapsed, setCollapsed] = useState(false)
+  const { collapsed, toggle } = useSidebar()
 
   return (
     <aside
@@ -85,7 +85,7 @@ export function Sidebar() {
             </Link>
           )}
           <button
-            onClick={() => setCollapsed(!collapsed)}
+            onClick={toggle}
             className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
           >
             {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}

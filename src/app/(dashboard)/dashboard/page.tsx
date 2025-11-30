@@ -139,10 +139,32 @@ async function getDashboardData(userId: string) {
   }, 0)
 
   // Calculate weak areas (topics with most incorrect answers)
-  // Show ALL weak areas - UWorld questions overlap subjects (e.g., Gastric cancer in a Surgery test)
+  // Filter by current rotation's subject for dashboard relevance
+  // Map rotation name to shelf subject
+  const rotationToSubject: Record<string, ShelfSubject> = {
+    'General Surgery': 'Surgery',
+    'Orthopedic Surgery': 'Surgery',
+    'OB/GYN': 'OBGYN',
+    'Internal Medicine': 'Internal Medicine',
+    'Heme/Oncology': 'Internal Medicine',
+    'Pediatrics': 'Pediatrics',
+    'Psychiatry': 'Psychiatry',
+    'Family Medicine': 'Family Medicine',
+  }
+
+  // Get the shelf subject for current rotation (if any)
+  const currentSubject = currentRotation?.name
+    ? rotationToSubject[currentRotation.name]
+    : null
+
+  // Filter incorrects by current rotation's subject (for dashboard display)
+  const filteredIncorrects = currentSubject
+    ? allIncorrects.filter((inc) => inc.subject === currentSubject)
+    : allIncorrects
+
   // Group by topic and count
   const topicCounts: Record<string, number> = {}
-  for (const inc of allIncorrects) {
+  for (const inc of filteredIncorrects) {
     topicCounts[inc.topic] = (topicCounts[inc.topic] || 0) + 1
   }
 

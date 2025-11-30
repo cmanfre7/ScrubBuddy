@@ -369,11 +369,14 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
       {activeTab === 'paste' && (
         <form onSubmit={handlePasteSubmit} className="space-y-4">
           <div className="bg-blue-900/20 border border-blue-700/30 p-3 rounded-lg text-xs text-blue-300">
-            <p className="font-medium mb-1">Copy table data from UWorld:</p>
+            <p className="font-medium mb-1">Copy test results from UWorld block:</p>
             <p className="text-blue-400">
-              1. Filter your test results by Incorrect questions<br />
-              2. Select all rows in the table and copy (Cmd+C)<br />
+              1. Filter the test results by incorrect questions<br />
+              2. Select all of the rows in table and copy (Ctrl+C or Cmd+C)<br />
               3. Paste the data below
+            </p>
+            <p className="text-slate-400 mt-2 text-[11px]">
+              This will effectively log correct vs incorrect and begin to show areas of weakness over time.
             </p>
           </div>
 
