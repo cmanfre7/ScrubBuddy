@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { usePathname } from 'next/navigation'
 import { MessageSquare, X, Send, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -9,17 +10,97 @@ interface Message {
   content: string
 }
 
+interface PageContext {
+  currentPage: string
+  pageName: string
+  pageDescription: string
+}
+
+// Map routes to human-readable page names and descriptions
+function getPageContext(pathname: string): PageContext {
+  const pageMap: Record<string, { name: string; description: string }> = {
+    '/dashboard': {
+      name: 'Dashboard',
+      description: 'Main dashboard showing UWorld progress, countdowns to exams (Step 2 CK, COMLEX, Shelf), study streak, weak areas, clinical pearls, goals, and today\'s schedule.'
+    },
+    '/dashboard/uworld': {
+      name: 'UWorld Tracker',
+      description: 'Track daily UWorld question blocks, view performance by subject/system, manage incorrect questions for review, and see cumulative statistics.'
+    },
+    '/dashboard/analytics': {
+      name: 'Analytics & Score Predictions',
+      description: 'View detailed performance analytics, score predictions for Step 2 CK and COMLEX, shelf exam projections, and study progress over time.'
+    },
+    '/dashboard/calendar': {
+      name: 'Calendar',
+      description: 'Manage schedule with events for clinical rotations, study sessions, exams, and personal appointments.'
+    },
+    '/dashboard/patients': {
+      name: 'Patient Log',
+      description: 'Log patient encounters for ERAS applications, tracking chief complaints, diagnoses, procedures performed, and notes by rotation.'
+    },
+    '/dashboard/procedures': {
+      name: 'Procedure Reference',
+      description: 'Reference library of medical procedures with quick guides and personal procedure counts.'
+    },
+    '/dashboard/settings': {
+      name: 'Settings',
+      description: 'Configure rotations, exam dates (Step 2 CK, COMLEX), target scores, UWorld question totals, and profile settings.'
+    },
+    '/dashboard/anking': {
+      name: 'AnKing Tracker',
+      description: 'Track AnKing flashcard progress by deck and subject for medical school studying.'
+    },
+    '/dashboard/clinical-notes': {
+      name: 'Clinical Notes & Pearls',
+      description: 'Store clinical pearls, learning points, and notes from rotations for future reference.'
+    },
+  }
+
+  // Find matching route (handle dynamic routes)
+  const exactMatch = pageMap[pathname]
+  if (exactMatch) {
+    return { currentPage: pathname, pageName: exactMatch.name, pageDescription: exactMatch.description }
+  }
+
+  // Check for partial matches (for nested routes)
+  for (const [route, info] of Object.entries(pageMap)) {
+    if (pathname.startsWith(route) && route !== '/dashboard') {
+      return { currentPage: pathname, pageName: info.name, pageDescription: info.description }
+    }
+  }
+
+  // Default for dashboard sub-pages
+  if (pathname.startsWith('/dashboard')) {
+    return {
+      currentPage: pathname,
+      pageName: 'Dashboard Section',
+      pageDescription: 'A section of the ScrubBuddy dashboard for medical student productivity tracking.'
+    }
+  }
+
+  return {
+    currentPage: pathname,
+    pageName: 'ScrubBuddy',
+    pageDescription: 'Medical student productivity and tracking application.'
+  }
+}
+
 export function FloatingAIWidget() {
+  const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: 'Hi! I\'m your AI Medical Assistant. I can help you with clinical questions, study tips, differential diagnoses, and more. What can I help you with today?'
+      content: 'Hi! I\'m your AI Medical Assistant. I can see what page you\'re on and help with clinical questions, study tips, differential diagnoses, and more. What can I help you with today?'
     }
   ])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Get current page context
+  const pageContext = getPageContext(pathname)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -42,7 +123,8 @@ export function FloatingAIWidget() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [...messages, { role: 'user', content: userMessage }]
+          messages: [...messages, { role: 'user', content: userMessage }],
+          pageContext: pageContext
         })
       })
 

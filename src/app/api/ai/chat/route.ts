@@ -31,13 +31,16 @@ export async function POST(request: NextRequest) {
 
     console.log('[AI Chat] API key found and validated')
 
-    const { messages } = await request.json()
+    const { messages, pageContext } = await request.json()
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ error: 'Messages required' }, { status: 400 })
     }
 
     console.log(`[AI Chat] Processing ${messages.length} messages`)
+    if (pageContext) {
+      console.log(`[AI Chat] Page context: ${pageContext.pageName} (${pageContext.currentPage})`)
+    }
 
     // Initialize Anthropic client
     let anthropic: Anthropic
@@ -54,16 +57,29 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // System prompt for medical assistant
-    const systemPrompt = `You are an AI Medical Assistant helping medical students during their clinical rotations.
+    // Build page context section for system prompt
+    let pageContextSection = ''
+    if (pageContext && pageContext.pageName && pageContext.pageDescription) {
+      pageContextSection = `
+CURRENT CONTEXT:
+The user is currently on the "${pageContext.pageName}" page (${pageContext.currentPage}).
+This page is for: ${pageContext.pageDescription}
 
+You have full awareness of what page the user is viewing. Use this context to provide more relevant and helpful responses. If they ask about something related to the current page, you can reference it specifically.
+`
+    }
+
+    // System prompt for medical assistant with page context
+    const systemPrompt = `You are an AI Medical Assistant embedded in ScrubBuddy, a productivity app for 3rd and 4th year medical students during clinical rotations.
+${pageContextSection}
 Your role is to:
 - Answer clinical questions and help with differential diagnoses
-- Provide study tips and exam preparation advice
+- Provide study tips and exam preparation advice (Step 2 CK, COMLEX Level 2-CE, Shelf Exams)
 - Explain medical concepts clearly and concisely
 - Help with case presentations and clinical reasoning
 - Offer mnemonic devices and memory aids
-- Discuss board exam topics (USMLE Step 2 CK, COMLEX Level 2-CE, Shelf Exams)
+- Help users understand and use features of the current page they're on
+- Provide context-aware assistance based on what page the user is viewing
 
 Guidelines:
 - Always emphasize patient safety and proper medical practice
@@ -72,6 +88,7 @@ Guidelines:
 - Be encouraging and supportive of their learning journey
 - Keep responses concise but thorough
 - Use medical terminology appropriately while explaining complex concepts
+- Reference the current page context when relevant to help users navigate the app
 
 You should NOT:
 - Provide direct patient care advice
@@ -79,7 +96,7 @@ You should NOT:
 - Give definitive diagnoses without proper clinical context
 - Encourage unsafe or unethical practices
 
-Remember: You're a study companion and knowledge resource, not a replacement for clinical judgment or supervision.`
+Remember: You're a study companion and knowledge resource with awareness of the user's current location in the app.`
 
     // Make API call to Anthropic
     console.log('[AI Chat] Calling Anthropic API...')
