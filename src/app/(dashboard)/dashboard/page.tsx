@@ -114,13 +114,18 @@ async function getDashboardData(userId: string) {
     console.log('ClinicalPearl table not found, skipping pearls widget')
   }
 
-  // Calculate UWorld stats
-  const questionsToday = todayLogs.reduce((sum, log) => sum + log.questionsTotal, 0)
-  const correctToday = todayLogs.reduce((sum, log) => sum + log.questionsCorrect, 0)
-  const questionsThisWeek = weekLogs.reduce((sum, log) => sum + log.questionsTotal, 0)
-  const correctThisWeek = weekLogs.reduce((sum, log) => sum + log.questionsCorrect, 0)
-  const totalQuestions = allLogs.reduce((sum, log) => sum + log.questionsTotal, 0)
-  const totalCorrect = allLogs.reduce((sum, log) => sum + log.questionsCorrect, 0)
+  // Calculate UWorld stats - only count logs that have at least one system assigned
+  // This excludes bulk imports with empty systems arrays that don't show under any subject
+  const logsWithSystems = allLogs.filter(log => log.systems && log.systems.length > 0)
+  const todayLogsWithSystems = todayLogs.filter(log => log.systems && log.systems.length > 0)
+  const weekLogsWithSystems = weekLogs.filter(log => log.systems && log.systems.length > 0)
+
+  const questionsToday = todayLogsWithSystems.reduce((sum, log) => sum + log.questionsTotal, 0)
+  const correctToday = todayLogsWithSystems.reduce((sum, log) => sum + log.questionsCorrect, 0)
+  const questionsThisWeek = weekLogsWithSystems.reduce((sum, log) => sum + log.questionsTotal, 0)
+  const correctThisWeek = weekLogsWithSystems.reduce((sum, log) => sum + log.questionsCorrect, 0)
+  const totalQuestions = logsWithSystems.reduce((sum, log) => sum + log.questionsTotal, 0)
+  const totalCorrect = logsWithSystems.reduce((sum, log) => sum + log.questionsCorrect, 0)
   const uworldPercentage = calculatePercentage(totalCorrect, totalQuestions)
 
   // Calculate total UWorld questions available based on user's custom settings
