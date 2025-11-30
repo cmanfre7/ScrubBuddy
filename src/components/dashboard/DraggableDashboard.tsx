@@ -243,12 +243,25 @@ export function DraggableDashboard({
     if (saved) {
       try {
         const parsedConfig = JSON.parse(saved) as WidgetConfig[]
-        // Merge with defaults to ensure all widgets are present
-        const mergedConfig = widgetIdsRef.current.map((id) => {
-          const savedWidget = parsedConfig.find((w) => w.id === id)
-          const defaultWidget = defaultConfigRef.current.find((w) => w.id === id)
-          return savedWidget || defaultWidget || { id, size: 'half' as WidgetSize, visible: true }
-        })
+        // Start with the saved config ORDER (this is the key - preserve user's arrangement)
+        const savedOrder = parsedConfig.map(w => w.id)
+
+        // Find any new widgets that aren't in saved config
+        const newWidgets = widgetIdsRef.current.filter(id => !savedOrder.includes(id))
+
+        // Build final config: saved widgets first (in their saved order), then any new widgets
+        const mergedConfig = [
+          ...savedOrder.map(id => {
+            const savedWidget = parsedConfig.find(w => w.id === id)
+            // Only include if it still exists in current widget list
+            if (!widgetIdsRef.current.includes(id)) return null
+            return savedWidget || { id, size: 'half' as WidgetSize, visible: true }
+          }).filter(Boolean) as WidgetConfig[],
+          ...newWidgets.map(id => {
+            const defaultWidget = defaultConfigRef.current.find(w => w.id === id)
+            return defaultWidget || { id, size: 'half' as WidgetSize, visible: true }
+          })
+        ]
         setConfig(mergedConfig)
       } catch {
         setConfig(defaultConfigRef.current)
