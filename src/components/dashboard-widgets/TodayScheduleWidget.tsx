@@ -105,40 +105,42 @@ export function TodayScheduleWidget({ events }: TodayScheduleWidgetProps) {
           </Link>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className={`${sortedEvents.length >= 4 ? 'space-y-1.5' : sortedEvents.length >= 3 ? 'space-y-2' : 'space-y-3'}`}>
           {sortedEvents.map((event) => {
             const ongoing = isOngoing(event)
-            const upcoming = isUpcoming(event)
+            // Dynamic sizing based on event count
+            const isCompact = sortedEvents.length >= 3
+            const isVeryCompact = sortedEvents.length >= 4
 
             return (
               <div
                 key={event.id}
-                className={`p-3 rounded-lg border-l-4 transition-colors ${
+                className={`${isVeryCompact ? 'p-2' : isCompact ? 'p-2.5' : 'p-3'} rounded-lg border-l-4 transition-colors ${
                   ongoing
                     ? 'bg-blue-900/30 border-blue-500'
                     : EVENT_TYPE_COLORS[event.eventType] || 'bg-slate-700/50 border-slate-600'
                 } ${ongoing ? 'ring-2 ring-blue-500/30' : ''}`}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-medium text-slate-100 text-sm">{event.title}</h3>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className={`flex items-center gap-2 ${isCompact ? 'mb-0.5' : 'mb-1'}`}>
+                      <h3 className={`font-medium text-slate-100 ${isVeryCompact ? 'text-xs' : 'text-sm'} truncate`}>{event.title}</h3>
                       {ongoing && (
-                        <span className="px-2 py-0.5 bg-blue-500 text-white text-xs rounded-full">
+                        <span className={`${isVeryCompact ? 'px-1.5 py-0 text-[10px]' : 'px-2 py-0.5 text-xs'} bg-blue-500 text-white rounded-full flex-shrink-0`}>
                           Now
                         </span>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-3 text-xs text-slate-400">
+                    <div className={`flex items-center gap-2 ${isVeryCompact ? 'text-[10px]' : 'text-xs'} text-slate-400`}>
                       <div className="flex items-center gap-1">
-                        <Clock size={12} />
+                        <Clock size={isVeryCompact ? 10 : 12} />
                         {event.isAllDay ? 'All Day' : formatTimeRange(event.startTime, event.endTime)}
                       </div>
                       {event.location && (
-                        <div className="flex items-center gap-1">
-                          <MapPin size={12} />
-                          {event.location}
+                        <div className="flex items-center gap-1 truncate">
+                          <MapPin size={isVeryCompact ? 10 : 12} className="flex-shrink-0" />
+                          <span className="truncate">{event.location}</span>
                         </div>
                       )}
                     </div>
