@@ -46,6 +46,7 @@ model User {
   boardExams    BoardExam[]
   calendarEvents CalendarEvent[]
   googleCalendarSync GoogleCalendarSync?
+  uworldSettings UWorldSettings[]
 }
 
 // ==================== ROTATIONS ====================
@@ -183,6 +184,22 @@ model UserProcedure {
 }
 
 // ==================== UWORLD ====================
+
+// User-specific UWorld question bank totals per subject
+model UWorldSettings {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  subject       String    // "OBGYN", "Surgery", etc.
+  totalQuestions Int      // Custom total for this subject
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([userId, subject])
+  @@index([userId])
+}
 
 model UWorldLog {
   id            String    @id @default(cuid())

@@ -100,6 +100,45 @@ export const SHELF_SUBJECTS: ShelfSubject[] = [
   'Surgery',
 ]
 
+// UWorld question bank totals per shelf subject
+// Note: Internal Medicine includes Medicine (1129) + Clinical Neurology (370) + Ambulatory Medicine (422)
+export const UWORLD_QUESTION_TOTALS: Record<ShelfSubject, number> = {
+  'Emergency Medicine': 403,
+  'Family Medicine': 460,
+  'Internal Medicine': 1921, // 1129 + 370 + 422
+  'OBGYN': 535,
+  'Pediatrics': 637,
+  'Psychiatry': 362,
+  'Surgery': 638,
+}
+
+// Mapping from UWorld PDF subject names to shelf subjects
+export const UWORLD_SUBJECT_MAPPING: Record<string, ShelfSubject> = {
+  // Direct mappings
+  'medicine': 'Internal Medicine',
+  'internal medicine': 'Internal Medicine',
+  'obgyn': 'OBGYN',
+  'ob/gyn': 'OBGYN',
+  'obstetrics': 'OBGYN',
+  'gynecology': 'OBGYN',
+  'pediatrics': 'Pediatrics',
+  'peds': 'Pediatrics',
+  'psychiatry': 'Psychiatry',
+  'psych': 'Psychiatry',
+  'surgery': 'Surgery',
+  'general surgery': 'Surgery',
+  'emergency medicine': 'Emergency Medicine',
+  'emergency': 'Emergency Medicine',
+  'family medicine': 'Family Medicine',
+  'family': 'Family Medicine',
+  // These go with Internal Medicine
+  'ambulatory medicine': 'Internal Medicine',
+  'ambulatory': 'Internal Medicine',
+  'clinical neurology': 'Internal Medicine',
+  'neurology': 'Internal Medicine',
+  'neuro': 'Internal Medicine',
+}
+
 export const UWORLD_SUBJECTS: UWorldSubject[] = [
   'Anatomy',
   'Physiology',

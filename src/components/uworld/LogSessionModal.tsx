@@ -44,6 +44,10 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
     setIsLoading(true)
 
     try {
+      // Add noon time to prevent timezone rollover issues
+      // manualData.date is "YYYY-MM-DD", we add T12:00:00 to make it noon local time
+      const dateWithNoon = new Date(`${manualData.date}T12:00:00`)
+
       const res = await fetch('/api/uworld', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -52,7 +56,7 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
           questionsCorrect: parseInt(manualData.questionsCorrect),
           timeSpentMins: manualData.timeSpentMins ? parseInt(manualData.timeSpentMins) : null,
           mode: manualData.mode || null,
-          date: new Date(manualData.date).toISOString(),
+          date: dateWithNoon.toISOString(),
           systems: [subject],
           notes: manualData.notes || null,
         }),

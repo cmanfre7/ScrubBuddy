@@ -44,8 +44,15 @@ export function EditSessionModal({ isOpen, onClose, onSuccess, session }: EditSe
   // Populate form when session changes
   useEffect(() => {
     if (session) {
+      // Parse the date and format it locally (not UTC) to avoid timezone shifting
+      const sessionDate = new Date(session.date)
+      const year = sessionDate.getFullYear()
+      const month = String(sessionDate.getMonth() + 1).padStart(2, '0')
+      const day = String(sessionDate.getDate()).padStart(2, '0')
+      const localDateString = `${year}-${month}-${day}`
+
       setFormData({
-        date: new Date(session.date).toISOString().split('T')[0],
+        date: localDateString,
         questionsTotal: session.questionsTotal.toString(),
         questionsCorrect: session.questionsCorrect.toString(),
         timeSpentMins: session.timeSpentMins?.toString() || '',
@@ -65,11 +72,15 @@ export function EditSessionModal({ isOpen, onClose, onSuccess, session }: EditSe
     setIsLoading(true)
 
     try {
+      // Add noon time to prevent timezone rollover issues
+      // formData.date is "YYYY-MM-DD", we add T12:00:00 to make it noon local time
+      const dateWithNoon = new Date(`${formData.date}T12:00:00`)
+
       const res = await fetch(`/api/uworld/${session.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          date: new Date(formData.date).toISOString(),
+          date: dateWithNoon.toISOString(),
           questionsTotal: parseInt(formData.questionsTotal),
           questionsCorrect: parseInt(formData.questionsCorrect),
           timeSpentMins: formData.timeSpentMins ? parseInt(formData.timeSpentMins) : null,
