@@ -174,8 +174,16 @@ export async function POST(request: NextRequest) {
         console.log('Parsing PDF with pdfjs-dist (legacy)...')
         const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs')
 
-        // Load the PDF document
-        const loadingTask = pdfjsLib.getDocument({ data: uint8Array })
+        // Disable worker (not needed in Node.js server environment)
+        pdfjsLib.GlobalWorkerOptions.workerSrc = ''
+
+        // Load the PDF document with worker disabled
+        const loadingTask = pdfjsLib.getDocument({
+          data: uint8Array,
+          useWorkerFetch: false,
+          isEvalSupported: false,
+          useSystemFonts: true,
+        })
         const pdf = await loadingTask.promise
 
         // Extract text from all pages
