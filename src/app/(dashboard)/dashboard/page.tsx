@@ -12,6 +12,7 @@ import { PearlsWidget } from '@/components/dashboard-widgets/PearlsWidget'
 import { StreakWidget } from '@/components/dashboard-widgets/StreakWidget'
 import { TodayScheduleWidget } from '@/components/dashboard-widgets/TodayScheduleWidget'
 import { ExamDateButtons } from '@/components/ExamDateButtons'
+import { DashboardClient } from '@/components/dashboard/DashboardClient'
 import { Calendar as CalendarIcon, Target, FileText, Stethoscope } from 'lucide-react'
 
 async function getDashboardData(userId: string) {
@@ -306,6 +307,82 @@ export default async function DashboardPage() {
       })
     : null
 
+  // Build countdown widgets
+  const countdownWidgets = []
+  if (data.currentRotation) {
+    countdownWidgets.push(
+      <CountdownWidget
+        key="rotation"
+        title="Current Rotation"
+        icon={<Stethoscope size={16} />}
+        iconBgColor="bg-red-900/40"
+        currentDay={rotationCurrentDay}
+        totalDays={rotationTotalDays}
+        href="/dashboard/settings"
+      />
+    )
+  }
+  if (daysUntilShelf !== null && data.currentRotation?.shelfDate) {
+    countdownWidgets.push(
+      <CountdownWidget
+        key="shelf"
+        title="Shelf Exam"
+        icon={<FileText size={16} />}
+        iconBgColor="bg-amber-900/40"
+        daysLeft={daysUntilShelf}
+        examDate={shelfDateFormatted || undefined}
+        predicted="72-78"
+        href="/dashboard/analytics?tab=shelf"
+      />
+    )
+  }
+  if (daysUntilStep2 !== null && daysUntilStep2 > 0) {
+    countdownWidgets.push(
+      <CountdownWidget
+        key="step2"
+        title="Step 2 CK"
+        icon={<Target size={16} />}
+        iconBgColor="bg-blue-900/40"
+        daysLeft={daysUntilStep2}
+        examDate={
+          data.user?.step2Date
+            ? new Date(data.user.step2Date).toLocaleDateString('en-US', {
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric',
+              })
+            : undefined
+        }
+        predicted="245"
+        target="250"
+        href="/dashboard/analytics"
+      />
+    )
+  }
+  if (daysUntilComlex !== null && daysUntilComlex > 0) {
+    countdownWidgets.push(
+      <CountdownWidget
+        key="comlex"
+        title="COMLEX Level 2"
+        icon={<CalendarIcon size={16} />}
+        iconBgColor="bg-green-900/40"
+        daysLeft={daysUntilComlex}
+        examDate={
+          data.user?.comlexDate
+            ? new Date(data.user.comlexDate).toLocaleDateString('en-US', {
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric',
+              })
+            : undefined
+        }
+        predicted="585"
+        target="600"
+        href="/dashboard/analytics"
+      />
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -336,109 +413,39 @@ export default async function DashboardPage() {
         />
       </div>
 
-      {/* Countdown Widgets */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {data.currentRotation && (
-          <CountdownWidget
-            title="Current Rotation"
-            icon={<Stethoscope size={16} />}
-            iconBgColor="bg-red-900/40"
-            currentDay={rotationCurrentDay}
-            totalDays={rotationTotalDays}
-            href="/dashboard/settings"
-          />
-        )}
-        {daysUntilShelf !== null && data.currentRotation?.shelfDate && (
-          <CountdownWidget
-            title="Shelf Exam"
-            icon={<FileText size={16} />}
-            iconBgColor="bg-amber-900/40"
-            daysLeft={daysUntilShelf}
-            examDate={shelfDateFormatted || undefined}
-            predicted="72-78"
-            href="/dashboard/analytics?tab=shelf"
-          />
-        )}
-        {daysUntilStep2 !== null && daysUntilStep2 > 0 && (
-          <CountdownWidget
-            title="Step 2 CK"
-            icon={<Target size={16} />}
-            iconBgColor="bg-blue-900/40"
-            daysLeft={daysUntilStep2}
-            examDate={
-              data.user?.step2Date
-                ? new Date(data.user.step2Date).toLocaleDateString('en-US', {
-                    month: 'long',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })
-                : undefined
+      {/* Draggable Dashboard */}
+      <DashboardClient
+        countdownsWidget={
+          countdownWidgets.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {countdownWidgets}
+            </div>
+          ) : null
+        }
+        uworldWidget={
+          <UWorldProgressWidget
+            percentage={
+              data.totalQuestions > 0 && data.uworldTotalQuestions > 0
+                ? Math.round((data.totalQuestions / data.uworldTotalQuestions) * 100)
+                : 0
             }
-            predicted="245"
-            target="250"
-            href="/dashboard/analytics"
+            questionsDone={data.totalQuestions}
+            totalQuestions={data.uworldTotalQuestions}
+            overallCorrect={data.uworldPercentage}
+            todayQuestions={data.questionsToday}
+            todayCorrect={data.correctToday}
+            weekQuestions={data.questionsThisWeek}
+            weekCorrect={data.correctThisWeek}
           />
-        )}
-        {daysUntilComlex !== null && daysUntilComlex > 0 && (
-          <CountdownWidget
-            title="COMLEX Level 2"
-            icon={<CalendarIcon size={16} />}
-            iconBgColor="bg-green-900/40"
-            daysLeft={daysUntilComlex}
-            examDate={
-              data.user?.comlexDate
-                ? new Date(data.user.comlexDate).toLocaleDateString('en-US', {
-                    month: 'long',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })
-                : undefined
-            }
-            predicted="585"
-            target="600"
-            href="/dashboard/analytics"
-          />
-        )}
-      </div>
-
-      {/* UWorld + Goals */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <UWorldProgressWidget
-          percentage={
-            data.totalQuestions > 0 && data.uworldTotalQuestions > 0
-              ? Math.round((data.totalQuestions / data.uworldTotalQuestions) * 100)
-              : 0
-          }
-          questionsDone={data.totalQuestions}
-          totalQuestions={data.uworldTotalQuestions}
-          overallCorrect={data.uworldPercentage}
-          todayQuestions={data.questionsToday}
-          todayCorrect={data.correctToday}
-          weekQuestions={data.questionsThisWeek}
-          weekCorrect={data.correctThisWeek}
-        />
-        <GoalsWidget initialGoals={data.tasks} />
-      </div>
-
-      {/* Today's Schedule */}
-      <TodayScheduleWidget events={data.todayEvents} />
-
-      {/* Week Calendar + Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <WeekCalendarWidget days={data.weekDays} />
-        <QuickActionsWidget />
-      </div>
-
-      {/* Weak Areas + Recent Pearls */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <WeakAreasWidget weakAreas={data.weakAreas} />
-        <PearlsWidget pearls={data.pearls} />
-      </div>
-
-      {/* Study Streak */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <StreakWidget currentStreak={data.currentStreak} last28Days={data.last28Days} />
-      </div>
+        }
+        goalsWidget={<GoalsWidget initialGoals={data.tasks} />}
+        todayScheduleWidget={<TodayScheduleWidget events={data.todayEvents} />}
+        weekCalendarWidget={<WeekCalendarWidget days={data.weekDays} />}
+        quickActionsWidget={<QuickActionsWidget />}
+        weakAreasWidget={<WeakAreasWidget weakAreas={data.weakAreas} />}
+        pearlsWidget={<PearlsWidget pearls={data.pearls} />}
+        streakWidget={<StreakWidget currentStreak={data.currentStreak} last28Days={data.last28Days} />}
+      />
     </div>
   )
 }
