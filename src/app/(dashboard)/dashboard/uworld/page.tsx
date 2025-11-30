@@ -9,8 +9,8 @@ import { Modal } from '@/components/ui/modal'
 import { Select } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { formatDate, calculatePercentage, cn } from '@/lib/utils'
-import { Plus, ArrowLeft, BookOpen, TrendingUp, Calendar, Clock, Trash2, Upload, Pencil, Settings, AlertTriangle } from 'lucide-react'
-import { ImportModal } from '@/components/uworld/ImportModal'
+import { Plus, ArrowLeft, BookOpen, TrendingUp, Calendar, Clock, Trash2, Pencil, Settings, AlertTriangle } from 'lucide-react'
+// ImportModal removed - paste text moved to LogSessionModal within each subject
 import { LogSessionModal } from '@/components/uworld/LogSessionModal'
 import { EditSessionModal } from '@/components/uworld/EditSessionModal'
 
@@ -113,7 +113,6 @@ export default function UWorldPage() {
   const queryClient = useQueryClient()
   const [selectedSubject, setSelectedSubject] = useState<ShelfSubject | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false)
   const [isConfirmClearOpen, setIsConfirmClearOpen] = useState(false)
   const [editingSession, setEditingSession] = useState<UWorldLog | null>(null)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
@@ -253,10 +252,6 @@ export default function UWorldPage() {
             <h1 className="text-2xl font-bold text-slate-100">UWorld Tracker</h1>
             <p className="text-slate-400 mt-1">Select a shelf subject to view your progress</p>
           </div>
-          <Button onClick={() => setIsImportModalOpen(true)} variant="secondary">
-            <Upload size={18} className="mr-2" />
-            Import Progress
-          </Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -310,15 +305,6 @@ export default function UWorldPage() {
           })}
         </div>
 
-        {/* Import Modal */}
-        <ImportModal
-          isOpen={isImportModalOpen}
-          onClose={() => setIsImportModalOpen(false)}
-          onSuccess={() => {
-            queryClient.invalidateQueries({ queryKey: ['uworld'] })
-            queryClient.invalidateQueries({ queryKey: ['uworld-weak-areas'] })
-          }}
-        />
       </div>
     )
   }

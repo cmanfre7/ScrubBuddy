@@ -17,7 +17,7 @@ interface LogSessionModalProps {
 }
 
 export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSessionModalProps) {
-  const [activeTab, setActiveTab] = useState<'manual' | 'pdf'>('manual')
+  const [activeTab, setActiveTab] = useState<'manual' | 'paste' | 'pdf'>('manual')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
@@ -36,6 +36,12 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [pdfNotes, setPdfNotes] = useState('')
+
+  // Paste text state
+  const [testName, setTestName] = useState('')
+  const [pasteText, setPasteText] = useState('')
+  const [pasteTotalQuestions, setPasteTotalQuestions] = useState('')
+  const [isIncorrectOnly, setIsIncorrectOnly] = useState(true)
 
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -172,6 +178,67 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
     }
   }
 
+  const handlePasteSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!testName.trim() || !pasteText.trim()) {
+      setError('Please enter a test name and paste the table data')
+      return
+    }
+
+    setError(null)
+    setSuccess(null)
+    setIsLoading(true)
+
+    try {
+      const res = await fetch('/api/uworld/import-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          testName: `${subject} - ${testName.trim()}`,
+          text: pasteText.trim(),
+          totalQuestions: pasteTotalQuestions ? parseInt(pasteTotalQuestions) : undefined,
+          isIncorrectOnly,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to import data')
+      }
+
+      const stats = data.stats
+      setSuccess(
+        `Successfully imported ${stats.questionsSaved} incorrect questions! ` +
+        (stats.totalQuestions > 0
+          ? `Test score: ${stats.totalCorrect}/${stats.totalQuestions} (${stats.percentCorrect}%)`
+          : `Topics: ${stats.topics.slice(0, 3).join(', ')}${stats.topics.length > 3 ? '...' : ''}`)
+      )
+      setTimeout(() => {
+        onSuccess()
+        onClose()
+        // Reset form
+        setTestName('')
+        setPasteText('')
+        setPasteTotalQuestions('')
+      }, 2000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Count lines in pasted text (excluding empty and header lines)
+  const pasteLineCount = pasteText.trim()
+    .split('\n')
+    .filter(line => {
+      const trimmed = line.trim()
+      if (!trimmed) return false
+      if (trimmed.includes('SUBJECTS') || trimmed.includes('SYSTEMS')) return false
+      return /\d+\s*[-–]\s*\d{5,}/.test(trimmed)
+    }).length
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Log ${subject} Session`}>
       {/* Tab Navigation */}
@@ -186,6 +253,17 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
           }`}
         >
           Manual Entry
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('paste')}
+          className={`px-4 py-2 font-medium transition-colors ${
+            activeTab === 'paste'
+              ? 'text-blue-400 border-b-2 border-blue-400'
+              : 'text-slate-400 hover:text-slate-300'
+          }`}
+        >
+          Paste Text
         </button>
         <button
           type="button"
@@ -282,6 +360,111 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
             </Button>
             <Button type="submit" disabled={isLoading} className="flex-1">
               {isLoading ? 'Saving...' : 'Save Session'}
+            </Button>
+          </div>
+        </form>
+      )}
+
+      {/* Paste Text Tab */}
+      {activeTab === 'paste' && (
+        <form onSubmit={handlePasteSubmit} className="space-y-4">
+          <div className="bg-blue-900/20 border border-blue-700/30 p-3 rounded-lg text-xs text-blue-300">
+            <p className="font-medium mb-1">Copy table data from UWorld:</p>
+            <p className="text-blue-400">
+              1. Filter your test results by Incorrect questions<br />
+              2. Select all rows in the table and copy (Cmd+C)<br />
+              3. Paste the data below
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Test Name
+            </label>
+            <Input
+              type="text"
+              value={testName}
+              onChange={(e) => setTestName(e.target.value)}
+              placeholder="e.g., Week 1 Test"
+              required
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              Will be saved as "{subject} - [your test name]"
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Paste Table Data
+            </label>
+            <Textarea
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              placeholder="Paste the copied table rows here..."
+              rows={5}
+              className="font-mono text-xs"
+              required
+            />
+            {pasteLineCount > 0 && (
+              <p className="text-xs text-slate-500 mt-1">
+                Detected {pasteLineCount} question{pasteLineCount !== 1 ? 's' : ''}
+              </p>
+            )}
+          </div>
+
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isIncorrectOnly}
+                onChange={(e) => setIsIncorrectOnly(e.target.checked)}
+                className="rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500"
+              />
+              Only pasting incorrect questions
+            </label>
+          </div>
+
+          {isIncorrectOnly && (
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Total Questions on Test (optional)
+              </label>
+              <Input
+                type="number"
+                value={pasteTotalQuestions}
+                onChange={(e) => setPasteTotalQuestions(e.target.value)}
+                placeholder="e.g., 40"
+                min="1"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Enter total test size to calculate your score
+              </p>
+            </div>
+          )}
+
+          {isIncorrectOnly && pasteTotalQuestions && pasteLineCount > 0 && (
+            <div className="p-3 rounded-lg bg-slate-900/50 border border-slate-700/50">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-400">Questions Correct:</span>
+                <span className="font-semibold text-green-400">
+                  {parseInt(pasteTotalQuestions) - pasteLineCount} / {pasteTotalQuestions}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm mt-1">
+                <span className="text-slate-400">Estimated Score:</span>
+                <span className="font-semibold text-blue-400">
+                  {Math.round(((parseInt(pasteTotalQuestions) - pasteLineCount) / parseInt(pasteTotalQuestions)) * 100)}%
+                </span>
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-4">
+            <Button variant="secondary" onClick={onClose} disabled={isLoading} className="flex-1">
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isLoading || !testName.trim() || !pasteText.trim()} className="flex-1">
+              {isLoading ? 'Importing...' : 'Import Questions'}
             </Button>
           </div>
         </form>
