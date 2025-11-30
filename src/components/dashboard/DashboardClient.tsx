@@ -69,7 +69,7 @@ export function DashboardClient({
 
   return (
     <DraggableDashboard
-      widgetIds={[...WIDGET_IDS]}
+      widgetIds={WIDGET_IDS as unknown as string[]}
       defaultConfig={DEFAULT_WIDGET_CONFIG}
     >
       {widgets}

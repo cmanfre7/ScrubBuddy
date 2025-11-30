@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, ReactNode } from 'react'
+import { useState, useEffect, useRef, ReactNode } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -230,28 +230,34 @@ export function DraggableDashboard({
   const [config, setConfig] = useState<WidgetConfig[]>(defaultConfig)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [isLoaded, setIsLoaded] = useState(false)
+  const hasLoadedRef = useRef(false)
+  const defaultConfigRef = useRef(defaultConfig)
+  const widgetIdsRef = useRef(widgetIds)
 
-  // Load saved config from localStorage
+  // Load saved config from localStorage - ONLY ONCE on mount
   useEffect(() => {
+    if (hasLoadedRef.current) return
+    hasLoadedRef.current = true
+
     const saved = localStorage.getItem(storageKey)
     if (saved) {
       try {
         const parsedConfig = JSON.parse(saved) as WidgetConfig[]
         // Merge with defaults to ensure all widgets are present
-        const mergedConfig = widgetIds.map((id) => {
+        const mergedConfig = widgetIdsRef.current.map((id) => {
           const savedWidget = parsedConfig.find((w) => w.id === id)
-          const defaultWidget = defaultConfig.find((w) => w.id === id)
+          const defaultWidget = defaultConfigRef.current.find((w) => w.id === id)
           return savedWidget || defaultWidget || { id, size: 'half' as WidgetSize, visible: true }
         })
         setConfig(mergedConfig)
       } catch {
-        setConfig(defaultConfig)
+        setConfig(defaultConfigRef.current)
       }
     }
     setIsLoaded(true)
-  }, [defaultConfig, storageKey, widgetIds])
+  }, [storageKey])
 
-  // Save config to localStorage
+  // Save config to localStorage whenever it changes (after initial load)
   useEffect(() => {
     if (isLoaded) {
       localStorage.setItem(storageKey, JSON.stringify(config))
@@ -369,7 +375,7 @@ export function DraggableDashboard({
   }
 
   const resetToDefault = () => {
-    setConfig(defaultConfig)
+    setConfig(defaultConfigRef.current)
     localStorage.removeItem(storageKey)
   }
 

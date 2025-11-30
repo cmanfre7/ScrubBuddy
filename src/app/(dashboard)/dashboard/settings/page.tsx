@@ -9,8 +9,15 @@ import { Input } from '@/components/ui/input'
 import { Modal } from '@/components/ui/modal'
 import { Select } from '@/components/ui/select'
 import { formatDate } from '@/lib/utils'
-import { Plus, Calendar, Trash2, Settings, Target, Edit2 } from 'lucide-react'
+import { Plus, Calendar, Trash2, Settings, Target, Edit2, Award } from 'lucide-react'
 import { ROTATION_OPTIONS } from '@/types'
+
+interface BoardExam {
+  id: string
+  examType: string
+  targetScore: number
+  examDate: string | null
+}
 
 interface Rotation {
   id: string
@@ -43,6 +50,26 @@ export default function SettingsPage() {
     shelfDate: '',
     isCurrent: false,
   })
+
+  // Board target states
+  const [step2Target, setStep2Target] = useState('')
+  const [comlexTarget, setComlexTarget] = useState('')
+  const [isBoardTargetModalOpen, setIsBoardTargetModalOpen] = useState(false)
+  const [editingBoardType, setEditingBoardType] = useState<'USMLE_STEP_2_CK' | 'COMLEX_LEVEL_2_CE' | null>(null)
+
+  // Fetch board exams
+  const { data: boardExamsData } = useQuery<BoardExam[]>({
+    queryKey: ['board-exams'],
+    queryFn: async () => {
+      const res = await fetch('/api/board-exams')
+      if (!res.ok) return []
+      return res.json()
+    },
+  })
+
+  const boardExams = boardExamsData || []
+  const step2Exam = boardExams.find(e => e.examType === 'USMLE_STEP_2_CK')
+  const comlexExam = boardExams.find(e => e.examType === 'COMLEX_LEVEL_2_CE')
 
   const { data: rotationsData } = useQuery({
     queryKey: ['rotations'],
@@ -118,6 +145,36 @@ export default function SettingsPage() {
       setSelectedRotation(null)
     },
   })
+
+  // Board target mutation
+  const saveBoardTargetMutation = useMutation({
+    mutationFn: async ({ examType, targetScore }: { examType: string; targetScore: number }) => {
+      const res = await fetch('/api/board-exams', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ examType, targetScore }),
+      })
+      if (!res.ok) throw new Error('Failed to save board target')
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['board-exams'] })
+      setIsBoardTargetModalOpen(false)
+      setEditingBoardType(null)
+      setStep2Target('')
+      setComlexTarget('')
+    },
+  })
+
+  const handleEditBoardTarget = (examType: 'USMLE_STEP_2_CK' | 'COMLEX_LEVEL_2_CE') => {
+    setEditingBoardType(examType)
+    if (examType === 'USMLE_STEP_2_CK' && step2Exam) {
+      setStep2Target(step2Exam.targetScore.toString())
+    } else if (examType === 'COMLEX_LEVEL_2_CE' && comlexExam) {
+      setComlexTarget(comlexExam.targetScore.toString())
+    }
+    setIsBoardTargetModalOpen(true)
+  }
 
   const rotations: Rotation[] = Array.isArray(rotationsData) ? rotationsData : []
 
@@ -258,6 +315,68 @@ export default function SettingsPage() {
             <div>
               <label className="text-sm text-slate-400">Weekly Question Goal</label>
               <p className="text-2xl font-bold text-slate-100">200</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Board Targets Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Award size={18} className="text-yellow-400" />
+            Board Exam Targets
+          </CardTitle>
+          <CardDescription>Set your target scores for Step 2 CK and COMLEX Level 2</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Step 2 CK */}
+            <div className="bg-slate-800/30 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-slate-300">USMLE Step 2 CK</span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => handleEditBoardTarget('USMLE_STEP_2_CK')}
+                >
+                  <Edit2 size={14} />
+                </Button>
+              </div>
+              {step2Exam ? (
+                <p className="text-3xl font-bold text-blue-400">{step2Exam.targetScore}</p>
+              ) : (
+                <button
+                  onClick={() => handleEditBoardTarget('USMLE_STEP_2_CK')}
+                  className="text-sm text-blue-400 hover:text-blue-300"
+                >
+                  + Set target score
+                </button>
+              )}
+            </div>
+
+            {/* COMLEX Level 2 */}
+            <div className="bg-slate-800/30 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-slate-300">COMLEX Level 2-CE</span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => handleEditBoardTarget('COMLEX_LEVEL_2_CE')}
+                >
+                  <Edit2 size={14} />
+                </Button>
+              </div>
+              {comlexExam ? (
+                <p className="text-3xl font-bold text-green-400">{comlexExam.targetScore}</p>
+              ) : (
+                <button
+                  onClick={() => handleEditBoardTarget('COMLEX_LEVEL_2_CE')}
+                  className="text-sm text-green-400 hover:text-green-300"
+                >
+                  + Set target score
+                </button>
+              )}
             </div>
           </div>
         </CardContent>
@@ -410,6 +529,91 @@ export default function SettingsPage() {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Board Target Modal */}
+      <Modal
+        isOpen={isBoardTargetModalOpen}
+        onClose={() => {
+          setIsBoardTargetModalOpen(false)
+          setEditingBoardType(null)
+        }}
+        title={editingBoardType === 'USMLE_STEP_2_CK' ? 'Set Step 2 CK Target' : 'Set COMLEX Level 2 Target'}
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (editingBoardType) {
+              const targetValue = editingBoardType === 'USMLE_STEP_2_CK'
+                ? parseInt(step2Target)
+                : parseInt(comlexTarget)
+              if (!isNaN(targetValue) && targetValue > 0) {
+                saveBoardTargetMutation.mutate({
+                  examType: editingBoardType,
+                  targetScore: targetValue,
+                })
+              }
+            }
+          }}
+          className="space-y-4"
+        >
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Target Score
+            </label>
+            {editingBoardType === 'USMLE_STEP_2_CK' ? (
+              <>
+                <Input
+                  type="number"
+                  value={step2Target}
+                  onChange={(e) => setStep2Target(e.target.value)}
+                  placeholder="e.g., 260"
+                  min={1}
+                  max={300}
+                  required
+                />
+                <p className="text-xs text-slate-500 mt-2">
+                  Step 2 CK scores typically range from 200-300. Average is around 245.
+                </p>
+              </>
+            ) : (
+              <>
+                <Input
+                  type="number"
+                  value={comlexTarget}
+                  onChange={(e) => setComlexTarget(e.target.value)}
+                  placeholder="e.g., 700"
+                  min={1}
+                  max={999}
+                  required
+                />
+                <p className="text-xs text-slate-500 mt-2">
+                  COMLEX Level 2-CE scores typically range from 400-800. Average is around 550.
+                </p>
+              </>
+            )}
+          </div>
+          <div className="flex gap-3 pt-4">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setIsBoardTargetModalOpen(false)
+                setEditingBoardType(null)
+              }}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              isLoading={saveBoardTargetMutation.isPending}
+              className="flex-1"
+            >
+              Save Target
+            </Button>
+          </div>
+        </form>
       </Modal>
     </div>
   )
