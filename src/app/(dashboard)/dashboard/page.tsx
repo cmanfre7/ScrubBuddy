@@ -159,14 +159,12 @@ async function getDashboardData(userId: string) {
 
   const weakAreas = Object.entries(topicCounts)
     .map(([topic, count]) => {
-      // Calculate a rough percentage based on incorrect count
-      // Lower percentage means more incorrect (weaker area)
-      // Assume max 20 questions per topic, so percentage = (20 - count) / 20 * 100
-      const estimatedPercentage = Math.max(0, Math.round(((20 - count) / 20) * 100))
+      // Show count of misses - more misses = weaker area (lower percentage shown)
+      // This represents "mastery" - 0 misses = 100%, more misses = lower %
+      const estimatedPercentage = Math.max(0, Math.round(((5 - Math.min(count, 5)) / 5) * 100))
       return { name: topic, percentage: estimatedPercentage }
     })
-    .filter((area) => area.percentage < 70)
-    .sort((a, b) => a.percentage - b.percentage)
+    .sort((a, b) => a.percentage - b.percentage) // Sort by weakest first (lowest percentage)
     .slice(0, 4)
 
   // Calculate study streak
