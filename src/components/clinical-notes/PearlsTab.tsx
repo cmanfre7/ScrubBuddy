@@ -17,6 +17,7 @@ import {
   Link as LinkIcon,
   Trash2,
   X,
+  Stethoscope,
 } from 'lucide-react'
 
 interface ClinicalPearl {
@@ -27,6 +28,15 @@ interface ClinicalPearl {
   source: string | null
   patientId: string | null
   createdAt: string
+  rotation?: {
+    id: string
+    name: string
+  } | null
+}
+
+interface Rotation {
+  id: string
+  name: string
 }
 
 interface PearlsTabProps {
@@ -38,6 +48,7 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
   const [search, setSearch] = useState('')
   const [filterView, setFilterView] = useState<'all' | 'high-yield' | 'recent'>('all')
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedRotationId, setSelectedRotationId] = useState(rotationId)
   const [newPearl, setNewPearl] = useState({
     content: '',
     tags: [] as string[],
@@ -45,6 +56,16 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
     source: '',
   })
   const [tagInput, setTagInput] = useState('')
+
+  // Fetch all rotations for the dropdown
+  const { data: rotations = [] } = useQuery<Rotation[]>({
+    queryKey: ['rotations-list'],
+    queryFn: async () => {
+      const res = await fetch('/api/rotations')
+      if (!res.ok) throw new Error('Failed to fetch rotations')
+      return res.json()
+    },
+  })
 
   // Fetch pearls
   const { data: pearls = [], isLoading } = useQuery<ClinicalPearl[]>({
@@ -67,7 +88,7 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
       const res = await fetch('/api/clinical-pearls', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...data, rotationId }),
+        body: JSON.stringify({ ...data, rotationId: selectedRotationId }),
       })
       if (!res.ok) throw new Error('Failed to create pearl')
       return res.json()
@@ -77,8 +98,15 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
       queryClient.invalidateQueries({ queryKey: ['rotations'] }) // Update counts
       setIsModalOpen(false)
       setNewPearl({ content: '', tags: [], isHighYield: false, source: '' })
+      setSelectedRotationId(rotationId) // Reset to current rotation
     },
   })
+
+  // Reset selected rotation when opening modal
+  const handleOpenModal = () => {
+    setSelectedRotationId(rotationId)
+    setIsModalOpen(true)
+  }
 
   // Toggle high yield
   const toggleHighYieldMutation = useMutation({
@@ -132,7 +160,7 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
             className="pl-10"
           />
         </div>
-        <Button onClick={() => setIsModalOpen(true)}>
+        <Button onClick={handleOpenModal}>
           <Plus size={18} />
           Add Pearl
         </Button>
@@ -278,6 +306,28 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
             rows={4}
             required
           />
+
+          {/* Rotation Selector */}
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2 flex items-center gap-1.5">
+              <Stethoscope size={14} />
+              Rotation
+            </label>
+            <select
+              value={selectedRotationId}
+              onChange={(e) => setSelectedRotationId(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg bg-slate-700 border border-slate-600 text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              {rotations.map((rotation) => (
+                <option key={rotation.id} value={rotation.id}>
+                  {rotation.name} {rotation.id === rotationId ? '(current)' : ''}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-slate-500 mt-1">
+              Select which rotation this pearl is from
+            </p>
+          </div>
 
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
