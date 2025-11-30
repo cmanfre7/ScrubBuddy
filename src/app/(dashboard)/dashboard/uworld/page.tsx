@@ -99,14 +99,14 @@ interface UWorldLog {
   notes: string | null
 }
 
-const SHELF_COLORS: Record<ShelfSubject, { bg: string; text: string; border: string }> = {
-  'Emergency Medicine': { bg: 'bg-red-500/20', text: 'text-red-400', border: 'border-red-500/30' },
-  'Family Medicine': { bg: 'bg-green-500/20', text: 'text-green-400', border: 'border-green-500/30' },
-  'Internal Medicine': { bg: 'bg-orange-500/20', text: 'text-orange-400', border: 'border-orange-500/30' },
-  'OBGYN': { bg: 'bg-pink-500/20', text: 'text-pink-400', border: 'border-pink-500/30' },
-  'Pediatrics': { bg: 'bg-cyan-500/20', text: 'text-cyan-400', border: 'border-cyan-500/30' },
-  'Psychiatry': { bg: 'bg-indigo-500/20', text: 'text-indigo-400', border: 'border-indigo-500/30' },
-  'Surgery': { bg: 'bg-yellow-500/20', text: 'text-yellow-400', border: 'border-yellow-500/30' },
+const SHELF_COLORS: Record<ShelfSubject, { bg: string; text: string; border: string; bar: string }> = {
+  'Emergency Medicine': { bg: 'bg-red-500/20', text: 'text-red-400', border: 'border-red-500/30', bar: 'bg-red-500' },
+  'Family Medicine': { bg: 'bg-green-500/20', text: 'text-green-400', border: 'border-green-500/30', bar: 'bg-green-500' },
+  'Internal Medicine': { bg: 'bg-orange-500/20', text: 'text-orange-400', border: 'border-orange-500/30', bar: 'bg-orange-500' },
+  'OBGYN': { bg: 'bg-pink-500/20', text: 'text-pink-400', border: 'border-pink-500/30', bar: 'bg-pink-500' },
+  'Pediatrics': { bg: 'bg-cyan-500/20', text: 'text-cyan-400', border: 'border-cyan-500/30', bar: 'bg-cyan-500' },
+  'Psychiatry': { bg: 'bg-indigo-500/20', text: 'text-indigo-400', border: 'border-indigo-500/30', bar: 'bg-indigo-500' },
+  'Surgery': { bg: 'bg-yellow-500/20', text: 'text-yellow-400', border: 'border-yellow-500/30', bar: 'bg-yellow-500' },
 }
 
 export default function UWorldPage() {
@@ -287,7 +287,7 @@ export default function UWorldPage() {
                   {/* Progress bar */}
                   <div className="h-2 bg-slate-700/50 rounded-full overflow-hidden">
                     <div
-                      className={cn('h-full rounded-full transition-all', colors.bg.replace('/20', ''))}
+                      className={cn('h-full rounded-full transition-all', colors.bar)}
                       style={{ width: `${progressPercent}%` }}
                     />
                   </div>
