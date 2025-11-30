@@ -118,6 +118,51 @@ async function handleTestPdf(userId: string, text: string, notes?: string) {
       }
     })
 
+    // Also create a UWorldLog entry so stats show up on the main page
+    // Determine the primary system/subject from the test name
+    const systemsFromName: string[] = []
+    const testNameLower = testName.toLowerCase()
+    if (testNameLower.includes('obgyn') || testNameLower.includes('ob/gyn') || testNameLower.includes('obstetrics')) {
+      systemsFromName.push('OBGYN')
+    }
+    if (testNameLower.includes('medicine') || testNameLower.includes('internal')) {
+      systemsFromName.push('Medicine')
+    }
+    if (testNameLower.includes('surgery')) {
+      systemsFromName.push('Surgery')
+    }
+    if (testNameLower.includes('pediatrics') || testNameLower.includes('peds')) {
+      systemsFromName.push('Pediatrics')
+    }
+    if (testNameLower.includes('psychiatry') || testNameLower.includes('psych')) {
+      systemsFromName.push('Psychiatry')
+    }
+    if (testNameLower.includes('family') || testNameLower.includes('ambulatory')) {
+      systemsFromName.push('Family Medicine')
+    }
+    if (testNameLower.includes('neuro')) {
+      systemsFromName.push('Neurology')
+    }
+    // Default to Medicine if no match
+    if (systemsFromName.length === 0) {
+      systemsFromName.push('Medicine')
+    }
+
+    await prisma.uWorldLog.create({
+      data: {
+        userId,
+        date: new Date(),
+        questionsTotal: totalQuestions,
+        questionsCorrect: totalCorrect,
+        timeSpentMins: 0,
+        mode: 'Test',
+        blockName: testName,
+        systems: systemsFromName,
+        subjects: subjects.map(s => s.name),
+        notes: notes || `Imported from test: ${testName}`,
+      },
+    })
+
     return NextResponse.json({
       success: true,
       type: 'test',
