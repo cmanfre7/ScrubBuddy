@@ -422,7 +422,7 @@ export function GoalsWidget({ initialGoals }: GoalsWidgetProps) {
                     <ChevronDown size={10} />
                   </button>
                   {showCategoryPicker && (
-                    <div className="absolute top-full left-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-lg z-10 py-1 min-w-[100px]">
+                    <div className="absolute bottom-full left-0 mb-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 py-1 min-w-[100px]">
                       {CATEGORIES.map(cat => (
                         <button
                           key={cat.value}
@@ -459,7 +459,7 @@ export function GoalsWidget({ initialGoals }: GoalsWidgetProps) {
                     <ChevronDown size={10} />
                   </button>
                   {showRecurrencePicker && (
-                    <div className="absolute top-full left-0 mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-lg z-10 py-1 min-w-[120px]">
+                    <div className="absolute bottom-full left-0 mb-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 py-1 min-w-[120px]">
                       {RECURRENCE_OPTIONS.map(opt => (
                         <button
                           key={opt.value || 'null'}
