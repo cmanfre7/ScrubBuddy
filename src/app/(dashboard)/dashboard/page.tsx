@@ -1,6 +1,7 @@
 import { getCurrentUser } from '@/lib/session'
 import prisma from '@/lib/prisma'
 import { daysUntil, calculatePercentage } from '@/lib/utils'
+import { UWORLD_QUESTION_TOTALS, SHELF_SUBJECTS, ShelfSubject } from '@/types'
 import { CountdownWidget } from '@/components/dashboard-widgets/CountdownWidget'
 import { UWorldProgressWidget } from '@/components/dashboard-widgets/UWorldProgressWidget'
 import { GoalsWidget } from '@/components/dashboard-widgets/GoalsWidget'
@@ -33,6 +34,7 @@ async function getDashboardData(userId: string) {
     rotations,
     tasks,
     todayEvents,
+    uworldSettings,
   ] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
@@ -87,6 +89,9 @@ async function getDashboardData(userId: string) {
         isAllDay: true,
       },
     }),
+    prisma.uWorldSettings.findMany({
+      where: { userId },
+    }),
   ])
 
   // Fetch pearls separately with error handling (table may not exist yet)
@@ -117,6 +122,16 @@ async function getDashboardData(userId: string) {
   const totalQuestions = allLogs.reduce((sum, log) => sum + log.questionsTotal, 0)
   const totalCorrect = allLogs.reduce((sum, log) => sum + log.questionsCorrect, 0)
   const uworldPercentage = calculatePercentage(totalCorrect, totalQuestions)
+
+  // Calculate total UWorld questions available based on user's custom settings
+  // Merge defaults with user's custom totals, then sum all subjects
+  const settingsMap: Record<string, number> = {}
+  uworldSettings.forEach((s) => {
+    settingsMap[s.subject] = s.totalQuestions
+  })
+  const uworldTotalQuestions = SHELF_SUBJECTS.reduce((sum, subject) => {
+    return sum + (settingsMap[subject] ?? UWORLD_QUESTION_TOTALS[subject])
+  }, 0)
 
   // Calculate weak areas (topics with most incorrect answers)
   const weakAreas = incorrects
@@ -193,6 +208,7 @@ async function getDashboardData(userId: string) {
     totalQuestions,
     totalCorrect,
     uworldPercentage,
+    uworldTotalQuestions,
     currentRotation,
     rotations,
     tasks: tasks.map((t) => ({
@@ -381,12 +397,12 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <UWorldProgressWidget
           percentage={
-            data.totalQuestions > 0
-              ? Math.round((data.totalQuestions / 3000) * 100)
+            data.totalQuestions > 0 && data.uworldTotalQuestions > 0
+              ? Math.round((data.totalQuestions / data.uworldTotalQuestions) * 100)
               : 0
           }
           questionsDone={data.totalQuestions}
-          totalQuestions={3000}
+          totalQuestions={data.uworldTotalQuestions}
           overallCorrect={data.uworldPercentage}
           todayQuestions={data.questionsToday}
           todayCorrect={data.correctToday}
