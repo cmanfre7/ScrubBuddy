@@ -36,6 +36,7 @@ async function getDashboardData(userId: string) {
     tasks,
     todayEvents,
     uworldSettings,
+    boardExams,
   ] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
@@ -91,6 +92,10 @@ async function getDashboardData(userId: string) {
     }),
     prisma.uWorldSettings.findMany({
       where: { userId },
+    }),
+    prisma.boardExam.findMany({
+      where: { userId },
+      select: { examType: true, targetScore: true, predictedScore: true },
     }),
   ])
 
@@ -267,6 +272,7 @@ async function getDashboardData(userId: string) {
     last28Days,
     currentStreak,
     weekDays,
+    boardExams,
   }
 }
 
@@ -358,6 +364,10 @@ export default async function DashboardPage() {
       />
     )
   }
+  // Get user's board exam targets
+  const step2Target = data.boardExams.find(e => e.examType === 'USMLE_STEP_2_CK')
+  const comlexTarget = data.boardExams.find(e => e.examType === 'COMLEX_LEVEL_2_CE')
+
   if (daysUntilStep2 !== null && daysUntilStep2 > 0) {
     countdownWidgets.push(
       <CountdownWidget
@@ -375,8 +385,8 @@ export default async function DashboardPage() {
               })
             : undefined
         }
-        predicted="245"
-        target="250"
+        predicted={step2Target?.predictedScore?.toString() || "245"}
+        target={step2Target?.targetScore?.toString()}
         href="/dashboard/analytics"
       />
     )
@@ -398,8 +408,8 @@ export default async function DashboardPage() {
               })
             : undefined
         }
-        predicted="585"
-        target="600"
+        predicted={comlexTarget?.predictedScore?.toString() || "585"}
+        target={comlexTarget?.targetScore?.toString()}
         href="/dashboard/analytics"
       />
     )
