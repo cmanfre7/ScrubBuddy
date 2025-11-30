@@ -9,6 +9,7 @@ import { QuickActionsWidget } from '@/components/dashboard-widgets/QuickActionsW
 import { WeakAreasWidget } from '@/components/dashboard-widgets/WeakAreasWidget'
 import { PearlsWidget } from '@/components/dashboard-widgets/PearlsWidget'
 import { StreakWidget } from '@/components/dashboard-widgets/StreakWidget'
+import { TodayScheduleWidget } from '@/components/dashboard-widgets/TodayScheduleWidget'
 import { ExamDateButtons } from '@/components/ExamDateButtons'
 import { Calendar as CalendarIcon, Target, FileText, Stethoscope } from 'lucide-react'
 
@@ -19,6 +20,9 @@ async function getDashboardData(userId: string) {
   const weekAgo = new Date(today)
   weekAgo.setDate(weekAgo.getDate() - 7)
 
+  const todayEnd = new Date(today)
+  todayEnd.setHours(23, 59, 59, 999)
+
   const [
     user,
     todayLogs,
@@ -28,6 +32,7 @@ async function getDashboardData(userId: string) {
     currentRotation,
     rotations,
     tasks,
+    todayEvents,
   ] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
@@ -61,6 +66,26 @@ async function getDashboardData(userId: string) {
       orderBy: { priority: 'desc' },
       take: 5,
       select: { id: true, text: true, done: true, category: true },
+    }),
+    prisma.calendarEvent.findMany({
+      where: {
+        userId,
+        OR: [
+          { startTime: { gte: today, lte: todayEnd } },
+          { endTime: { gte: today, lte: todayEnd } },
+          { AND: [{ startTime: { lte: today } }, { endTime: { gte: todayEnd } }] },
+        ],
+      },
+      orderBy: { startTime: 'asc' },
+      select: {
+        id: true,
+        title: true,
+        startTime: true,
+        endTime: true,
+        location: true,
+        eventType: true,
+        isAllDay: true,
+      },
     }),
   ])
 
@@ -181,6 +206,15 @@ async function getDashboardData(userId: string) {
       content: p.content,
       rotationName: p.rotation?.name ?? null,
       createdAt: new Date(p.createdAt),
+    })),
+    todayEvents: todayEvents.map((e) => ({
+      id: e.id,
+      title: e.title,
+      startTime: e.startTime,
+      endTime: e.endTime,
+      location: e.location || undefined,
+      eventType: e.eventType,
+      isAllDay: e.isAllDay,
     })),
     weakAreas,
     last28Days,
@@ -361,6 +395,9 @@ export default async function DashboardPage() {
         />
         <GoalsWidget initialGoals={data.tasks} />
       </div>
+
+      {/* Today's Schedule */}
+      <TodayScheduleWidget events={data.todayEvents} />
 
       {/* Week Calendar + Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
