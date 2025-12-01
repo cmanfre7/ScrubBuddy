@@ -62,7 +62,7 @@ def invoke_anki_connect(action: str, params: Dict = None) -> Any:
         raise Exception(f"AnkiConnect error: {e}")
 
 def get_collection_stats() -> Dict[str, Any]:
-    """Get comprehensive stats from Anki"""
+    """Get comprehensive stats from Anki using native collection access"""
     stats = {
         "newDue": 0, "reviewDue": 0, "learningDue": 0, "totalDue": 0,
         "newStudied": 0, "reviewsStudied": 0, "learnedToday": 0, "timeStudiedSecs": 0,
@@ -73,48 +73,103 @@ def get_collection_stats() -> Dict[str, Any]:
 
     col = mw.col
     if col is None:
+        print("ScrubBuddy: Collection not available")
         return stats
 
     try:
-        deck_names = invoke_anki_connect("deckNames")
-    except:
-        deck_names = []
+        # Get due counts directly from scheduler - most reliable method
+        # This gives us the exact counts shown in Anki's UI
+        sched = col.sched
 
-    for deck_name in deck_names:
+        # Get counts for all decks using the deck due tree
+        # deck_due_tree returns nested structure with (name, did, rev, lrn, new, children)
         try:
-            deck_stats = invoke_anki_connect("getDeckStats", {"decks": [deck_name]})
-            if deck_stats and deck_name in deck_stats:
-                ds = deck_stats[deck_name]
-                deck_info = {
-                    "name": deck_name,
-                    "id": str(ds.get("deck_id", "")),
-                    "newDue": ds.get("new_count", 0),
-                    "reviewDue": ds.get("review_count", 0),
-                    "learningDue": ds.get("learn_count", 0),
-                    "totalCards": ds.get("total_in_deck", 0),
-                    "totalNew": 0, "totalLearning": 0, "totalReview": 0, "totalSuspended": 0
-                }
-                stats["decks"].append(deck_info)
+            # Anki 2.1.50+ uses different method
+            if hasattr(sched, 'deck_due_tree'):
+                tree = sched.deck_due_tree()
+                # Process the tree to get total counts
+                def process_node(node):
+                    # node structure varies by Anki version
+                    if hasattr(node, 'review_count'):
+                        # Anki 2.1.50+ DeckTreeNode
+                        return node.new_count, node.learn_count, node.review_count
+                    elif isinstance(node, (list, tuple)) and len(node) >= 5:
+                        # Older format: (name, did, rev, lrn, new, children)
+                        return node[4], node[3], node[2]
+                    return 0, 0, 0
 
-                if "::" not in deck_name:
-                    stats["newDue"] += deck_info["newDue"]
-                    stats["reviewDue"] += deck_info["reviewDue"]
-                    stats["learningDue"] += deck_info["learningDue"]
+                def sum_tree(node):
+                    new, lrn, rev = process_node(node)
+                    children = []
+                    if hasattr(node, 'children'):
+                        children = node.children
+                    elif isinstance(node, (list, tuple)) and len(node) > 5:
+                        children = node[5]
+                    for child in children:
+                        cn, cl, cr = sum_tree(child)
+                        new += cn
+                        lrn += cl
+                        rev += cr
+                    return new, lrn, rev
+
+                if hasattr(tree, 'children'):
+                    # Single root node
+                    stats["newDue"], stats["learningDue"], stats["reviewDue"] = sum_tree(tree)
+                elif isinstance(tree, list):
+                    # List of top-level decks
+                    for deck_node in tree:
+                        n, l, r = sum_tree(deck_node)
+                        stats["newDue"] += n
+                        stats["learningDue"] += l
+                        stats["reviewDue"] += r
+            else:
+                # Fallback: query counts directly from database
+                cursor = col.db.execute("""
+                    SELECT
+                        SUM(CASE WHEN queue = 0 THEN 1 ELSE 0 END) as new_due,
+                        SUM(CASE WHEN queue = 1 THEN 1 ELSE 0 END) as learning_due,
+                        SUM(CASE WHEN queue = 2 THEN 1 ELSE 0 END) as review_due
+                    FROM cards
+                    WHERE queue >= 0
+                """)
+                row = cursor.fetchone()
+                if row:
+                    stats["newDue"] = row[0] or 0
+                    stats["learningDue"] = row[1] or 0
+                    stats["reviewDue"] = row[2] or 0
         except Exception as e:
-            print(f"Error getting stats for deck {deck_name}: {e}")
+            print(f"ScrubBuddy: Error getting due counts from scheduler: {e}")
+            # Fallback: use SQL query for due counts
+            try:
+                cursor = col.db.execute("""
+                    SELECT
+                        SUM(CASE WHEN queue = 0 THEN 1 ELSE 0 END) as new_due,
+                        SUM(CASE WHEN queue = 1 THEN 1 ELSE 0 END) as learning_due,
+                        SUM(CASE WHEN queue = 2 THEN 1 ELSE 0 END) as review_due
+                    FROM cards
+                    WHERE queue >= 0
+                """)
+                row = cursor.fetchone()
+                if row:
+                    stats["newDue"] = row[0] or 0
+                    stats["learningDue"] = row[1] or 0
+                    stats["reviewDue"] = row[2] or 0
+            except Exception as e2:
+                print(f"ScrubBuddy: Fallback SQL also failed: {e2}")
 
-    stats["totalDue"] = stats["newDue"] + stats["reviewDue"] + stats["learningDue"]
+        stats["totalDue"] = stats["newDue"] + stats["reviewDue"] + stats["learningDue"]
 
-    try:
+        # Get total cards and notes
         stats["totalCards"] = col.card_count()
         stats["totalNotes"] = col.note_count()
 
+        # Get card states (suspended, buried, mature, young)
         cursor = col.db.execute("""
             SELECT
                 SUM(CASE WHEN queue = -1 THEN 1 ELSE 0 END) as suspended,
                 SUM(CASE WHEN queue IN (-2, -3) THEN 1 ELSE 0 END) as buried,
-                SUM(CASE WHEN type = 2 AND ivl >= 21 THEN 1 ELSE 0 END) as mature,
-                SUM(CASE WHEN type = 2 AND ivl < 21 AND ivl > 0 THEN 1 ELSE 0 END) as young
+                SUM(CASE WHEN ivl >= 21 THEN 1 ELSE 0 END) as mature,
+                SUM(CASE WHEN ivl > 0 AND ivl < 21 THEN 1 ELSE 0 END) as young
             FROM cards
         """)
         row = cursor.fetchone()
@@ -124,6 +179,7 @@ def get_collection_stats() -> Dict[str, Any]:
             stats["matureCards"] = row[2] or 0
             stats["youngCards"] = row[3] or 0
 
+        # Get today's study stats from revlog
         day_cutoff = col.sched.day_cutoff
         today_start = (day_cutoff - 86400) * 1000
 
@@ -149,6 +205,7 @@ def get_collection_stats() -> Dict[str, Any]:
             stats["easyCount"] = row[5] or 0
             stats["timeStudiedSecs"] = (row[6] or 0) // 1000
 
+        # Calculate 30-day retention rate
         thirty_days_ago = (day_cutoff - (30 * 86400)) * 1000
         cursor = col.db.execute("""
             SELECT COUNT(*) as total, SUM(CASE WHEN ease > 1 THEN 1 ELSE 0 END) as passed
@@ -158,8 +215,31 @@ def get_collection_stats() -> Dict[str, Any]:
         if row and row[0] > 0:
             stats["retentionRate"] = row[1] / row[0]
 
+        # Get per-deck info using AnkiConnect (optional, for detailed breakdown)
+        try:
+            deck_names = invoke_anki_connect("deckNames")
+            deck_stats_result = invoke_anki_connect("getDeckStats", {"decks": deck_names})
+            if deck_stats_result:
+                # getDeckStats returns {deck_id: stats_dict}
+                for deck_id, ds in deck_stats_result.items():
+                    deck_info = {
+                        "name": ds.get("name", "Unknown"),
+                        "id": str(deck_id),
+                        "newDue": ds.get("new_count", 0),
+                        "reviewDue": ds.get("review_count", 0),
+                        "learningDue": ds.get("learn_count", 0),
+                        "totalCards": ds.get("total_in_deck", 0),
+                    }
+                    stats["decks"].append(deck_info)
+        except Exception as e:
+            print(f"ScrubBuddy: Could not get per-deck stats (AnkiConnect may not be running): {e}")
+
+        print(f"ScrubBuddy: Stats collected - Due: {stats['totalDue']}, Total: {stats['totalCards']}, Mature: {stats['matureCards']}")
+
     except Exception as e:
-        print(f"Error getting collection stats: {e}")
+        print(f"ScrubBuddy: Error getting collection stats: {e}")
+        import traceback
+        traceback.print_exc()
 
     return stats
 
@@ -277,7 +357,7 @@ export async function POST(request: NextRequest) {
     zip.file('manifest.json', JSON.stringify({
       package: 'scrubbuddy_sync',
       name: 'ScrubBuddy Sync',
-      version: '1.0.0',
+      version: '1.1.0',
       author: 'ScrubBuddy',
       homepage: scrubbuddyUrl,
     }, null, 2))
