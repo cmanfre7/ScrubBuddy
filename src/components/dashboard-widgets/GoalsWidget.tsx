@@ -9,7 +9,8 @@ import {
   Repeat,
   Calendar,
   Trash2,
-  ChevronDown
+  ChevronDown,
+  CalendarDays
 } from 'lucide-react'
 
 interface Goal {
@@ -19,6 +20,7 @@ interface Goal {
   category: string
   priority: number
   recurring: string | null
+  dueDate?: string | null
 }
 
 interface GoalsWidgetProps {
@@ -33,10 +35,29 @@ const CATEGORIES = [
 ]
 
 const RECURRENCE_OPTIONS = [
-  { value: null, label: 'Today only', icon: Calendar },
+  { value: null, label: 'One-time', icon: Calendar },
   { value: 'daily', label: 'Every day', icon: Repeat },
   { value: 'weekdays', label: 'Weekdays', icon: Repeat },
 ]
+
+// Helper to get date string in YYYY-MM-DD format
+const getDateString = (date: Date) => {
+  return date.toISOString().split('T')[0]
+}
+
+// Helper to format date for display
+const formatDateLabel = (dateStr: string) => {
+  const date = new Date(dateStr + 'T00:00:00')
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const tomorrow = new Date(today)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+
+  if (dateStr === getDateString(today)) return 'Today'
+  if (dateStr === getDateString(tomorrow)) return 'Tomorrow'
+
+  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+}
 
 export function GoalsWidget({ initialGoals }: GoalsWidgetProps) {
   const [goals, setGoals] = useState<Goal[]>(initialGoals)
@@ -44,10 +65,12 @@ export function GoalsWidget({ initialGoals }: GoalsWidgetProps) {
   const [newGoalText, setNewGoalText] = useState('')
   const [newGoalCategory, setNewGoalCategory] = useState('Study')
   const [newGoalRecurring, setNewGoalRecurring] = useState<string | null>(null)
+  const [newGoalDueDate, setNewGoalDueDate] = useState<string>(getDateString(new Date()))
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
   const [showCategoryPicker, setShowCategoryPicker] = useState(false)
   const [showRecurrencePicker, setShowRecurrencePicker] = useState(false)
+  const [showDatePicker, setShowDatePicker] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const editInputRef = useRef<HTMLInputElement>(null)
 
@@ -104,12 +127,18 @@ export function GoalsWidget({ initialGoals }: GoalsWidgetProps) {
       category: newGoalCategory,
       priority: goals.length + 1,
       recurring: newGoalRecurring,
+      dueDate: newGoalDueDate,
     }
 
-    // Optimistic add
-    setGoals(prev => [newGoal, ...prev])
+    // Only add to visible list if it's for today
+    const today = getDateString(new Date())
+    if (newGoalDueDate === today) {
+      setGoals(prev => [newGoal, ...prev])
+    }
     setNewGoalText('')
     setIsAdding(false)
+    // Reset date to today for next goal
+    setNewGoalDueDate(today)
 
     try {
       const res = await fetch('/api/tasks', {
@@ -120,16 +149,21 @@ export function GoalsWidget({ initialGoals }: GoalsWidgetProps) {
           category: newGoal.category,
           priority: newGoal.priority,
           recurring: newGoal.recurring,
+          dueDate: newGoalDueDate,
         }),
       })
       const data = await res.json()
-      // Replace temp ID with real ID
-      setGoals(prev => prev.map(g =>
-        g.id === tempId ? { ...g, id: data.task.id } : g
-      ))
+      // Replace temp ID with real ID (if it was added to the list)
+      if (newGoalDueDate === today) {
+        setGoals(prev => prev.map(g =>
+          g.id === tempId ? { ...g, id: data.task.id } : g
+        ))
+      }
     } catch {
-      // Remove on error
-      setGoals(prev => prev.filter(g => g.id !== tempId))
+      // Remove on error (if it was added to the list)
+      if (newGoalDueDate === today) {
+        setGoals(prev => prev.filter(g => g.id !== tempId))
+      }
     }
   }
 
@@ -439,10 +473,76 @@ export function GoalsWidget({ initialGoals }: GoalsWidgetProps) {
                   )}
                 </div>
 
+                {/* Date Picker */}
+                <div className="relative">
+                  <button
+                    onClick={() => {
+                      setShowDatePicker(!showDatePicker)
+                      setShowRecurrencePicker(false)
+                    }}
+                    className="text-[10px] px-2 py-1 rounded border border-slate-600 text-slate-400 flex items-center gap-1 hover:border-slate-500"
+                  >
+                    <CalendarDays size={10} />
+                    {formatDateLabel(newGoalDueDate)}
+                    <ChevronDown size={10} />
+                  </button>
+                  {showDatePicker && (
+                    <div className="absolute bottom-full left-0 mb-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 py-1 min-w-[140px]">
+                      {/* Quick date options */}
+                      {(() => {
+                        const today = new Date()
+                        const tomorrow = new Date(today)
+                        tomorrow.setDate(tomorrow.getDate() + 1)
+                        const dayAfter = new Date(today)
+                        dayAfter.setDate(dayAfter.getDate() + 2)
+                        const nextWeek = new Date(today)
+                        nextWeek.setDate(nextWeek.getDate() + 7)
+
+                        return [
+                          { date: today, label: 'Today' },
+                          { date: tomorrow, label: 'Tomorrow' },
+                          { date: dayAfter, label: dayAfter.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) },
+                          { date: nextWeek, label: 'Next week' },
+                        ].map(({ date, label }) => (
+                          <button
+                            key={label}
+                            onClick={() => {
+                              setNewGoalDueDate(getDateString(date))
+                              setShowDatePicker(false)
+                            }}
+                            className={`w-full px-3 py-1.5 text-left text-xs hover:bg-slate-700 flex items-center gap-2 ${
+                              getDateString(date) === newGoalDueDate ? 'text-blue-400 bg-blue-500/10' : 'text-slate-300'
+                            }`}
+                          >
+                            <CalendarDays size={12} />
+                            {label}
+                          </button>
+                        ))
+                      })()}
+                      {/* Custom date input */}
+                      <div className="border-t border-slate-700 mt-1 pt-1 px-2 pb-1">
+                        <input
+                          type="date"
+                          value={newGoalDueDate}
+                          onChange={(e) => {
+                            setNewGoalDueDate(e.target.value)
+                            setShowDatePicker(false)
+                          }}
+                          min={getDateString(new Date())}
+                          className="w-full px-2 py-1 text-xs bg-slate-700 border border-slate-600 rounded text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* Recurrence Picker */}
                 <div className="relative">
                   <button
-                    onClick={() => setShowRecurrencePicker(!showRecurrencePicker)}
+                    onClick={() => {
+                      setShowRecurrencePicker(!showRecurrencePicker)
+                      setShowDatePicker(false)
+                    }}
                     className="text-[10px] px-2 py-1 rounded border border-slate-600 text-slate-400 flex items-center gap-1 hover:border-slate-500"
                   >
                     {newGoalRecurring ? (
@@ -453,7 +553,7 @@ export function GoalsWidget({ initialGoals }: GoalsWidgetProps) {
                     ) : (
                       <>
                         <Calendar size={10} />
-                        Today only
+                        One-time
                       </>
                     )}
                     <ChevronDown size={10} />
@@ -486,6 +586,8 @@ export function GoalsWidget({ initialGoals }: GoalsWidgetProps) {
                     setNewGoalText('')
                     setShowCategoryPicker(false)
                     setShowRecurrencePicker(false)
+                    setShowDatePicker(false)
+                    setNewGoalDueDate(getDateString(new Date()))
                   }}
                   className="text-xs text-slate-500 hover:text-slate-300 px-2 py-1"
                 >
