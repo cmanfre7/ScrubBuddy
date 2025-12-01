@@ -9,7 +9,6 @@ export const WIDGET_IDS = [
   'uworld-progress',
   'goals',
   'today-schedule',
-  'week-calendar',
   'quick-actions',
   'weak-areas',
   'pearls',
@@ -25,7 +24,6 @@ export const DEFAULT_WIDGET_CONFIG: WidgetConfig[] = [
   { id: 'uworld-progress', size: 'half', visible: true },
   { id: 'goals', size: 'half', visible: true },
   { id: 'today-schedule', size: 'full', visible: true },
-  { id: 'week-calendar', size: 'half', visible: true },
   { id: 'quick-actions', size: 'half', visible: true },
   { id: 'weak-areas', size: 'half', visible: true },
   { id: 'pearls', size: 'half', visible: true },
@@ -38,7 +36,6 @@ interface DashboardClientProps {
   uworldWidget: ReactNode
   goalsWidget: ReactNode
   todayScheduleWidget: ReactNode
-  weekCalendarWidget: ReactNode
   quickActionsWidget: ReactNode
   weakAreasWidget: ReactNode
   pearlsWidget: ReactNode
@@ -51,7 +48,6 @@ export function DashboardClient({
   uworldWidget,
   goalsWidget,
   todayScheduleWidget,
-  weekCalendarWidget,
   quickActionsWidget,
   weakAreasWidget,
   pearlsWidget,
@@ -64,7 +60,6 @@ export function DashboardClient({
     uworldWidget,
     goalsWidget,
     todayScheduleWidget,
-    weekCalendarWidget,
     quickActionsWidget,
     weakAreasWidget,
     pearlsWidget,

@@ -5,7 +5,6 @@ import { UWORLD_QUESTION_TOTALS, SHELF_SUBJECTS, ShelfSubject } from '@/types'
 import { CountdownWidget } from '@/components/dashboard-widgets/CountdownWidget'
 import { UWorldProgressWidget } from '@/components/dashboard-widgets/UWorldProgressWidget'
 import { GoalsWidget } from '@/components/dashboard-widgets/GoalsWidget'
-import { WeekCalendarWidget } from '@/components/dashboard-widgets/WeekCalendarWidget'
 import { QuickActionsWidget } from '@/components/dashboard-widgets/QuickActionsWidget'
 import { WeakAreasWidget } from '@/components/dashboard-widgets/WeakAreasWidget'
 import { PearlsWidget } from '@/components/dashboard-widgets/PearlsWidget'
@@ -220,31 +219,6 @@ async function getDashboardData(userId: string) {
     }
   }
 
-  // Calculate this week's calendar
-  const weekDays = Array.from({ length: 6 }, (_, i) => {
-    const date = new Date(today)
-    date.setDate(date.getDate() + i)
-    const isToday = i === 0
-    const dayName = isToday
-      ? 'TODAY'
-      : date.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' })
-
-    // Mock events - in a real app, fetch from calendar/events table
-    const events: { type: 'clinical' | 'exam' | 'study' | 'off' | 'presentation'; label: string }[] = []
-
-    if (
-      currentRotation &&
-      currentRotation.startDate &&
-      currentRotation.endDate &&
-      date >= new Date(currentRotation.startDate) &&
-      date <= new Date(currentRotation.endDate)
-    ) {
-      events.push({ type: 'clinical', label: `${currentRotation.name}` })
-    }
-
-    return { dayName, isToday, events }
-  })
-
   return {
     user,
     questionsToday,
@@ -283,7 +257,6 @@ async function getDashboardData(userId: string) {
     weakAreas,
     last28Days,
     currentStreak,
-    weekDays,
     boardExams,
   }
 }
@@ -484,7 +457,6 @@ export default async function DashboardPage() {
         }
         goalsWidget={<GoalsWidget initialGoals={data.tasks} />}
         todayScheduleWidget={<TodayScheduleWidget events={data.todayEvents} />}
-        weekCalendarWidget={<WeekCalendarWidget days={data.weekDays} />}
         quickActionsWidget={<QuickActionsWidget />}
         weakAreasWidget={<WeakAreasWidget weakAreas={data.weakAreas} />}
         pearlsWidget={<PearlsWidget pearls={data.pearls} />}
