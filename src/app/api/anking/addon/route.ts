@@ -264,8 +264,8 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Get the base URL
-    const scrubbuddyUrl = process.env.NEXTAUTH_URL || 'https://scrubbuddy-production.up.railway.app'
+    // Get the base URL - prefer custom domain
+    const scrubbuddyUrl = process.env.NEXTAUTH_URL || 'https://scrubbuddy.app'
 
     // Create the .ankiaddon package (which is a ZIP file)
     const zip = new JSZip()
