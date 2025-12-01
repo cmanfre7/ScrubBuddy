@@ -20,7 +20,7 @@ export function AnkiWidget() {
   const { data: syncStats, isLoading } = useQuery<AnkiStats>({
     queryKey: ['anki-sync-stats'],
     queryFn: async () => {
-      const res = await fetch('/api/anking/stats')
+      const res = await fetch('/api/anking/sync')
       if (!res.ok) return null
       const data = await res.json()
       return data.stats
