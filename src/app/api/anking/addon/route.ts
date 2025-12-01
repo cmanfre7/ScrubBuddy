@@ -96,45 +96,71 @@ def get_collection_stats() -> Dict[str, Any]:
         return stats
 
     try:
-        # Get due counts for ALL decks combined (not just the selected deck)
+        # Get due counts for ALL decks using deck_due_tree()
+        # This returns a tree where the root contains totals for everything
         sched = col.sched
 
         try:
-            # Save current deck selection
-            current_deck_id = col.decks.current()['id']
+            # deck_due_tree() returns a tree structure with due counts
+            # The root node contains the totals for all decks
+            tree = sched.deck_due_tree()
 
-            # Select "all decks" by selecting the root (deck ID 1)
-            # This makes counts() return totals for the entire collection
-            col.decks.select(1)
+            # The tree structure varies by Anki version
+            # Modern Anki (2.1.50+): tree is a DeckTreeNode with .new_count, .learn_count, .review_count
+            # Older Anki: tree might be a different structure
 
-            # Reset the scheduler to update counts for new selection
-            sched.reset()
-
-            # Now counts() returns the total for ALL decks
-            counts = sched.counts()
-
-            # counts can be a tuple/list or a Counts object depending on version
-            if hasattr(counts, 'new'):
-                # Anki 2.1.50+ Counts object
-                stats["newDue"] = counts.new
-                stats["learningDue"] = counts.lrn
-                stats["reviewDue"] = counts.rev
-            elif isinstance(counts, (tuple, list)) and len(counts) >= 3:
-                # Older tuple format (new, lrn, rev)
-                stats["newDue"] = counts[0]
-                stats["learningDue"] = counts[1]
-                stats["reviewDue"] = counts[2]
+            if hasattr(tree, 'new_count'):
+                # Modern Anki - DeckTreeNode object
+                stats["newDue"] = tree.new_count
+                stats["learningDue"] = tree.learn_count
+                stats["reviewDue"] = tree.review_count
+                print(f"ScrubBuddy: deck_due_tree() DeckTreeNode - New: {tree.new_count}, Learn: {tree.learn_count}, Rev: {tree.review_count}")
+            elif isinstance(tree, (list, tuple)):
+                # Older format - might be (name, did, rev, lrn, new, children)
+                # or a list of deck nodes
+                if len(tree) >= 5 and isinstance(tree[0], str):
+                    # Single root tuple: (name, did, rev, lrn, new, children)
+                    stats["reviewDue"] = tree[2] if len(tree) > 2 else 0
+                    stats["learningDue"] = tree[3] if len(tree) > 3 else 0
+                    stats["newDue"] = tree[4] if len(tree) > 4 else 0
+                    print(f"ScrubBuddy: deck_due_tree() tuple format - New: {stats['newDue']}, Learn: {stats['learningDue']}, Rev: {stats['reviewDue']}")
+                else:
+                    # Sum up all top-level decks
+                    total_new = 0
+                    total_lrn = 0
+                    total_rev = 0
+                    for node in tree:
+                        if hasattr(node, 'new_count'):
+                            total_new += node.new_count
+                            total_lrn += node.learn_count
+                            total_rev += node.review_count
+                        elif isinstance(node, (list, tuple)) and len(node) >= 5:
+                            total_rev += node[2]
+                            total_lrn += node[3]
+                            total_new += node[4]
+                    stats["newDue"] = total_new
+                    stats["learningDue"] = total_lrn
+                    stats["reviewDue"] = total_rev
+                    print(f"ScrubBuddy: deck_due_tree() list format - New: {total_new}, Learn: {total_lrn}, Rev: {total_rev}")
             else:
-                print(f"ScrubBuddy: Unexpected counts format: {type(counts)} = {counts}")
-
-            # Restore the original deck selection
-            col.decks.select(current_deck_id)
-            sched.reset()
-
-            print(f"ScrubBuddy: counts() returned (all decks) - New: {stats['newDue']}, Learn: {stats['learningDue']}, Rev: {stats['reviewDue']}")
+                print(f"ScrubBuddy: Unknown deck_due_tree format: {type(tree)}")
+                # Fallback: try to access attributes
+                if hasattr(tree, 'children'):
+                    # Sum children counts
+                    total_new = 0
+                    total_lrn = 0
+                    total_rev = 0
+                    for child in tree.children:
+                        if hasattr(child, 'new_count'):
+                            total_new += child.new_count
+                            total_lrn += child.learn_count
+                            total_rev += child.review_count
+                    stats["newDue"] = total_new
+                    stats["learningDue"] = total_lrn
+                    stats["reviewDue"] = total_rev
 
         except Exception as e:
-            print(f"ScrubBuddy: Error getting counts(): {e}")
+            print(f"ScrubBuddy: Error getting deck_due_tree(): {e}")
             import traceback
             traceback.print_exc()
 
@@ -327,7 +353,7 @@ export async function POST(request: NextRequest) {
     zip.file('manifest.json', JSON.stringify({
       package: 'scrubbuddy_sync',
       name: 'ScrubBuddy Sync',
-      version: '1.4.0',
+      version: '1.5.0',
       author: 'ScrubBuddy',
       homepage: scrubbuddyUrl,
     }, null, 2))
