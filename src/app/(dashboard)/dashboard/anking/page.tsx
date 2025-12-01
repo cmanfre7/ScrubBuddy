@@ -18,10 +18,8 @@ import {
   Settings,
   BarChart3,
   RefreshCw,
-  Key,
   CheckCircle,
   AlertCircle,
-  Copy,
   Trash2,
   Zap,
   BookOpen,
@@ -85,7 +83,6 @@ export default function AnkingPage() {
   const [isLogModalOpen, setIsLogModalOpen] = useState(false)
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false)
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false)
-  const [newToken, setNewToken] = useState<string | null>(null)
   const [logData, setLogData] = useState({
     date: format(new Date(), 'yyyy-MM-dd'),
     newCards: 0,
@@ -167,18 +164,6 @@ export default function AnkingPage() {
     },
   })
 
-  const generateTokenMutation = useMutation({
-    mutationFn: async () => {
-      const res = await fetch('/api/anking/token', { method: 'POST' })
-      if (!res.ok) throw new Error('Failed to generate token')
-      return res.json()
-    },
-    onSuccess: (data) => {
-      setNewToken(data.token)
-      queryClient.invalidateQueries({ queryKey: ['anki-token'] })
-    },
-  })
-
   const revokeTokenMutation = useMutation({
     mutationFn: async () => {
       const res = await fetch('/api/anking/token', { method: 'DELETE' })
@@ -231,10 +216,6 @@ export default function AnkingPage() {
     dailyNewGoal: goal?.dailyNewGoal || 30,
     dailyReviewGoal: goal?.dailyReviewGoal || 200,
   })
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text)
-  }
 
   // Use synced stats if available, otherwise fall back to manual
   const displayNewDone = syncStats?.newStudied ?? todayProgress?.newCards ?? 0
@@ -540,10 +521,15 @@ export default function AnkingPage() {
       </Card>
 
       {/* Sync Setup Modal */}
-      <Modal isOpen={isSyncModalOpen} onClose={() => { setIsSyncModalOpen(false); setNewToken(null); }} title="Anki Sync Setup">
+      <Modal isOpen={isSyncModalOpen} onClose={() => setIsSyncModalOpen(false)} title="Anki Sync Setup">
         <div className="space-y-6">
           {/* Current Status */}
-          <div className="p-4 bg-slate-800/50 rounded-lg">
+          <div className={cn(
+            "p-4 rounded-lg border",
+            tokenData?.hasToken
+              ? "bg-green-500/10 border-green-500/30"
+              : "bg-slate-800/50 border-slate-700"
+          )}>
             <div className="flex items-center gap-2 mb-2">
               {tokenData?.hasToken ? (
                 <CheckCircle className="text-green-400" size={20} />
@@ -551,7 +537,7 @@ export default function AnkingPage() {
                 <AlertCircle className="text-yellow-400" size={20} />
               )}
               <span className="font-medium text-slate-200">
-                {tokenData?.hasToken ? 'Sync Configured' : 'Sync Not Configured'}
+                {tokenData?.hasToken ? 'Sync Active' : 'Sync Not Set Up'}
               </span>
             </div>
             {tokenData?.hasToken && tokenData?.lastSyncAt && (
@@ -561,84 +547,114 @@ export default function AnkingPage() {
             )}
           </div>
 
-          {/* New Token Display */}
-          {newToken && (
-            <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
-              <p className="text-sm text-green-400 font-medium mb-2">Your Sync Token (save this!):</p>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 p-2 bg-slate-900 rounded text-xs text-slate-300 overflow-x-auto">
-                  {newToken}
-                </code>
-                <Button variant="secondary" size="sm" onClick={() => copyToClipboard(newToken)}>
-                  <Copy size={16} />
+          {/* Simple 3-Step Setup */}
+          <div className="space-y-4">
+            <h3 className="font-medium text-slate-200">Quick Setup (3 steps)</h3>
+
+            {/* Step 1 */}
+            <div className="flex gap-3 items-start p-3 bg-slate-800/30 rounded-lg">
+              <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-sm font-bold text-blue-400">1</span>
+              </div>
+              <div className="flex-1">
+                <p className="text-sm text-slate-200 font-medium">Install AnkiConnect</p>
+                <p className="text-xs text-slate-400 mt-1">Required for the add-on to work</p>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => window.open('https://ankiweb.net/shared/info/2055492159', '_blank')}
+                >
+                  Open AnkiConnect Page
                 </Button>
               </div>
-              <p className="text-xs text-slate-400 mt-2">This token will only be shown once!</p>
             </div>
-          )}
 
-          {/* Setup Instructions */}
-          <div className="space-y-4">
-            <h3 className="font-medium text-slate-200 flex items-center gap-2">
-              <Key size={18} />
-              Setup Instructions
-            </h3>
-            <ol className="list-decimal list-inside space-y-2 text-sm text-slate-300">
-              <li>Install the <a href="https://ankiweb.net/shared/info/2055492159" target="_blank" rel="noopener" className="text-blue-400 hover:underline">AnkiConnect add-on</a> in Anki Desktop</li>
-              <li>Generate a sync token below</li>
-              <li>Download the ScrubBuddy Anki add-on</li>
-              <li>Paste your token in the add-on config</li>
-              <li>Stats will auto-sync when Anki starts!</li>
-            </ol>
+            {/* Step 2 */}
+            <div className="flex gap-3 items-start p-3 bg-slate-800/30 rounded-lg">
+              <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-sm font-bold text-blue-400">2</span>
+              </div>
+              <div className="flex-1">
+                <p className="text-sm text-slate-200 font-medium">Download ScrubBuddy Add-on</p>
+                <p className="text-xs text-slate-400 mt-1">Pre-configured with your account - no token needed!</p>
+                <Button
+                  size="sm"
+                  className="mt-2"
+                  onClick={async () => {
+                    // Call the API to generate and download the addon
+                    const response = await fetch('/api/anking/addon', { method: 'POST' })
+                    if (response.ok) {
+                      const blob = await response.blob()
+                      const url = window.URL.createObjectURL(blob)
+                      const link = document.createElement('a')
+                      link.href = url
+                      link.download = 'ScrubBuddy_Sync.ankiaddon'
+                      link.click()
+                      window.URL.revokeObjectURL(url)
+                      // Refresh token status
+                      queryClient.invalidateQueries({ queryKey: ['anki-token'] })
+                    }
+                  }}
+                >
+                  Download Add-on (.ankiaddon)
+                </Button>
+              </div>
+            </div>
+
+            {/* Step 3 */}
+            <div className="flex gap-3 items-start p-3 bg-slate-800/30 rounded-lg">
+              <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-sm font-bold text-blue-400">3</span>
+              </div>
+              <div className="flex-1">
+                <p className="text-sm text-slate-200 font-medium">Install & Restart Anki</p>
+                <p className="text-xs text-slate-400 mt-1">
+                  Double-click the downloaded file to install, then restart Anki.
+                  Stats will sync automatically on startup!
+                </p>
+              </div>
+            </div>
           </div>
 
-          {/* Actions */}
-          <div className="flex gap-3">
-            {!tokenData?.hasToken ? (
-              <Button
-                onClick={() => generateTokenMutation.mutate()}
-                isLoading={generateTokenMutation.isPending}
-                className="flex-1"
-              >
-                <Key size={18} className="mr-2" />
-                Generate Sync Token
-              </Button>
-            ) : (
-              <>
+          {/* Manage Sync (if already configured) */}
+          {tokenData?.hasToken && (
+            <div className="pt-4 border-t border-slate-700">
+              <p className="text-xs text-slate-500 mb-3">Manage Sync</p>
+              <div className="flex gap-2">
                 <Button
-                  onClick={() => generateTokenMutation.mutate()}
-                  isLoading={generateTokenMutation.isPending}
                   variant="secondary"
-                  className="flex-1"
+                  size="sm"
+                  onClick={async () => {
+                    const response = await fetch('/api/anking/addon', { method: 'POST' })
+                    if (response.ok) {
+                      const blob = await response.blob()
+                      const url = window.URL.createObjectURL(blob)
+                      const link = document.createElement('a')
+                      link.href = url
+                      link.download = 'ScrubBuddy_Sync.ankiaddon'
+                      link.click()
+                      window.URL.revokeObjectURL(url)
+                      queryClient.invalidateQueries({ queryKey: ['anki-token'] })
+                    }
+                  }}
                 >
-                  <RefreshCw size={18} className="mr-2" />
-                  Regenerate Token
+                  <RefreshCw size={14} className="mr-1" />
+                  Regenerate Add-on
                 </Button>
                 <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={() => revokeTokenMutation.mutate()}
                   isLoading={revokeTokenMutation.isPending}
-                  variant="secondary"
                   className="text-red-400 hover:text-red-300"
                 >
-                  <Trash2 size={18} />
+                  <Trash2 size={14} className="mr-1" />
+                  Disable Sync
                 </Button>
-              </>
-            )}
-          </div>
-
-          {/* Download Add-on */}
-          <div className="p-4 bg-slate-800/50 rounded-lg">
-            <p className="text-sm text-slate-300 mb-2">Download the Anki add-on:</p>
-            <Button variant="secondary" className="w-full" onClick={() => {
-              // This will download the add-on file
-              const link = document.createElement('a')
-              link.href = '/downloads/scrubbuddy_anki_sync.py'
-              link.download = 'scrubbuddy_anki_sync.py'
-              link.click()
-            }}>
-              Download ScrubBuddy Add-on
-            </Button>
-          </div>
+              </div>
+            </div>
+          )}
         </div>
       </Modal>
 

@@ -10,7 +10,9 @@ import {
   Calendar,
   Trash2,
   ChevronDown,
-  CalendarDays
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
 
 interface Goal {
@@ -59,8 +61,27 @@ const formatDateLabel = (dateStr: string) => {
   return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 }
 
+// Format date for header display
+const formatHeaderDate = (dateStr: string) => {
+  const date = new Date(dateStr + 'T00:00:00')
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+  const tomorrow = new Date(today)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+
+  if (dateStr === getDateString(today)) return "Today's Goals"
+  if (dateStr === getDateString(yesterday)) return "Yesterday's Goals"
+  if (dateStr === getDateString(tomorrow)) return "Tomorrow's Goals"
+
+  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
 export function GoalsWidget({ initialGoals }: GoalsWidgetProps) {
+  const [selectedDate, setSelectedDate] = useState<string>(getDateString(new Date()))
   const [goals, setGoals] = useState<Goal[]>(initialGoals)
+  const [isLoading, setIsLoading] = useState(false)
   const [isAdding, setIsAdding] = useState(false)
   const [newGoalText, setNewGoalText] = useState('')
   const [newGoalCategory, setNewGoalCategory] = useState('Study')
@@ -73,6 +94,41 @@ export function GoalsWidget({ initialGoals }: GoalsWidgetProps) {
   const [showDatePicker, setShowDatePicker] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const editInputRef = useRef<HTMLInputElement>(null)
+
+  const isToday = selectedDate === getDateString(new Date())
+
+  // Navigation functions
+  const goToPreviousDay = () => {
+    const current = new Date(selectedDate + 'T00:00:00')
+    current.setDate(current.getDate() - 1)
+    setSelectedDate(getDateString(current))
+  }
+
+  const goToNextDay = () => {
+    const current = new Date(selectedDate + 'T00:00:00')
+    current.setDate(current.getDate() + 1)
+    setSelectedDate(getDateString(current))
+  }
+
+  // Fetch goals when date changes
+  useEffect(() => {
+    const fetchGoalsForDate = async () => {
+      setIsLoading(true)
+      try {
+        const res = await fetch(`/api/tasks?date=${selectedDate}`)
+        if (res.ok) {
+          const data = await res.json()
+          setGoals(data.tasks || [])
+        }
+      } catch (error) {
+        console.error('Failed to fetch goals:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchGoalsForDate()
+  }, [selectedDate])
 
   const completedCount = goals.filter(g => g.done).length
   const activeGoals = goals.filter(g => !g.done)
@@ -120,6 +176,8 @@ export function GoalsWidget({ initialGoals }: GoalsWidgetProps) {
     if (!newGoalText.trim()) return
 
     const tempId = `temp-${Date.now()}`
+    // Use selectedDate for the new goal's due date
+    const goalDueDate = newGoalDueDate
     const newGoal: Goal = {
       id: tempId,
       text: newGoalText.trim(),
@@ -127,18 +185,15 @@ export function GoalsWidget({ initialGoals }: GoalsWidgetProps) {
       category: newGoalCategory,
       priority: goals.length + 1,
       recurring: newGoalRecurring,
-      dueDate: newGoalDueDate,
+      dueDate: goalDueDate,
     }
 
-    // Only add to visible list if it's for today
-    const today = getDateString(new Date())
-    if (newGoalDueDate === today) {
+    // Add to visible list if it matches the selected date
+    if (goalDueDate === selectedDate) {
       setGoals(prev => [newGoal, ...prev])
     }
     setNewGoalText('')
     setIsAdding(false)
-    // Reset date to today for next goal
-    setNewGoalDueDate(today)
 
     try {
       const res = await fetch('/api/tasks', {
@@ -149,19 +204,19 @@ export function GoalsWidget({ initialGoals }: GoalsWidgetProps) {
           category: newGoal.category,
           priority: newGoal.priority,
           recurring: newGoal.recurring,
-          dueDate: newGoalDueDate,
+          dueDate: goalDueDate,
         }),
       })
       const data = await res.json()
       // Replace temp ID with real ID (if it was added to the list)
-      if (newGoalDueDate === today) {
+      if (goalDueDate === selectedDate) {
         setGoals(prev => prev.map(g =>
           g.id === tempId ? { ...g, id: data.task.id } : g
         ))
       }
     } catch {
       // Remove on error (if it was added to the list)
-      if (newGoalDueDate === today) {
+      if (goalDueDate === selectedDate) {
         setGoals(prev => prev.filter(g => g.id !== tempId))
       }
     }
@@ -258,11 +313,25 @@ export function GoalsWidget({ initialGoals }: GoalsWidgetProps) {
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-          Today&apos;s Goals
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={goToPreviousDay}
+            className="p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 rounded transition-colors"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide min-w-[120px] text-center">
+            {formatHeaderDate(selectedDate)}
+          </span>
+          <button
+            onClick={goToNextDay}
+            className="p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 rounded transition-colors"
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
         <span className="text-xs text-slate-400">
-          {completedCount}/{goals.length} complete
+          {isLoading ? '...' : `${completedCount}/${goals.length} complete`}
         </span>
       </div>
 
@@ -406,10 +475,17 @@ export function GoalsWidget({ initialGoals }: GoalsWidgetProps) {
           ))}
         </AnimatePresence>
 
-        {/* Empty State */}
-        {goals.length === 0 && !isAdding && (
+        {/* Loading State */}
+        {isLoading && (
           <div className="text-center py-8 text-slate-500 text-sm">
-            No goals yet. Add one below!
+            Loading goals...
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!isLoading && goals.length === 0 && !isAdding && (
+          <div className="text-center py-8 text-slate-500 text-sm">
+            {isToday ? 'No goals yet. Add one below!' : 'No goals for this day.'}
           </div>
         )}
       </div>
@@ -587,7 +663,7 @@ export function GoalsWidget({ initialGoals }: GoalsWidgetProps) {
                     setShowCategoryPicker(false)
                     setShowRecurrencePicker(false)
                     setShowDatePicker(false)
-                    setNewGoalDueDate(getDateString(new Date()))
+                    setNewGoalDueDate(selectedDate)
                   }}
                   className="text-xs text-slate-500 hover:text-slate-300 px-2 py-1"
                 >
@@ -606,7 +682,10 @@ export function GoalsWidget({ initialGoals }: GoalsWidgetProps) {
             <motion.button
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              onClick={() => setIsAdding(true)}
+              onClick={() => {
+                setNewGoalDueDate(selectedDate)
+                setIsAdding(true)
+              }}
               className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 font-medium w-full"
             >
               <Plus size={16} />
