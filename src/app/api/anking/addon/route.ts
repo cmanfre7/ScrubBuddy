@@ -19,7 +19,8 @@ Just install it and restart Anki - no configuration needed!
 import json
 import urllib.request
 import urllib.error
-from typing import Dict, Any
+import threading
+from typing import Dict, Any, Optional, List
 from aqt import mw, gui_hooks
 from aqt.qt import QTimer
 from aqt.utils import showInfo, tooltip
@@ -39,27 +40,45 @@ def get_config() -> Dict[str, Any]:
         }
     return config
 
-def invoke_anki_connect(action: str, params: Dict = None) -> Any:
-    """Call AnkiConnect API"""
-    request_json = json.dumps({
-        "action": action,
-        "version": 6,
-        "params": params or {}
-    }).encode('utf-8')
+def db_query(col, sql: str, params: tuple = ()) -> Optional[List]:
+    """Execute SQL query and return first row, handling both old and new Anki versions.
 
+    In Anki 25.02+ (Rust backend), col.db.execute() returns a list directly.
+    In older versions, it returns a cursor with fetchone()/fetchall() methods.
+    """
     try:
-        request = urllib.request.Request('http://127.0.0.1:8765', request_json)
-        response = urllib.request.urlopen(request, timeout=10)
-        response_data = json.loads(response.read().decode('utf-8'))
+        result = col.db.execute(sql, params) if params else col.db.execute(sql)
 
-        if response_data.get('error'):
-            raise Exception(response_data['error'])
+        # New Anki (25.02+): result is a list
+        if isinstance(result, list):
+            return result[0] if result else None
 
-        return response_data.get('result')
-    except urllib.error.URLError as e:
-        raise Exception(f"AnkiConnect not available: {e}")
+        # Old Anki: result is a cursor
+        if hasattr(result, 'fetchone'):
+            return result.fetchone()
+
+        return None
     except Exception as e:
-        raise Exception(f"AnkiConnect error: {e}")
+        print(f"ScrubBuddy: DB query error: {e}")
+        return None
+
+def db_query_all(col, sql: str, params: tuple = ()) -> List:
+    """Execute SQL query and return all rows."""
+    try:
+        result = col.db.execute(sql, params) if params else col.db.execute(sql)
+
+        # New Anki (25.02+): result is a list
+        if isinstance(result, list):
+            return result
+
+        # Old Anki: result is a cursor
+        if hasattr(result, 'fetchall'):
+            return result.fetchall()
+
+        return []
+    except Exception as e:
+        print(f"ScrubBuddy: DB query error: {e}")
+        return []
 
 def get_collection_stats() -> Dict[str, Any]:
     """Get comprehensive stats from Anki using native collection access"""
@@ -78,23 +97,17 @@ def get_collection_stats() -> Dict[str, Any]:
 
     try:
         # Get due counts directly from scheduler - most reliable method
-        # This gives us the exact counts shown in Anki's UI
         sched = col.sched
 
-        # Get counts for all decks using the deck due tree
-        # deck_due_tree returns nested structure with (name, did, rev, lrn, new, children)
+        # Try to get counts from the scheduler's deck tree
         try:
-            # Anki 2.1.50+ uses different method
             if hasattr(sched, 'deck_due_tree'):
                 tree = sched.deck_due_tree()
-                # Process the tree to get total counts
+
                 def process_node(node):
-                    # node structure varies by Anki version
                     if hasattr(node, 'review_count'):
-                        # Anki 2.1.50+ DeckTreeNode
                         return node.new_count, node.learn_count, node.review_count
                     elif isinstance(node, (list, tuple)) and len(node) >= 5:
-                        # Older format: (name, did, rev, lrn, new, children)
                         return node[4], node[3], node[2]
                     return 0, 0, 0
 
@@ -113,49 +126,40 @@ def get_collection_stats() -> Dict[str, Any]:
                     return new, lrn, rev
 
                 if hasattr(tree, 'children'):
-                    # Single root node
                     stats["newDue"], stats["learningDue"], stats["reviewDue"] = sum_tree(tree)
                 elif isinstance(tree, list):
-                    # List of top-level decks
                     for deck_node in tree:
                         n, l, r = sum_tree(deck_node)
                         stats["newDue"] += n
                         stats["learningDue"] += l
                         stats["reviewDue"] += r
             else:
-                # Fallback: query counts directly from database
-                cursor = col.db.execute("""
+                # Fallback to SQL
+                row = db_query(col, """
                     SELECT
-                        SUM(CASE WHEN queue = 0 THEN 1 ELSE 0 END) as new_due,
-                        SUM(CASE WHEN queue = 1 THEN 1 ELSE 0 END) as learning_due,
-                        SUM(CASE WHEN queue = 2 THEN 1 ELSE 0 END) as review_due
-                    FROM cards
-                    WHERE queue >= 0
+                        SUM(CASE WHEN queue = 0 THEN 1 ELSE 0 END),
+                        SUM(CASE WHEN queue = 1 THEN 1 ELSE 0 END),
+                        SUM(CASE WHEN queue = 2 THEN 1 ELSE 0 END)
+                    FROM cards WHERE queue >= 0
                 """)
-                row = cursor.fetchone()
                 if row:
                     stats["newDue"] = row[0] or 0
                     stats["learningDue"] = row[1] or 0
                     stats["reviewDue"] = row[2] or 0
         except Exception as e:
-            print(f"ScrubBuddy: Error getting due counts from scheduler: {e}")
-            # Fallback: use SQL query for due counts
-            try:
-                cursor = col.db.execute("""
-                    SELECT
-                        SUM(CASE WHEN queue = 0 THEN 1 ELSE 0 END) as new_due,
-                        SUM(CASE WHEN queue = 1 THEN 1 ELSE 0 END) as learning_due,
-                        SUM(CASE WHEN queue = 2 THEN 1 ELSE 0 END) as review_due
-                    FROM cards
-                    WHERE queue >= 0
-                """)
-                row = cursor.fetchone()
-                if row:
-                    stats["newDue"] = row[0] or 0
-                    stats["learningDue"] = row[1] or 0
-                    stats["reviewDue"] = row[2] or 0
-            except Exception as e2:
-                print(f"ScrubBuddy: Fallback SQL also failed: {e2}")
+            print(f"ScrubBuddy: Error getting due counts: {e}")
+            # Fallback to SQL
+            row = db_query(col, """
+                SELECT
+                    SUM(CASE WHEN queue = 0 THEN 1 ELSE 0 END),
+                    SUM(CASE WHEN queue = 1 THEN 1 ELSE 0 END),
+                    SUM(CASE WHEN queue = 2 THEN 1 ELSE 0 END)
+                FROM cards WHERE queue >= 0
+            """)
+            if row:
+                stats["newDue"] = row[0] or 0
+                stats["learningDue"] = row[1] or 0
+                stats["reviewDue"] = row[2] or 0
 
         stats["totalDue"] = stats["newDue"] + stats["reviewDue"] + stats["learningDue"]
 
@@ -164,15 +168,14 @@ def get_collection_stats() -> Dict[str, Any]:
         stats["totalNotes"] = col.note_count()
 
         # Get card states (suspended, buried, mature, young)
-        cursor = col.db.execute("""
+        row = db_query(col, """
             SELECT
-                SUM(CASE WHEN queue = -1 THEN 1 ELSE 0 END) as suspended,
-                SUM(CASE WHEN queue IN (-2, -3) THEN 1 ELSE 0 END) as buried,
-                SUM(CASE WHEN ivl >= 21 THEN 1 ELSE 0 END) as mature,
-                SUM(CASE WHEN ivl > 0 AND ivl < 21 THEN 1 ELSE 0 END) as young
+                SUM(CASE WHEN queue = -1 THEN 1 ELSE 0 END),
+                SUM(CASE WHEN queue IN (-2, -3) THEN 1 ELSE 0 END),
+                SUM(CASE WHEN ivl >= 21 THEN 1 ELSE 0 END),
+                SUM(CASE WHEN ivl > 0 AND ivl < 21 THEN 1 ELSE 0 END)
             FROM cards
         """)
-        row = cursor.fetchone()
         if row:
             stats["suspendedCards"] = row[0] or 0
             stats["buriedCards"] = row[1] or 0
@@ -183,19 +186,17 @@ def get_collection_stats() -> Dict[str, Any]:
         day_cutoff = col.sched.day_cutoff
         today_start = (day_cutoff - 86400) * 1000
 
-        cursor = col.db.execute("""
+        row = db_query(col, """
             SELECT
-                COUNT(CASE WHEN type = 0 THEN 1 END) as new_studied,
-                COUNT(CASE WHEN type IN (1, 2, 3) THEN 1 END) as reviews,
-                SUM(CASE WHEN ease = 1 THEN 1 ELSE 0 END) as again,
-                SUM(CASE WHEN ease = 2 THEN 1 ELSE 0 END) as hard,
-                SUM(CASE WHEN ease = 3 THEN 1 ELSE 0 END) as good,
-                SUM(CASE WHEN ease = 4 THEN 1 ELSE 0 END) as easy,
-                SUM(time) as total_time
-            FROM revlog
-            WHERE id > ?
+                COUNT(CASE WHEN type = 0 THEN 1 END),
+                COUNT(CASE WHEN type IN (1, 2, 3) THEN 1 END),
+                SUM(CASE WHEN ease = 1 THEN 1 ELSE 0 END),
+                SUM(CASE WHEN ease = 2 THEN 1 ELSE 0 END),
+                SUM(CASE WHEN ease = 3 THEN 1 ELSE 0 END),
+                SUM(CASE WHEN ease = 4 THEN 1 ELSE 0 END),
+                SUM(time)
+            FROM revlog WHERE id > ?
         """, (today_start,))
-        row = cursor.fetchone()
         if row:
             stats["newStudied"] = row[0] or 0
             stats["reviewsStudied"] = row[1] or 0
@@ -207,32 +208,12 @@ def get_collection_stats() -> Dict[str, Any]:
 
         # Calculate 30-day retention rate
         thirty_days_ago = (day_cutoff - (30 * 86400)) * 1000
-        cursor = col.db.execute("""
-            SELECT COUNT(*) as total, SUM(CASE WHEN ease > 1 THEN 1 ELSE 0 END) as passed
+        row = db_query(col, """
+            SELECT COUNT(*), SUM(CASE WHEN ease > 1 THEN 1 ELSE 0 END)
             FROM revlog WHERE id > ? AND type IN (1, 2, 3)
         """, (thirty_days_ago,))
-        row = cursor.fetchone()
-        if row and row[0] > 0:
-            stats["retentionRate"] = row[1] / row[0]
-
-        # Get per-deck info using AnkiConnect (optional, for detailed breakdown)
-        try:
-            deck_names = invoke_anki_connect("deckNames")
-            deck_stats_result = invoke_anki_connect("getDeckStats", {"decks": deck_names})
-            if deck_stats_result:
-                # getDeckStats returns {deck_id: stats_dict}
-                for deck_id, ds in deck_stats_result.items():
-                    deck_info = {
-                        "name": ds.get("name", "Unknown"),
-                        "id": str(deck_id),
-                        "newDue": ds.get("new_count", 0),
-                        "reviewDue": ds.get("review_count", 0),
-                        "learningDue": ds.get("learn_count", 0),
-                        "totalCards": ds.get("total_in_deck", 0),
-                    }
-                    stats["decks"].append(deck_info)
-        except Exception as e:
-            print(f"ScrubBuddy: Could not get per-deck stats (AnkiConnect may not be running): {e}")
+        if row and row[0] and row[0] > 0:
+            stats["retentionRate"] = (row[1] or 0) / row[0]
 
         print(f"ScrubBuddy: Stats collected - Due: {stats['totalDue']}, Total: {stats['totalCards']}, Mature: {stats['matureCards']}")
 
@@ -243,16 +224,9 @@ def get_collection_stats() -> Dict[str, Any]:
 
     return stats
 
-def sync_to_scrubbuddy():
-    """Send stats to ScrubBuddy"""
-    config = get_config()
-
-    if not config.get("sync_token"):
-        print("ScrubBuddy Sync: No token configured")
-        return False
-
+def do_sync_request(stats: Dict, config: Dict) -> bool:
+    """Perform the HTTP sync request (runs in background thread)"""
     try:
-        stats = get_collection_stats()
         url = f"{config['scrubbuddy_url']}/api/anking/sync"
         data = json.dumps(stats).encode('utf-8')
 
@@ -265,7 +239,6 @@ def sync_to_scrubbuddy():
         result = json.loads(response.read().decode('utf-8'))
 
         if result.get('success'):
-            tooltip("ScrubBuddy: Anki stats synced!")
             print("ScrubBuddy Sync: Success")
             return True
         else:
@@ -280,17 +253,39 @@ def sync_to_scrubbuddy():
         print(f"ScrubBuddy Sync error: {e}")
         return False
 
+def sync_to_scrubbuddy(show_tooltip: bool = True):
+    """Send stats to ScrubBuddy (non-blocking)"""
+    config = get_config()
+
+    if not config.get("sync_token"):
+        print("ScrubBuddy Sync: No token configured")
+        return False
+
+    # Collect stats in main thread (needs access to col)
+    stats = get_collection_stats()
+
+    # Do the HTTP request in a background thread to avoid freezing
+    def background_sync():
+        success = do_sync_request(stats, config)
+        if success and show_tooltip:
+            # Schedule tooltip on main thread
+            mw.taskman.run_on_main(lambda: tooltip("ScrubBuddy: Anki stats synced!"))
+
+    thread = threading.Thread(target=background_sync, daemon=True)
+    thread.start()
+    return True
+
 def on_profile_loaded():
     """Called when Anki profile is loaded"""
     config = get_config()
 
     if config.get("sync_on_startup") and config.get("sync_token"):
-        QTimer.singleShot(3000, sync_to_scrubbuddy)
+        QTimer.singleShot(3000, lambda: sync_to_scrubbuddy(show_tooltip=True))
 
     if config.get("sync_interval_minutes", 0) > 0 and config.get("sync_token"):
         interval_ms = config["sync_interval_minutes"] * 60 * 1000
         timer = QTimer(mw)
-        timer.timeout.connect(sync_to_scrubbuddy)
+        timer.timeout.connect(lambda: sync_to_scrubbuddy(show_tooltip=False))
         timer.start(interval_ms)
 
 def manual_sync():
@@ -302,10 +297,8 @@ def manual_sync():
                 "Tools > Add-ons > ScrubBuddy Sync > Config")
         return
 
-    if sync_to_scrubbuddy():
-        showInfo("Anki stats synced to ScrubBuddy successfully!")
-    else:
-        showInfo("Failed to sync to ScrubBuddy. Check the console for details.")
+    sync_to_scrubbuddy(show_tooltip=True)
+    showInfo("Sync started! You'll see a notification when complete.")
 
 def setup_menu():
     """Add menu item for manual sync"""
@@ -357,7 +350,7 @@ export async function POST(request: NextRequest) {
     zip.file('manifest.json', JSON.stringify({
       package: 'scrubbuddy_sync',
       name: 'ScrubBuddy Sync',
-      version: '1.1.0',
+      version: '1.2.0',
       author: 'ScrubBuddy',
       homepage: scrubbuddyUrl,
     }, null, 2))
