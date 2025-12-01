@@ -14,6 +14,7 @@ export const WIDGET_IDS = [
   'weak-areas',
   'pearls',
   'streak',
+  'anki',
 ] as const
 
 export type WidgetId = typeof WIDGET_IDS[number]
@@ -29,6 +30,7 @@ export const DEFAULT_WIDGET_CONFIG: WidgetConfig[] = [
   { id: 'weak-areas', size: 'half', visible: true },
   { id: 'pearls', size: 'half', visible: true },
   { id: 'streak', size: 'third', visible: true },
+  { id: 'anki', size: 'third', visible: true },
 ]
 
 interface DashboardClientProps {
@@ -41,6 +43,7 @@ interface DashboardClientProps {
   weakAreasWidget: ReactNode
   pearlsWidget: ReactNode
   streakWidget: ReactNode
+  ankiWidget: ReactNode
 }
 
 export function DashboardClient({
@@ -53,6 +56,7 @@ export function DashboardClient({
   weakAreasWidget,
   pearlsWidget,
   streakWidget,
+  ankiWidget,
 }: DashboardClientProps) {
   // Order must match WIDGET_IDS
   const widgets = [
@@ -65,6 +69,7 @@ export function DashboardClient({
     weakAreasWidget,
     pearlsWidget,
     streakWidget,
+    ankiWidget,
   ]
 
   return (

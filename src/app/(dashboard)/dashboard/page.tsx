@@ -11,6 +11,7 @@ import { WeakAreasWidget } from '@/components/dashboard-widgets/WeakAreasWidget'
 import { PearlsWidget } from '@/components/dashboard-widgets/PearlsWidget'
 import { StreakWidget } from '@/components/dashboard-widgets/StreakWidget'
 import { TodayScheduleWidget } from '@/components/dashboard-widgets/TodayScheduleWidget'
+import { AnkiWidget } from '@/components/dashboard-widgets/AnkiWidget'
 import { ExamDateButtons } from '@/components/ExamDateButtons'
 import { DashboardClient } from '@/components/dashboard/DashboardClient'
 import { Calendar as CalendarIcon, Target, FileText, Stethoscope } from 'lucide-react'
@@ -488,6 +489,7 @@ export default async function DashboardPage() {
         weakAreasWidget={<WeakAreasWidget weakAreas={data.weakAreas} />}
         pearlsWidget={<PearlsWidget pearls={data.pearls} />}
         streakWidget={<StreakWidget currentStreak={data.currentStreak} last28Days={data.last28Days} />}
+        ankiWidget={<AnkiWidget />}
       />
     </div>
   )
