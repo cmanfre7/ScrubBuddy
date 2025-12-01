@@ -187,38 +187,68 @@ def get_collection_stats() -> Dict[str, Any]:
 
         # Get today's study stats from revlog
         day_cutoff = col.sched.day_cutoff
-        today_start = (day_cutoff - 86400) * 1000
+        today_start = int((day_cutoff - 86400) * 1000)
+        print(f"ScrubBuddy: day_cutoff={day_cutoff}, today_start={today_start}")
 
-        row = db_query(col, """
-            SELECT
-                COUNT(CASE WHEN type = 0 THEN 1 END),
-                COUNT(CASE WHEN type IN (1, 2, 3) THEN 1 END),
-                SUM(CASE WHEN ease = 1 THEN 1 ELSE 0 END),
-                SUM(CASE WHEN ease = 2 THEN 1 ELSE 0 END),
-                SUM(CASE WHEN ease = 3 THEN 1 ELSE 0 END),
-                SUM(CASE WHEN ease = 4 THEN 1 ELSE 0 END),
-                SUM(time)
-            FROM revlog WHERE id > ?
-        """, (today_start,))
-        if row:
-            stats["newStudied"] = row[0] or 0
-            stats["reviewsStudied"] = row[1] or 0
-            stats["againCount"] = row[2] or 0
-            stats["hardCount"] = row[3] or 0
-            stats["goodCount"] = row[4] or 0
-            stats["easyCount"] = row[5] or 0
-            stats["timeStudiedSecs"] = (row[6] or 0) // 1000
+        # Use string formatting for timestamp (safe - it's always a number)
+        # Parameterized queries may fail silently in Anki 25.02+
+        try:
+            sql = f"""
+                SELECT
+                    COUNT(CASE WHEN type = 0 THEN 1 END),
+                    COUNT(CASE WHEN type IN (1, 2, 3) THEN 1 END),
+                    SUM(CASE WHEN ease = 1 THEN 1 ELSE 0 END),
+                    SUM(CASE WHEN ease = 2 THEN 1 ELSE 0 END),
+                    SUM(CASE WHEN ease = 3 THEN 1 ELSE 0 END),
+                    SUM(CASE WHEN ease = 4 THEN 1 ELSE 0 END),
+                    SUM(time)
+                FROM revlog WHERE id > {today_start}
+            """
+            result = col.db.execute(sql)
+            print(f"ScrubBuddy: revlog query result type={type(result)}")
+
+            row = None
+            if isinstance(result, list) and len(result) > 0:
+                row = result[0]
+            elif hasattr(result, 'fetchone'):
+                row = result.fetchone()
+
+            print(f"ScrubBuddy: revlog row={row}")
+
+            if row:
+                stats["newStudied"] = row[0] or 0
+                stats["reviewsStudied"] = row[1] or 0
+                stats["againCount"] = row[2] or 0
+                stats["hardCount"] = row[3] or 0
+                stats["goodCount"] = row[4] or 0
+                stats["easyCount"] = row[5] or 0
+                stats["timeStudiedSecs"] = (row[6] or 0) // 1000
+                print(f"ScrubBuddy: Studied today - New: {stats['newStudied']}, Reviews: {stats['reviewsStudied']}, Time: {stats['timeStudiedSecs']}s")
+        except Exception as e:
+            print(f"ScrubBuddy: Error querying revlog: {e}")
+            import traceback
+            traceback.print_exc()
 
         # Calculate 30-day retention rate
-        thirty_days_ago = (day_cutoff - (30 * 86400)) * 1000
-        row = db_query(col, """
-            SELECT COUNT(*), SUM(CASE WHEN ease > 1 THEN 1 ELSE 0 END)
-            FROM revlog WHERE id > ? AND type IN (1, 2, 3)
-        """, (thirty_days_ago,))
-        if row and row[0] and row[0] > 0:
-            stats["retentionRate"] = (row[1] or 0) / row[0]
+        thirty_days_ago = int((day_cutoff - (30 * 86400)) * 1000)
+        try:
+            sql = f"""
+                SELECT COUNT(*), SUM(CASE WHEN ease > 1 THEN 1 ELSE 0 END)
+                FROM revlog WHERE id > {thirty_days_ago} AND type IN (1, 2, 3)
+            """
+            result = col.db.execute(sql)
+            row = None
+            if isinstance(result, list) and len(result) > 0:
+                row = result[0]
+            elif hasattr(result, 'fetchone'):
+                row = result.fetchone()
 
-        print(f"ScrubBuddy: Stats collected - Due: {stats['totalDue']}, Total: {stats['totalCards']}, Mature: {stats['matureCards']}")
+            if row and row[0] and row[0] > 0:
+                stats["retentionRate"] = (row[1] or 0) / row[0]
+        except Exception as e:
+            print(f"ScrubBuddy: Error calculating retention: {e}")
+
+        print(f"ScrubBuddy: Stats collected - Due: {stats['totalDue']}, Total: {stats['totalCards']}, NewStudied: {stats['newStudied']}, ReviewsStudied: {stats['reviewsStudied']}")
 
     except Exception as e:
         print(f"ScrubBuddy: Error getting collection stats: {e}")
@@ -353,7 +383,7 @@ export async function POST(request: NextRequest) {
     zip.file('manifest.json', JSON.stringify({
       package: 'scrubbuddy_sync',
       name: 'ScrubBuddy Sync',
-      version: '1.5.0',
+      version: '1.6.0',
       author: 'ScrubBuddy',
       homepage: scrubbuddyUrl,
     }, null, 2))
