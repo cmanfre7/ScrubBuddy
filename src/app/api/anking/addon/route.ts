@@ -96,13 +96,21 @@ def get_collection_stats() -> Dict[str, Any]:
         return stats
 
     try:
-        # Get due counts using col.sched.counts() - this returns EXACTLY what Anki shows
-        # in its main window: (new_count, learning_count, review_count)
+        # Get due counts for ALL decks combined (not just the selected deck)
         sched = col.sched
 
         try:
-            # counts() returns the due counts respecting daily limits
-            # This is the most reliable method across all Anki versions
+            # Save current deck selection
+            current_deck_id = col.decks.current()['id']
+
+            # Select "all decks" by selecting the root (deck ID 1)
+            # This makes counts() return totals for the entire collection
+            col.decks.select(1)
+
+            # Reset the scheduler to update counts for new selection
+            sched.reset()
+
+            # Now counts() returns the total for ALL decks
             counts = sched.counts()
 
             # counts can be a tuple/list or a Counts object depending on version
@@ -119,12 +127,14 @@ def get_collection_stats() -> Dict[str, Any]:
             else:
                 print(f"ScrubBuddy: Unexpected counts format: {type(counts)} = {counts}")
 
-            print(f"ScrubBuddy: counts() returned - New: {stats['newDue']}, Learn: {stats['learningDue']}, Rev: {stats['reviewDue']}")
+            # Restore the original deck selection
+            col.decks.select(current_deck_id)
+            sched.reset()
+
+            print(f"ScrubBuddy: counts() returned (all decks) - New: {stats['newDue']}, Learn: {stats['learningDue']}, Rev: {stats['reviewDue']}")
 
         except Exception as e:
             print(f"ScrubBuddy: Error getting counts(): {e}")
-            # Last resort fallback - but this won't match Anki's display
-            # because it doesn't respect daily limits
             import traceback
             traceback.print_exc()
 
@@ -317,7 +327,7 @@ export async function POST(request: NextRequest) {
     zip.file('manifest.json', JSON.stringify({
       package: 'scrubbuddy_sync',
       name: 'ScrubBuddy Sync',
-      version: '1.3.0',
+      version: '1.4.0',
       author: 'ScrubBuddy',
       homepage: scrubbuddyUrl,
     }, null, 2))
