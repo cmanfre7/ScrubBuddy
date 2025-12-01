@@ -407,16 +407,47 @@ model Resource {
   userId      String
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // Core info
   name        String
-  url         String
-  category    String    // "qbank", "video", "anki", "guideline", "custom"
-  rotation    String?   // Link to specific rotation
+  description String?   @db.Text
+  url         String?   // External URL (website, video link, podcast link)
+
+  // Type: video, podcast, website, pdf, document, qbank, anki
+  type        String
+
+  // For organization
+  subject     String?   // "Surgery", "Internal Medicine", "OBGYN", etc.
+  rotation    String?   // Link to specific rotation name
   tags        String[]  @default([])
+
+  // For videos/podcasts
+  embedUrl    String?   // Embedded player URL (YouTube embed, Spotify embed, etc.)
+  duration    String?   // "45:30" or "1h 23m"
+  channel     String?   // YouTube channel, Podcast name (Divine Intervention, etc.)
+  thumbnail   String?   // Thumbnail URL
+
+  // For PDFs/Documents
+  fileUrl     String?   // URL to PDF/document file (S3, Cloudinary, etc.)
+  fileName    String?   // Original filename
+  fileSize    Int?      // Size in bytes
+  pageCount   Int?      // For PDFs
+
+  // For websites
+  favicon     String?   // Website favicon URL
+
+  // Metadata
+  isFavorite  Boolean   @default(false)
+  isArchived  Boolean   @default(false)
+  viewCount   Int       @default(0)
   lastAccessed DateTime?
+  notes       String?   @db.Text  // Personal notes about the resource
 
   createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([userId])
+  @@index([type])
+  @@index([subject])
 }
 
 // ==================== AI ====================
