@@ -201,12 +201,25 @@ scrubbuddy/
    - Rank list builder
 
 ### Calendar Integration (Pending)
-- **Google Calendar OAuth** - Two-way sync with Google Calendar
-  - OAuth 2.0 setup in Google Cloud Console
-  - Sync direction: both, to Google, or from Google
-  - Select which Google calendars to sync
-  - Conflict resolution preferences
-- **Apple Calendar Sync** - CalDAV integration (future)
+
+**Difficulty Assessment:**
+- Google Calendar: **Medium** (~2-3 days)
+- Apple Calendar: **Hard** (CalDAV only, no public API)
+- Recommendation: Start with Google one-way import first
+
+**Google Calendar Sync**
+- OAuth 2.0 setup in Google Cloud Console
+- Use `googleapis` npm package
+- Sync direction options: both, to Google, or from Google
+- Select which Google calendars to sync
+- Conflict resolution preferences
+- Store refresh tokens securely in database
+
+**Apple Calendar Sync** (Future/Lower Priority)
+- Apple has no public calendar API
+- Only option is CalDAV protocol (complex, server-to-server)
+- Would need user to provide iCloud credentials or app-specific password
+- Better to recommend users export from Apple Calendar and use Google sync
 
 ### AI Features (Future)
 - Daily study recommendations
@@ -325,4 +338,4 @@ npx prisma generate         # Generate client
 
 ---
 
-*Last updated: November 2024*
+*Last updated: December 2024*
