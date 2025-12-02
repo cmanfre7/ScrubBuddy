@@ -694,17 +694,36 @@ function AddResourceModal({
   const [channel, setChannel] = useState('')
   const [duration, setDuration] = useState('')
   const [tags, setTags] = useState('')
+  const [error, setError] = useState('')
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    setError('')
+
+    // Basic validation
+    if (!name.trim()) {
+      setError('Name is required')
+      return
+    }
+
+    // URL validation for types that need it
+    if ((type === 'video' || type === 'podcast' || type === 'website') && url) {
+      try {
+        new URL(url)
+      } catch {
+        setError('Please enter a valid URL')
+        return
+      }
+    }
+
     onSubmit({
       type,
-      name,
-      url: url || undefined,
-      description: description || undefined,
+      name: name.trim(),
+      url: url.trim() || undefined,
+      description: description.trim() || undefined,
       subject: subject || undefined,
-      channel: channel || undefined,
-      duration: duration || undefined,
+      channel: channel.trim() || undefined,
+      duration: duration.trim() || undefined,
       tags: tags
         .split(',')
         .map((t) => t.trim())
@@ -729,6 +748,13 @@ function AddResourceModal({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Error Message */}
+          {error && (
+            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+              {error}
+            </div>
+          )}
+
           {/* Type Selection */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
@@ -769,7 +795,6 @@ function AddResourceModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., Cardiology Overview"
-              required
               className="w-full px-4 py-2 rounded-lg text-white placeholder-slate-500 border-0 focus:ring-2 focus:ring-blue-500"
               style={{ backgroundColor: '#1e293b' }}
             />
@@ -781,7 +806,7 @@ function AddResourceModal({
               URL {type !== 'pdf' && type !== 'document' && '*'}
             </label>
             <input
-              type="url"
+              type="text"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder={
