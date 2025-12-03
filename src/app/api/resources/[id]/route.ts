@@ -101,7 +101,7 @@ export async function PUT(
   }
 }
 
-// PATCH - Toggle favorite or archive
+// PATCH - Update resource (partial update)
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -127,14 +127,38 @@ export async function PATCH(
       return NextResponse.json({ error: 'Resource not found' }, { status: 404 })
     }
 
-    const updateData: any = {}
+    // Build update data from provided fields
+    const updateData: Record<string, unknown> = {}
 
+    // Boolean fields
     if (typeof data.isFavorite === 'boolean') {
       updateData.isFavorite = data.isFavorite
     }
-
     if (typeof data.isArchived === 'boolean') {
       updateData.isArchived = data.isArchived
+    }
+
+    // String fields
+    const stringFields = ['name', 'description', 'url', 'type', 'subject', 'rotation',
+                          'embedUrl', 'duration', 'channel', 'thumbnail', 'fileUrl',
+                          'fileName', 'favicon', 'notes']
+    for (const field of stringFields) {
+      if (field in data) {
+        updateData[field] = data[field]
+      }
+    }
+
+    // Array field (tags)
+    if ('tags' in data && Array.isArray(data.tags)) {
+      updateData.tags = data.tags
+    }
+
+    // Number fields
+    if ('fileSize' in data) {
+      updateData.fileSize = data.fileSize
+    }
+    if ('pageCount' in data) {
+      updateData.pageCount = data.pageCount
     }
 
     const resource = await prisma.resource.update({

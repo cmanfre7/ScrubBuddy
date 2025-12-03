@@ -868,7 +868,59 @@ function AddResourceModal({
   const [channel, setChannel] = useState('')
   const [duration, setDuration] = useState('')
   const [tags, setTags] = useState('')
+  const [thumbnail, setThumbnail] = useState('')
+  const [embedUrl, setEmbedUrl] = useState('')
   const [error, setError] = useState('')
+  const [isFetchingMetadata, setIsFetchingMetadata] = useState(false)
+
+  // Auto-fetch metadata when URL changes
+  useEffect(() => {
+    const fetchMetadata = async () => {
+      if (!url) return
+
+      // Validate URL first
+      try {
+        new URL(url)
+      } catch {
+        return
+      }
+
+      // Only fetch for video/podcast URLs
+      const isVideo = url.includes('youtube.com') || url.includes('youtu.be') || url.includes('vimeo.com')
+      const isPodcast = url.includes('spotify.com')
+      if (!isVideo && !isPodcast) return
+
+      setIsFetchingMetadata(true)
+      try {
+        const res = await fetch('/api/resources/metadata', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url }),
+        })
+        if (res.ok) {
+          const { metadata } = await res.json()
+          if (metadata) {
+            // Auto-populate fields if they're empty
+            if (!name && metadata.title) setName(metadata.title)
+            if (!channel && metadata.channel) setChannel(metadata.channel)
+            if (!duration && metadata.duration) setDuration(metadata.duration)
+            if (!description && metadata.description) setDescription(metadata.description)
+            if (metadata.thumbnail) setThumbnail(metadata.thumbnail)
+            if (metadata.embedUrl) setEmbedUrl(metadata.embedUrl)
+            if (metadata.type) setType(metadata.type)
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch metadata:', err)
+      } finally {
+        setIsFetchingMetadata(false)
+      }
+    }
+
+    // Debounce the fetch
+    const timeoutId = setTimeout(fetchMetadata, 500)
+    return () => clearTimeout(timeoutId)
+  }, [url, name, channel, duration, description])
 
   // Display API error if present
   const displayError = error || apiError
@@ -901,6 +953,8 @@ function AddResourceModal({
       subject: subject || undefined,
       channel: channel.trim() || undefined,
       duration: duration.trim() || undefined,
+      thumbnail: thumbnail || undefined,
+      embedUrl: embedUrl || undefined,
       tags: tags
         .split(',')
         .map((t) => t.trim())
@@ -962,6 +1016,33 @@ function AddResourceModal({
             </div>
           </div>
 
+          {/* URL - moved before Name for auto-populate */}
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              URL {type !== 'pdf' && type !== 'document' && '*'}
+              {isFetchingMetadata && (
+                <span className="ml-2 text-xs text-blue-400">Fetching metadata...</span>
+              )}
+            </label>
+            <input
+              type="text"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder={
+                type === 'video'
+                  ? 'https://youtube.com/watch?v=... or https://vimeo.com/...'
+                  : type === 'podcast'
+                  ? 'https://open.spotify.com/episode/...'
+                  : 'https://...'
+              }
+              className="w-full px-4 py-2 rounded-lg text-white placeholder-slate-500 border-0 focus:ring-2 focus:ring-blue-500"
+              style={{ backgroundColor: '#1e293b' }}
+            />
+            <p className="mt-1 text-xs text-slate-500">
+              Paste a YouTube, Vimeo, or Spotify link to auto-fill details
+            </p>
+          </div>
+
           {/* Name */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
@@ -972,27 +1053,6 @@ function AddResourceModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., Cardiology Overview"
-              className="w-full px-4 py-2 rounded-lg text-white placeholder-slate-500 border-0 focus:ring-2 focus:ring-blue-500"
-              style={{ backgroundColor: '#1e293b' }}
-            />
-          </div>
-
-          {/* URL */}
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              URL {type !== 'pdf' && type !== 'document' && '*'}
-            </label>
-            <input
-              type="text"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder={
-                type === 'video'
-                  ? 'https://youtube.com/watch?v=...'
-                  : type === 'podcast'
-                  ? 'https://open.spotify.com/episode/...'
-                  : 'https://...'
-              }
               className="w-full px-4 py-2 rounded-lg text-white placeholder-slate-500 border-0 focus:ring-2 focus:ring-blue-500"
               style={{ backgroundColor: '#1e293b' }}
             />
