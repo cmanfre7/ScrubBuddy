@@ -44,7 +44,7 @@ const getDeadlineBadge = (dueDate: string | null | undefined, selectedDate: stri
   if (!dueDate) return null
 
   // Extract just the date portion (YYYY-MM-DD) to avoid timezone issues
-  // dueDate might come as "2024-12-05T00:00:00.000Z" - we just want "2024-12-05"
+  // dueDate might come as "2025-12-05T00:00:00.000Z" - we just want "2025-12-05"
   const dueDateStr = dueDate.split('T')[0]
   const dueDateObj = new Date(dueDateStr + 'T00:00:00') // Local midnight
 
