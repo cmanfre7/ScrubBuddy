@@ -64,6 +64,78 @@ export async function PATCH(
       return NextResponse.json({ error: 'Task not found' }, { status: 404 })
     }
 
+    // Handle recurring task completion differently
+    if (existing.recurring && typeof body.done === 'boolean') {
+      // For recurring tasks, we use TaskCompletion records instead of the task's done field
+      const { date } = body // Expect date to be passed for recurring tasks
+
+      if (!date) {
+        // Default to today if no date provided
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+
+        if (body.done) {
+          // Create completion record
+          await prisma.taskCompletion.upsert({
+            where: {
+              taskId_date: {
+                taskId: id,
+                date: today,
+              },
+            },
+            update: { completed: true },
+            create: {
+              taskId: id,
+              date: today,
+              completed: true,
+            },
+          })
+        } else {
+          // Remove completion record
+          await prisma.taskCompletion.deleteMany({
+            where: {
+              taskId: id,
+              date: today,
+            },
+          })
+        }
+      } else {
+        const targetDate = new Date(date)
+        targetDate.setHours(0, 0, 0, 0)
+
+        if (body.done) {
+          // Create completion record
+          await prisma.taskCompletion.upsert({
+            where: {
+              taskId_date: {
+                taskId: id,
+                date: targetDate,
+              },
+            },
+            update: { completed: true },
+            create: {
+              taskId: id,
+              date: targetDate,
+              completed: true,
+            },
+          })
+        } else {
+          // Remove completion record
+          await prisma.taskCompletion.deleteMany({
+            where: {
+              taskId: id,
+              date: targetDate,
+            },
+          })
+        }
+      }
+
+      return NextResponse.json({
+        task: { ...existing, done: body.done },
+      })
+    }
+
+    // Non-recurring task - update normally
     const task = await prisma.task.update({
       where: { id },
       data: body,

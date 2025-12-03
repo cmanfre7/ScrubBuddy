@@ -159,10 +159,16 @@ export function GoalsWidget({ initialGoals }: GoalsWidgetProps) {
     ))
 
     try {
+      // Pass date for recurring tasks so completion is tracked per-day
+      const payload: { done: boolean; date?: string } = { done: newDoneState }
+      if (goal.recurring) {
+        payload.date = selectedDate
+      }
+
       await fetch(`/api/tasks/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ done: newDoneState }),
+        body: JSON.stringify(payload),
       })
     } catch {
       // Revert on error

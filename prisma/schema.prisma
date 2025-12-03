@@ -371,11 +371,29 @@ model Task {
   recurring   String?   // "daily", "weekdays", "weekly", null
   category    String?   // "study", "clinical", "personal"
 
+  // For recurring tasks, track completions per day
+  completions TaskCompletion[]
+
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
   @@index([userId])
   @@index([done])
+  @@index([recurring])
+}
+
+// Track per-day completions for recurring tasks
+model TaskCompletion {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  date      DateTime // The date this completion is for (stored as date, time ignored)
+  completed Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@unique([taskId, date])
+  @@index([taskId])
+  @@index([date])
 }
 
 // ==================== STUDY PLANNER ====================
