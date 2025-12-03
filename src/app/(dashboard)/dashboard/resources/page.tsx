@@ -89,6 +89,48 @@ const POPULAR_RESOURCES = [
   { name: 'Divine Intervention', url: 'https://divineinterventionpodcasts.com', type: 'podcast', channel: 'Divine Intervention' },
 ]
 
+// Helper to extract YouTube video ID from various URL formats
+function getYouTubeVideoId(url: string | null): string | null {
+  if (!url) return null
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\s?]+)/,
+    /youtube\.com\/shorts\/([^&\s?]+)/,
+  ]
+  for (const pattern of patterns) {
+    const match = url.match(pattern)
+    if (match) return match[1]
+  }
+  return null
+}
+
+// Generate YouTube thumbnail URL
+function getYouTubeThumbnail(url: string | null): string | null {
+  const videoId = getYouTubeVideoId(url)
+  if (videoId) {
+    return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
+  }
+  return null
+}
+
+// Generate YouTube embed URL
+function getYouTubeEmbedUrl(url: string | null): string | null {
+  const videoId = getYouTubeVideoId(url)
+  if (videoId) {
+    return `https://www.youtube.com/embed/${videoId}`
+  }
+  return null
+}
+
+// Generate Spotify embed URL
+function getSpotifyEmbedUrl(url: string | null): string | null {
+  if (!url) return null
+  const match = url.match(/spotify\.com\/(episode|show|playlist)\/([^?]+)/)
+  if (match) {
+    return `https://open.spotify.com/embed/${match[1]}/${match[2]}`
+  }
+  return null
+}
+
 export default function ResourcesPage() {
   const queryClient = useQueryClient()
   const [activeType, setActiveType] = useState('all')
@@ -406,6 +448,10 @@ function ResourceCard({
 }) {
   const [showMenu, setShowMenu] = useState(false)
 
+  // Generate thumbnail from URL if not stored in DB
+  const thumbnailUrl = resource.thumbnail ||
+    (resource.type === 'video' ? getYouTubeThumbnail(resource.url) : null)
+
   const getTypeIcon = () => {
     switch (resource.type) {
       case 'video':
@@ -429,12 +475,16 @@ function ResourceCard({
       style={{ backgroundColor: '#111827', border: '1px solid #1e293b' }}
     >
       {/* Thumbnail / Preview */}
-      {resource.thumbnail ? (
+      {thumbnailUrl ? (
         <div className="relative aspect-video bg-slate-800" onClick={onView}>
           <img
-            src={resource.thumbnail}
+            src={thumbnailUrl}
             alt={resource.name}
             className="w-full h-full object-cover"
+            onError={(e) => {
+              // Hide broken images
+              e.currentTarget.style.display = 'none'
+            }}
           />
           {resource.type === 'video' && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -451,11 +501,20 @@ function ResourceCard({
         </div>
       ) : (
         <div
-          className="aspect-video flex items-center justify-center"
+          className="aspect-video flex items-center justify-center relative"
           style={{ backgroundColor: '#1e293b' }}
           onClick={onView}
         >
-          {resource.type === 'video' && <Video size={48} className="text-slate-600" />}
+          {resource.type === 'video' && (
+            <>
+              <Video size={48} className="text-slate-600" />
+              <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
+                  <Play size={24} className="text-white ml-1" fill="white" />
+                </div>
+              </div>
+            </>
+          )}
           {resource.type === 'podcast' && <Headphones size={48} className="text-slate-600" />}
           {resource.type === 'website' && <Globe size={48} className="text-slate-600" />}
           {resource.type === 'pdf' && <FileText size={48} className="text-slate-600" />}
@@ -956,6 +1015,10 @@ function ResourceViewer({
   resource: Resource
   onClose: () => void
 }) {
+  // Generate embed URLs client-side if not stored in DB (for older records)
+  const videoEmbedUrl = resource.embedUrl || getYouTubeEmbedUrl(resource.url)
+  const podcastEmbedUrl = resource.embedUrl || getSpotifyEmbedUrl(resource.url)
+
   return (
     <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="w-full max-w-5xl">
@@ -995,10 +1058,10 @@ function ResourceViewer({
           style={{ backgroundColor: '#111827' }}
         >
           {/* Video Player */}
-          {resource.type === 'video' && resource.embedUrl && (
+          {resource.type === 'video' && videoEmbedUrl && (
             <div className="aspect-video">
               <iframe
-                src={resource.embedUrl}
+                src={videoEmbedUrl}
                 className="w-full h-full"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
@@ -1007,10 +1070,10 @@ function ResourceViewer({
           )}
 
           {/* Podcast Player (Spotify Embed) */}
-          {resource.type === 'podcast' && resource.embedUrl && (
+          {resource.type === 'podcast' && podcastEmbedUrl && (
             <div className="h-[352px]">
               <iframe
-                src={resource.embedUrl}
+                src={podcastEmbedUrl}
                 className="w-full h-full"
                 allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
                 loading="lazy"
@@ -1048,8 +1111,8 @@ function ResourceViewer({
             </div>
           )}
 
-          {/* Fallback for videos without embed */}
-          {resource.type === 'video' && !resource.embedUrl && (
+          {/* Fallback for videos without embed (non-YouTube videos) */}
+          {resource.type === 'video' && !videoEmbedUrl && (
             <div className="p-8 text-center">
               <Video size={64} className="mx-auto text-red-400 mb-4" />
               <h3 className="text-lg font-medium text-white mb-2">{resource.name}</h3>
@@ -1068,8 +1131,8 @@ function ResourceViewer({
             </div>
           )}
 
-          {/* Fallback for podcasts without embed */}
-          {resource.type === 'podcast' && !resource.embedUrl && (
+          {/* Fallback for podcasts without embed (non-Spotify podcasts) */}
+          {resource.type === 'podcast' && !podcastEmbedUrl && (
             <div className="p-8 text-center">
               <Headphones size={64} className="mx-auto text-green-400 mb-4" />
               <h3 className="text-lg font-medium text-white mb-2">{resource.name}</h3>
