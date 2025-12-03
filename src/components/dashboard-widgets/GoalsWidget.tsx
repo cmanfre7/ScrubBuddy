@@ -12,7 +12,9 @@ import {
   ChevronDown,
   CalendarDays,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Clock,
+  AlertCircle
 } from 'lucide-react'
 
 interface Goal {
@@ -33,8 +35,51 @@ const CATEGORIES = [
   { value: 'UWorld', label: 'UWorld', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
   { value: 'Clinical', label: 'Clinical', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
   { value: 'Study', label: 'Study', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
+  { value: 'Assignment', label: 'Assignment', color: 'bg-red-500/20 text-red-400 border-red-500/30' },
   { value: 'Personal', label: 'Personal', color: 'bg-green-500/20 text-green-400 border-green-500/30' },
 ]
+
+// Helper to get deadline badge info
+const getDeadlineBadge = (dueDate: string | null | undefined, selectedDate: string): { text: string; urgent: boolean; overdue: boolean } | null => {
+  if (!dueDate) return null
+
+  const dueDateObj = new Date(dueDate)
+  dueDateObj.setHours(0, 0, 0, 0)
+
+  const selectedDateObj = new Date(selectedDate + 'T00:00:00')
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  // Calculate days from selected date to due date
+  const diffTime = dueDateObj.getTime() - selectedDateObj.getTime()
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+  // Only show deadline badge if the task is due on a different day than selected
+  if (diffDays === 0) return null
+
+  if (diffDays < 0) {
+    const absDays = Math.abs(diffDays)
+    return {
+      text: absDays === 1 ? '1 day overdue' : `${absDays} days overdue`,
+      urgent: true,
+      overdue: true
+    }
+  }
+
+  if (diffDays === 1) {
+    return { text: 'Due tomorrow', urgent: true, overdue: false }
+  }
+
+  if (diffDays <= 3) {
+    return { text: `Due in ${diffDays} days`, urgent: true, overdue: false }
+  }
+
+  if (diffDays <= 7) {
+    return { text: `Due in ${diffDays} days`, urgent: false, overdue: false }
+  }
+
+  return null // Don't show badge for tasks due more than a week out
+}
 
 const RECURRENCE_OPTIONS = [
   { value: null, label: 'One-time', icon: Calendar },
@@ -424,6 +469,24 @@ export function GoalsWidget({ initialGoals }: GoalsWidgetProps) {
                   {goal.recurring && (
                     <Repeat size={12} className="text-slate-500 flex-shrink-0" />
                   )}
+
+                  {/* Deadline Badge */}
+                  {(() => {
+                    const badge = getDeadlineBadge(goal.dueDate, selectedDate)
+                    if (!badge) return null
+                    return (
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1 flex-shrink-0 ${
+                        badge.overdue
+                          ? 'bg-red-500/30 text-red-300'
+                          : badge.urgent
+                          ? 'bg-orange-500/20 text-orange-300'
+                          : 'bg-slate-600/30 text-slate-400'
+                      }`}>
+                        {badge.overdue ? <AlertCircle size={10} /> : <Clock size={10} />}
+                        {badge.text}
+                      </span>
+                    )
+                  })()}
 
                   {/* Category Badge */}
                   <span className={`text-[10px] px-1.5 py-0.5 rounded border ${getCategoryColor(goal.category)} flex-shrink-0`}>
