@@ -5,11 +5,13 @@ import './globals.css'
 const dmSans = DM_Sans({
   variable: '--font-dm-sans',
   subsets: ['latin'],
+  display: 'swap',
 })
 
 const jetbrainsMono = JetBrains_Mono({
   variable: '--font-jetbrains-mono',
   subsets: ['latin'],
+  display: 'swap',
 })
 
 export const metadata: Metadata = {
