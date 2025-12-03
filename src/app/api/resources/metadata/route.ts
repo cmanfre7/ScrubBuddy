@@ -9,6 +9,7 @@ interface MediaMetadata {
   duration?: string
   channel?: string
   embedUrl?: string
+  favicon?: string
   type?: 'video' | 'podcast' | 'website'
 }
 
@@ -100,8 +101,85 @@ async function fetchSpotifyMetadata(url: string): Promise<MediaMetadata | null> 
   }
 }
 
+// Fetch generic website metadata via HTML scraping (Open Graph)
+async function fetchWebsiteMetadata(url: string): Promise<MediaMetadata | null> {
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; ScrubBuddy/1.0)',
+      },
+    })
+    if (!res.ok) return null
+
+    const html = await res.text()
+    const urlObj = new URL(url)
+
+    // Extract meta tags using regex (simple approach without DOM parser)
+    const getMetaContent = (name: string): string | undefined => {
+      // Try property first (Open Graph), then name
+      const ogMatch = html.match(new RegExp(`<meta[^>]+property=["']${name}["'][^>]+content=["']([^"']+)["']`, 'i'))
+        || html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+property=["']${name}["']`, 'i'))
+      if (ogMatch) return ogMatch[1]
+
+      const nameMatch = html.match(new RegExp(`<meta[^>]+name=["']${name}["'][^>]+content=["']([^"']+)["']`, 'i'))
+        || html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+name=["']${name}["']`, 'i'))
+      return nameMatch?.[1]
+    }
+
+    // Get title
+    const ogTitle = getMetaContent('og:title')
+    const twitterTitle = getMetaContent('twitter:title')
+    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i)
+    const title = ogTitle || twitterTitle || titleMatch?.[1]
+
+    // Get description
+    const ogDescription = getMetaContent('og:description')
+    const twitterDescription = getMetaContent('twitter:description')
+    const metaDescription = getMetaContent('description')
+    const description = ogDescription || twitterDescription || metaDescription
+
+    // Get image (thumbnail)
+    const ogImage = getMetaContent('og:image')
+    const twitterImage = getMetaContent('twitter:image')
+    let thumbnail = ogImage || twitterImage
+
+    // Make relative URLs absolute
+    if (thumbnail && !thumbnail.startsWith('http')) {
+      thumbnail = new URL(thumbnail, url).href
+    }
+
+    // Get favicon
+    let favicon: string | undefined
+    const iconMatch = html.match(/<link[^>]+rel=["'](?:icon|shortcut icon)["'][^>]+href=["']([^"']+)["']/i)
+      || html.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["'](?:icon|shortcut icon)["']/i)
+    if (iconMatch) {
+      favicon = iconMatch[1]
+      if (!favicon.startsWith('http')) {
+        favicon = new URL(favicon, url).href
+      }
+    } else {
+      // Default to /favicon.ico
+      favicon = `${urlObj.origin}/favicon.ico`
+    }
+
+    // Get site name as channel
+    const siteName = getMetaContent('og:site_name')
+
+    return {
+      title: title?.trim(),
+      description: description?.trim(),
+      thumbnail,
+      favicon,
+      channel: siteName?.trim(),
+      type: 'website',
+    }
+  } catch {
+    return null
+  }
+}
+
 // Detect platform from URL
-function detectPlatform(url: string): 'youtube' | 'vimeo' | 'spotify' | 'unknown' {
+function detectPlatform(url: string): 'youtube' | 'vimeo' | 'spotify' | 'website' {
   if (url.includes('youtube.com') || url.includes('youtu.be')) {
     return 'youtube'
   }
@@ -111,7 +189,7 @@ function detectPlatform(url: string): 'youtube' | 'vimeo' | 'spotify' | 'unknown
   if (url.includes('spotify.com')) {
     return 'spotify'
   }
-  return 'unknown'
+  return 'website'
 }
 
 // POST - Fetch metadata for a URL
@@ -141,8 +219,9 @@ export async function POST(request: NextRequest) {
       case 'spotify':
         metadata = await fetchSpotifyMetadata(url)
         break
-      default:
-        return NextResponse.json({ platform: 'unknown', metadata: null })
+      case 'website':
+        metadata = await fetchWebsiteMetadata(url)
+        break
     }
 
     return NextResponse.json({ platform, metadata })

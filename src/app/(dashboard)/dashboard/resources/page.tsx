@@ -870,6 +870,7 @@ function AddResourceModal({
   const [tags, setTags] = useState('')
   const [thumbnail, setThumbnail] = useState('')
   const [embedUrl, setEmbedUrl] = useState('')
+  const [favicon, setFavicon] = useState('')
   const [error, setError] = useState('')
   const [isFetchingMetadata, setIsFetchingMetadata] = useState(false)
 
@@ -884,11 +885,6 @@ function AddResourceModal({
       } catch {
         return
       }
-
-      // Only fetch for video/podcast URLs
-      const isVideo = url.includes('youtube.com') || url.includes('youtu.be') || url.includes('vimeo.com')
-      const isPodcast = url.includes('spotify.com')
-      if (!isVideo && !isPodcast) return
 
       setIsFetchingMetadata(true)
       try {
@@ -907,6 +903,7 @@ function AddResourceModal({
             if (!description && metadata.description) setDescription(metadata.description)
             if (metadata.thumbnail) setThumbnail(metadata.thumbnail)
             if (metadata.embedUrl) setEmbedUrl(metadata.embedUrl)
+            if (metadata.favicon) setFavicon(metadata.favicon)
             if (metadata.type) setType(metadata.type)
           }
         }
@@ -955,6 +952,7 @@ function AddResourceModal({
       duration: duration.trim() || undefined,
       thumbnail: thumbnail || undefined,
       embedUrl: embedUrl || undefined,
+      favicon: favicon || undefined,
       tags: tags
         .split(',')
         .map((t) => t.trim())
@@ -1039,7 +1037,7 @@ function AddResourceModal({
               style={{ backgroundColor: '#1e293b' }}
             />
             <p className="mt-1 text-xs text-slate-500">
-              Paste a YouTube, Vimeo, or Spotify link to auto-fill details
+              Paste any URL to auto-fill title, description, and thumbnail
             </p>
           </div>
 
