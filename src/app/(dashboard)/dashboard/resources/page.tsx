@@ -98,6 +98,7 @@ export default function ResourcesPage() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [selectedResource, setSelectedResource] = useState<Resource | null>(null)
   const [showViewer, setShowViewer] = useState(false)
+  const [mutationError, setMutationError] = useState<string | null>(null)
 
   // Fetch resources
   const { data: resources = [], isLoading } = useQuery<Resource[]>({
@@ -121,12 +122,19 @@ export default function ResourcesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       })
-      if (!res.ok) throw new Error('Failed to create')
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to create resource')
+      }
       return res.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['resources'] })
       setShowAddModal(false)
+      setMutationError(null)
+    },
+    onError: (error: Error) => {
+      setMutationError(error.message)
     },
   })
 
@@ -360,9 +368,13 @@ export default function ResourcesPage() {
       {/* Add Resource Modal */}
       {showAddModal && (
         <AddResourceModal
-          onClose={() => setShowAddModal(false)}
+          onClose={() => {
+            setShowAddModal(false)
+            setMutationError(null)
+          }}
           onSubmit={(data) => createMutation.mutate(data)}
           isLoading={createMutation.isPending}
+          apiError={mutationError}
         />
       )}
 
@@ -681,10 +693,12 @@ function AddResourceModal({
   onClose,
   onSubmit,
   isLoading,
+  apiError,
 }: {
   onClose: () => void
   onSubmit: (data: Partial<Resource>) => void
   isLoading: boolean
+  apiError: string | null
 }) {
   const [type, setType] = useState('video')
   const [name, setName] = useState('')
@@ -695,6 +709,9 @@ function AddResourceModal({
   const [duration, setDuration] = useState('')
   const [tags, setTags] = useState('')
   const [error, setError] = useState('')
+
+  // Display API error if present
+  const displayError = error || apiError
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -749,9 +766,9 @@ function AddResourceModal({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Error Message */}
-          {error && (
+          {displayError && (
             <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
-              {error}
+              {displayError}
             </div>
           )}
 
