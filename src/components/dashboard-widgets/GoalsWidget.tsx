@@ -43,16 +43,16 @@ const CATEGORIES = [
 const getDeadlineBadge = (dueDate: string | null | undefined, selectedDate: string): { text: string; urgent: boolean; overdue: boolean } | null => {
   if (!dueDate) return null
 
-  const dueDateObj = new Date(dueDate)
-  dueDateObj.setHours(0, 0, 0, 0)
+  // Extract just the date portion (YYYY-MM-DD) to avoid timezone issues
+  // dueDate might come as "2024-12-05T00:00:00.000Z" - we just want "2024-12-05"
+  const dueDateStr = dueDate.split('T')[0]
+  const dueDateObj = new Date(dueDateStr + 'T00:00:00') // Local midnight
 
   const selectedDateObj = new Date(selectedDate + 'T00:00:00')
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
 
   // Calculate days from selected date to due date
   const diffTime = dueDateObj.getTime() - selectedDateObj.getTime()
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24))
 
   // Only show deadline badge if the task is due on a different day than selected
   if (diffDays === 0) return null
