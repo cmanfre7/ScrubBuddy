@@ -116,9 +116,9 @@ const formatHeaderDate = (dateStr: string) => {
   const tomorrow = new Date(today)
   tomorrow.setDate(tomorrow.getDate() + 1)
 
-  if (dateStr === getDateString(today)) return "Today's Goals"
-  if (dateStr === getDateString(yesterday)) return "Yesterday's Goals"
-  if (dateStr === getDateString(tomorrow)) return "Tomorrow's Goals"
+  if (dateStr === getDateString(today)) return "Today's Tasks"
+  if (dateStr === getDateString(yesterday)) return "Yesterday's Tasks"
+  if (dateStr === getDateString(tomorrow)) return "Tomorrow's Tasks"
 
   return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 }
@@ -470,8 +470,8 @@ export function GoalsWidget({ initialGoals }: GoalsWidgetProps) {
                     <Repeat size={12} className="text-slate-500 flex-shrink-0" />
                   )}
 
-                  {/* Deadline Badge */}
-                  {(() => {
+                  {/* Deadline Badge - only for non-recurring tasks */}
+                  {!goal.recurring && (() => {
                     const badge = getDeadlineBadge(goal.dueDate, selectedDate)
                     if (!badge) return null
                     return (
@@ -554,7 +554,7 @@ export function GoalsWidget({ initialGoals }: GoalsWidgetProps) {
         {/* Empty State */}
         {!isLoading && goals.length === 0 && !isAdding && (
           <div className="text-center py-8 text-slate-500 text-sm">
-            {isToday ? 'No goals yet. Add one below!' : 'No goals for this day.'}
+            {isToday ? 'No tasks yet. Add one below!' : 'No tasks for this day.'}
           </div>
         )}
       </div>
@@ -758,7 +758,7 @@ export function GoalsWidget({ initialGoals }: GoalsWidgetProps) {
               className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 font-medium w-full"
             >
               <Plus size={16} />
-              Add goal
+              Add task
             </motion.button>
           )}
         </AnimatePresence>
