@@ -81,13 +81,6 @@ const SUBJECTS = [
   'General',
 ]
 
-const POPULAR_RESOURCES = [
-  { name: 'UWorld', url: 'https://www.uworld.com', type: 'website', favicon: 'https://www.uworld.com/favicon.ico' },
-  { name: 'UpToDate', url: 'https://www.uptodate.com', type: 'website', favicon: 'https://www.uptodate.com/favicon.ico' },
-  { name: 'AMBOSS', url: 'https://www.amboss.com', type: 'website', favicon: 'https://www.amboss.com/favicon.ico' },
-  { name: 'ChatGPT', url: 'https://chat.openai.com', type: 'website', favicon: 'https://chat.openai.com/favicon.ico' },
-  { name: 'Divine Intervention', url: 'https://divineinterventionpodcasts.com', type: 'podcast', channel: 'Divine Intervention' },
-]
 
 // Helper to extract YouTube video ID from various URL formats
 function getYouTubeVideoId(url: string | null): string | null {
@@ -317,38 +310,6 @@ export default function ResourcesPage() {
           <Plus size={20} />
           Add Resource
         </button>
-      </div>
-
-      {/* Quick Add Popular Resources */}
-      <div
-        className="rounded-xl p-6"
-        style={{ backgroundColor: '#111827', border: '1px solid #1e293b' }}
-      >
-        <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-4">
-          Quick Add Popular Resources
-        </h3>
-        <div className="flex flex-wrap gap-3">
-          {POPULAR_RESOURCES.map((pr) => (
-            <button
-              key={pr.name}
-              onClick={() =>
-                createMutation.mutate({
-                  name: pr.name,
-                  url: pr.url,
-                  type: pr.type,
-                  channel: pr.channel,
-                  favicon: pr.favicon,
-                })
-              }
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-300 hover:text-white transition-colors"
-              style={{ backgroundColor: '#1e293b' }}
-            >
-              {pr.type === 'website' ? <Globe size={16} /> : <Headphones size={16} />}
-              {pr.name}
-              <Plus size={14} className="text-slate-500" />
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* Filters */}
