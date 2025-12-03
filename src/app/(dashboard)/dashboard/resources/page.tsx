@@ -190,6 +190,8 @@ export default function ResourcesPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingResource, setEditingResource] = useState<Resource | null>(null)
   const [selectedResource, setSelectedResource] = useState<Resource | null>(null)
   const [showViewer, setShowViewer] = useState(false)
   const [mutationError, setMutationError] = useState<string | null>(null)
@@ -259,6 +261,37 @@ export default function ResourcesPage() {
       queryClient.invalidateQueries({ queryKey: ['resources'] })
     },
   })
+
+  // Update mutation
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Resource> }) => {
+      const res = await fetch(`/api/resources/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to update resource')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['resources'] })
+      setShowEditModal(false)
+      setEditingResource(null)
+      setMutationError(null)
+    },
+    onError: (error: Error) => {
+      setMutationError(error.message)
+    },
+  })
+
+  const handleEditResource = (resource: Resource) => {
+    setEditingResource(resource)
+    setShowEditModal(true)
+    setMutationError(null)
+  }
 
   const handleViewResource = (resource: Resource) => {
     setSelectedResource(resource)
@@ -436,6 +469,7 @@ export default function ResourcesPage() {
                   isFavorite: !resource.isFavorite,
                 })
               }
+              onEdit={() => handleEditResource(resource)}
               onDelete={() => deleteMutation.mutate(resource.id)}
             />
           ))}
@@ -482,6 +516,21 @@ export default function ResourcesPage() {
           }}
         />
       )}
+
+      {/* Edit Resource Modal */}
+      {showEditModal && editingResource && (
+        <EditResourceModal
+          resource={editingResource}
+          onClose={() => {
+            setShowEditModal(false)
+            setEditingResource(null)
+            setMutationError(null)
+          }}
+          onSubmit={(data) => updateMutation.mutate({ id: editingResource.id, data })}
+          isLoading={updateMutation.isPending}
+          apiError={mutationError}
+        />
+      )}
     </div>
   )
 }
@@ -491,11 +540,13 @@ function ResourceCard({
   resource,
   onView,
   onToggleFavorite,
+  onEdit,
   onDelete,
 }: {
   resource: Resource
   onView: () => void
   onToggleFavorite: () => void
+  onEdit: () => void
   onDelete: () => void
 }) {
   const [showMenu, setShowMenu] = useState(false)
@@ -624,21 +675,19 @@ function ResourceCard({
               </button>
               {showMenu && (
                 <div
-                  className="absolute right-0 top-8 w-36 rounded-lg shadow-xl z-50 py-1"
+                  className="absolute right-0 bottom-full mb-1 w-32 rounded-lg shadow-xl z-50 py-1"
                   style={{ backgroundColor: '#1e293b' }}
                 >
-                  {resource.url && (
-                    <a
-                      href={resource.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:bg-slate-700"
-                      onClick={() => setShowMenu(false)}
-                    >
-                      <ExternalLink size={14} />
-                      Open External
-                    </a>
-                  )}
+                  <button
+                    onClick={() => {
+                      onEdit()
+                      setShowMenu(false)
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:bg-slate-700 w-full"
+                  >
+                    <Edit size={14} />
+                    Edit
+                  </button>
                   <button
                     onClick={() => {
                       onDelete()
@@ -1232,6 +1281,268 @@ function ResourceViewer({
             ))}
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+// Edit Resource Modal
+function EditResourceModal({
+  resource,
+  onClose,
+  onSubmit,
+  isLoading,
+  apiError,
+}: {
+  resource: Resource
+  onClose: () => void
+  onSubmit: (data: Partial<Resource>) => void
+  isLoading: boolean
+  apiError: string | null
+}) {
+  const [type, setType] = useState(resource.type)
+  const [name, setName] = useState(resource.name)
+  const [url, setUrl] = useState(resource.url || '')
+  const [description, setDescription] = useState(resource.description || '')
+  const [subject, setSubject] = useState(resource.subject || '')
+  const [channel, setChannel] = useState(resource.channel || '')
+  const [duration, setDuration] = useState(resource.duration || '')
+  const [tags, setTags] = useState(resource.tags.join(', '))
+  const [error, setError] = useState('')
+
+  // Display API error if present
+  const displayError = error || apiError
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+
+    // Basic validation
+    if (!name.trim()) {
+      setError('Name is required')
+      return
+    }
+
+    // URL validation for types that need it
+    if ((type === 'video' || type === 'podcast' || type === 'website') && url) {
+      try {
+        new URL(url)
+      } catch {
+        setError('Please enter a valid URL')
+        return
+      }
+    }
+
+    onSubmit({
+      type,
+      name: name.trim(),
+      url: url.trim() || null,
+      description: description.trim() || null,
+      subject: subject || null,
+      channel: channel.trim() || null,
+      duration: duration.trim() || null,
+      tags: tags
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean),
+    })
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div
+        className="w-full max-w-lg rounded-2xl p-6 max-h-[90vh] overflow-y-auto"
+        style={{ backgroundColor: '#111827', border: '1px solid #1e293b' }}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-bold text-white">Edit Resource</h2>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Error Message */}
+          {displayError && (
+            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+              {displayError}
+            </div>
+          )}
+
+          {/* Type Selection */}
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Resource Type
+            </label>
+            <div className="grid grid-cols-5 gap-2">
+              {[
+                { id: 'video', label: 'Video', icon: Video },
+                { id: 'podcast', label: 'Podcast', icon: Headphones },
+                { id: 'website', label: 'Website', icon: Globe },
+                { id: 'pdf', label: 'PDF', icon: FileText },
+                { id: 'document', label: 'Doc', icon: File },
+              ].map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setType(t.id)}
+                  className={`flex flex-col items-center gap-1 p-3 rounded-lg transition-colors ${
+                    type === t.id
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-slate-800 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <t.icon size={20} />
+                  <span className="text-xs">{t.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Name */}
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Name *
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g., Cardiology Overview"
+              className="w-full px-4 py-2 rounded-lg text-white placeholder-slate-500 border-0 focus:ring-2 focus:ring-blue-500"
+              style={{ backgroundColor: '#1e293b' }}
+            />
+          </div>
+
+          {/* URL */}
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              URL {type !== 'pdf' && type !== 'document' && '*'}
+            </label>
+            <input
+              type="text"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder={
+                type === 'video'
+                  ? 'https://youtube.com/watch?v=... or https://vimeo.com/...'
+                  : type === 'podcast'
+                  ? 'https://open.spotify.com/episode/...'
+                  : 'https://...'
+              }
+              className="w-full px-4 py-2 rounded-lg text-white placeholder-slate-500 border-0 focus:ring-2 focus:ring-blue-500"
+              style={{ backgroundColor: '#1e293b' }}
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Description
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Brief description..."
+              rows={2}
+              className="w-full px-4 py-2 rounded-lg text-white placeholder-slate-500 border-0 focus:ring-2 focus:ring-blue-500 resize-none"
+              style={{ backgroundColor: '#1e293b' }}
+            />
+          </div>
+
+          {/* Subject */}
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Subject
+            </label>
+            <select
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              className="w-full px-4 py-2 rounded-lg text-white border-0 focus:ring-2 focus:ring-blue-500"
+              style={{ backgroundColor: '#1e293b' }}
+            >
+              <option value="">Select subject...</option>
+              {SUBJECTS.slice(1).map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Channel (for videos/podcasts) */}
+          {(type === 'video' || type === 'podcast') && (
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                {type === 'video' ? 'Channel' : 'Podcast Name'}
+              </label>
+              <input
+                type="text"
+                value={channel}
+                onChange={(e) => setChannel(e.target.value)}
+                placeholder={
+                  type === 'video' ? 'e.g., Dirty Medicine' : 'e.g., Divine Intervention'
+                }
+                className="w-full px-4 py-2 rounded-lg text-white placeholder-slate-500 border-0 focus:ring-2 focus:ring-blue-500"
+                style={{ backgroundColor: '#1e293b' }}
+              />
+            </div>
+          )}
+
+          {/* Duration */}
+          {(type === 'video' || type === 'podcast') && (
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Duration
+              </label>
+              <input
+                type="text"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+                placeholder="e.g., 45:30 or 1h 23m"
+                className="w-full px-4 py-2 rounded-lg text-white placeholder-slate-500 border-0 focus:ring-2 focus:ring-blue-500"
+                style={{ backgroundColor: '#1e293b' }}
+              />
+            </div>
+          )}
+
+          {/* Tags */}
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Tags (comma-separated)
+            </label>
+            <input
+              type="text"
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              placeholder="e.g., cardiology, heart failure, boards"
+              className="w-full px-4 py-2 rounded-lg text-white placeholder-slate-500 border-0 focus:ring-2 focus:ring-blue-500"
+              style={{ backgroundColor: '#1e293b' }}
+            />
+          </div>
+
+          {/* Submit */}
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 rounded-lg text-slate-300 hover:text-white transition-colors"
+              style={{ backgroundColor: '#1e293b' }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isLoading || !name}
+              className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg transition-colors"
+            >
+              {isLoading ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   )
