@@ -50,6 +50,7 @@ model User {
   calendarEvents CalendarEvent[]
   googleCalendarSync GoogleCalendarSync?
   uworldSettings UWorldSettings[]
+  quickLinks    QuickLink[]
 }
 
 // ==================== ROTATIONS ====================
@@ -821,6 +822,23 @@ model GoogleCalendarSync {
 
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+// ==================== QUICK LINKS ====================
+
+model QuickLink {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String
+  url         String
+  order       Int       @default(0) // For sorting
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([userId])
 }

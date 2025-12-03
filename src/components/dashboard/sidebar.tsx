@@ -22,6 +22,7 @@ import {
   ExternalLink,
 } from 'lucide-react'
 import { useSidebar } from '@/components/providers/sidebar-provider'
+import { useQuery } from '@tanstack/react-query'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -34,19 +35,28 @@ const navigation = [
   { name: 'Resources', href: '/dashboard/resources', icon: FolderOpen },
 ]
 
-const quickLinks = [
-  { name: 'MyUniversity', url: '#', placeholder: true },
-  { name: 'NewInnovations', url: 'https://www.new-innov.com/login/Login.aspx' },
-  { name: 'VSLO', url: 'https://www.aamc.org/services/vslo' },
-  { name: 'ERAS', url: 'https://www.aamc.org/services/eras' },
-  { name: 'MyNBME', url: 'https://www.nbme.org' },
-  { name: 'UWorld', url: 'https://www.uworld.com' },
-]
+interface QuickLink {
+  id: string
+  name: string
+  url: string
+  order: number
+}
 
 export function Sidebar() {
   const pathname = usePathname()
   const { data: session } = useSession()
   const { collapsed, toggle } = useSidebar()
+
+  // Fetch user's quick links
+  const { data: quickLinks = [] } = useQuery<QuickLink[]>({
+    queryKey: ['quickLinks'],
+    queryFn: async () => {
+      const res = await fetch('/api/quick-links')
+      if (!res.ok) return []
+      return res.json()
+    },
+    enabled: !!session?.user?.id,
+  })
 
   return (
     <aside

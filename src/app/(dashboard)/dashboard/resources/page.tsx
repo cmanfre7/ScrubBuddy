@@ -131,6 +131,58 @@ function getSpotifyEmbedUrl(url: string | null): string | null {
   return null
 }
 
+// Helper to extract Vimeo video ID from various URL formats
+function getVimeoVideoId(url: string | null): string | null {
+  if (!url) return null
+  const patterns = [
+    /vimeo\.com\/(\d+)/,
+    /vimeo\.com\/channels\/[^/]+\/(\d+)/,
+    /vimeo\.com\/groups\/[^/]+\/videos\/(\d+)/,
+    /player\.vimeo\.com\/video\/(\d+)/,
+  ]
+  for (const pattern of patterns) {
+    const match = url.match(pattern)
+    if (match) return match[1]
+  }
+  return null
+}
+
+// Generate Vimeo thumbnail URL (uses vumbnail.com service)
+function getVimeoThumbnail(url: string | null): string | null {
+  const videoId = getVimeoVideoId(url)
+  if (videoId) {
+    return `https://vumbnail.com/${videoId}.jpg`
+  }
+  return null
+}
+
+// Generate Vimeo embed URL
+function getVimeoEmbedUrl(url: string | null): string | null {
+  const videoId = getVimeoVideoId(url)
+  if (videoId) {
+    return `https://player.vimeo.com/video/${videoId}`
+  }
+  return null
+}
+
+// Check if URL is a video service (YouTube or Vimeo)
+function isVideoUrl(url: string | null): boolean {
+  if (!url) return false
+  return !!(getYouTubeVideoId(url) || getVimeoVideoId(url))
+}
+
+// Get video embed URL for any supported platform
+function getVideoEmbedUrl(url: string | null): string | null {
+  if (!url) return null
+  return getYouTubeEmbedUrl(url) || getVimeoEmbedUrl(url)
+}
+
+// Get video thumbnail URL for any supported platform
+function getVideoThumbnail(url: string | null): string | null {
+  if (!url) return null
+  return getYouTubeThumbnail(url) || getVimeoThumbnail(url)
+}
+
 export default function ResourcesPage() {
   const queryClient = useQueryClient()
   const [activeType, setActiveType] = useState('all')
@@ -448,9 +500,9 @@ function ResourceCard({
 }) {
   const [showMenu, setShowMenu] = useState(false)
 
-  // Generate thumbnail from URL if not stored in DB
+  // Generate thumbnail from URL if not stored in DB (supports YouTube and Vimeo)
   const thumbnailUrl = resource.thumbnail ||
-    (resource.type === 'video' ? getYouTubeThumbnail(resource.url) : null)
+    (resource.type === 'video' ? getVideoThumbnail(resource.url) : null)
 
   const getTypeIcon = () => {
     switch (resource.type) {
@@ -1015,8 +1067,8 @@ function ResourceViewer({
   resource: Resource
   onClose: () => void
 }) {
-  // Generate embed URLs client-side if not stored in DB (for older records)
-  const videoEmbedUrl = resource.embedUrl || getYouTubeEmbedUrl(resource.url)
+  // Generate embed URLs client-side if not stored in DB (supports YouTube and Vimeo)
+  const videoEmbedUrl = resource.embedUrl || getVideoEmbedUrl(resource.url)
   const podcastEmbedUrl = resource.embedUrl || getSpotifyEmbedUrl(resource.url)
 
   return (

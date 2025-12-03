@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Modal } from '@/components/ui/modal'
 import { Select } from '@/components/ui/select'
 import { formatDate } from '@/lib/utils'
-import { Plus, Calendar, Trash2, Settings, Target, Edit2, Award } from 'lucide-react'
+import { Plus, Calendar, Trash2, Settings, Target, Edit2, Award, Link, GripVertical, ExternalLink } from 'lucide-react'
 import { ROTATION_OPTIONS } from '@/types'
 
 interface BoardExam {
@@ -27,6 +27,13 @@ interface Rotation {
   shelfDate: string | null
   isCurrent: boolean
   _count: { patients: number }
+}
+
+interface QuickLink {
+  id: string
+  name: string
+  url: string
+  order: number
 }
 
 export default function SettingsPage() {
@@ -57,6 +64,14 @@ export default function SettingsPage() {
   const [isBoardTargetModalOpen, setIsBoardTargetModalOpen] = useState(false)
   const [editingBoardType, setEditingBoardType] = useState<'USMLE_STEP_2_CK' | 'COMLEX_LEVEL_2_CE' | null>(null)
 
+  // Quick links states
+  const [isQuickLinkModalOpen, setIsQuickLinkModalOpen] = useState(false)
+  const [isEditQuickLinkModalOpen, setIsEditQuickLinkModalOpen] = useState(false)
+  const [isDeleteQuickLinkModalOpen, setIsDeleteQuickLinkModalOpen] = useState(false)
+  const [selectedQuickLink, setSelectedQuickLink] = useState<QuickLink | null>(null)
+  const [newQuickLink, setNewQuickLink] = useState({ name: '', url: '' })
+  const [editQuickLinkData, setEditQuickLinkData] = useState({ name: '', url: '' })
+
   // Fetch board exams
   const { data: boardExamsData } = useQuery<BoardExam[]>({
     queryKey: ['board-exams'],
@@ -79,6 +94,18 @@ export default function SettingsPage() {
       return res.json()
     },
   })
+
+  // Fetch quick links
+  const { data: quickLinksData } = useQuery<QuickLink[]>({
+    queryKey: ['quickLinks'],
+    queryFn: async () => {
+      const res = await fetch('/api/quick-links')
+      if (!res.ok) return []
+      return res.json()
+    },
+  })
+
+  const quickLinks = quickLinksData || []
 
   const createRotationMutation = useMutation({
     mutationFn: async (data: typeof newRotation) => {
@@ -166,6 +193,56 @@ export default function SettingsPage() {
     },
   })
 
+  // Quick link mutations
+  const createQuickLinkMutation = useMutation({
+    mutationFn: async (data: { name: string; url: string }) => {
+      const res = await fetch('/api/quick-links', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) throw new Error('Failed to create quick link')
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['quickLinks'] })
+      setIsQuickLinkModalOpen(false)
+      setNewQuickLink({ name: '', url: '' })
+    },
+  })
+
+  const updateQuickLinkMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: { name: string; url: string } }) => {
+      const res = await fetch(`/api/quick-links/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) throw new Error('Failed to update quick link')
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['quickLinks'] })
+      setIsEditQuickLinkModalOpen(false)
+      setSelectedQuickLink(null)
+    },
+  })
+
+  const deleteQuickLinkMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/quick-links/${id}`, {
+        method: 'DELETE',
+      })
+      if (!res.ok) throw new Error('Failed to delete quick link')
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['quickLinks'] })
+      setIsDeleteQuickLinkModalOpen(false)
+      setSelectedQuickLink(null)
+    },
+  })
+
   const handleEditBoardTarget = (examType: 'USMLE_STEP_2_CK' | 'COMLEX_LEVEL_2_CE') => {
     setEditingBoardType(examType)
     if (examType === 'USMLE_STEP_2_CK' && step2Exam) {
@@ -193,6 +270,17 @@ export default function SettingsPage() {
   const handleDeleteClick = (rotation: Rotation) => {
     setSelectedRotation(rotation)
     setIsDeleteModalOpen(true)
+  }
+
+  const handleEditQuickLink = (link: QuickLink) => {
+    setSelectedQuickLink(link)
+    setEditQuickLinkData({ name: link.name, url: link.url })
+    setIsEditQuickLinkModalOpen(true)
+  }
+
+  const handleDeleteQuickLink = (link: QuickLink) => {
+    setSelectedQuickLink(link)
+    setIsDeleteQuickLinkModalOpen(true)
   }
 
   return (
@@ -379,6 +467,68 @@ export default function SettingsPage() {
               )}
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Quick Links Card */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Link size={18} className="text-cyan-400" />
+              Quick Links
+            </CardTitle>
+            <CardDescription>Customize your sidebar quick links</CardDescription>
+          </div>
+          <Button size="sm" onClick={() => setIsQuickLinkModalOpen(true)}>
+            <Plus size={16} className="mr-1" />
+            Add Link
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {quickLinks.length === 0 ? (
+            <p className="text-slate-500">No quick links yet. Add your first link to get started!</p>
+          ) : (
+            <div className="space-y-2">
+              {quickLinks.map((link) => (
+                <div
+                  key={link.id}
+                  className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30 hover:bg-slate-800/50 transition-colors"
+                >
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <ExternalLink size={16} className="text-slate-500 shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-slate-200 truncate">{link.name}</p>
+                      <a
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-slate-500 hover:text-blue-400 truncate block"
+                      >
+                        {link.url}
+                      </a>
+                    </div>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleEditQuickLink(link)}
+                    >
+                      <Edit2 size={14} />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      onClick={() => handleDeleteQuickLink(link)}
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -614,6 +764,100 @@ export default function SettingsPage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Add Quick Link Modal */}
+      <Modal isOpen={isQuickLinkModalOpen} onClose={() => setIsQuickLinkModalOpen(false)} title="Add Quick Link">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            createQuickLinkMutation.mutate(newQuickLink)
+          }}
+          className="space-y-4"
+        >
+          <Input
+            label="Name *"
+            value={newQuickLink.name}
+            onChange={(e) => setNewQuickLink({ ...newQuickLink, name: e.target.value })}
+            placeholder="e.g., MyUniversity"
+            required
+          />
+          <Input
+            label="URL *"
+            type="url"
+            value={newQuickLink.url}
+            onChange={(e) => setNewQuickLink({ ...newQuickLink, url: e.target.value })}
+            placeholder="https://..."
+            required
+          />
+          <div className="flex gap-3 pt-4">
+            <Button type="button" variant="secondary" onClick={() => setIsQuickLinkModalOpen(false)} className="flex-1">
+              Cancel
+            </Button>
+            <Button type="submit" isLoading={createQuickLinkMutation.isPending} className="flex-1">
+              Add Link
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Edit Quick Link Modal */}
+      <Modal isOpen={isEditQuickLinkModalOpen} onClose={() => setIsEditQuickLinkModalOpen(false)} title="Edit Quick Link">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (selectedQuickLink) {
+              updateQuickLinkMutation.mutate({ id: selectedQuickLink.id, data: editQuickLinkData })
+            }
+          }}
+          className="space-y-4"
+        >
+          <Input
+            label="Name *"
+            value={editQuickLinkData.name}
+            onChange={(e) => setEditQuickLinkData({ ...editQuickLinkData, name: e.target.value })}
+            placeholder="e.g., MyUniversity"
+            required
+          />
+          <Input
+            label="URL *"
+            type="url"
+            value={editQuickLinkData.url}
+            onChange={(e) => setEditQuickLinkData({ ...editQuickLinkData, url: e.target.value })}
+            placeholder="https://..."
+            required
+          />
+          <div className="flex gap-3 pt-4">
+            <Button type="button" variant="secondary" onClick={() => setIsEditQuickLinkModalOpen(false)} className="flex-1">
+              Cancel
+            </Button>
+            <Button type="submit" isLoading={updateQuickLinkMutation.isPending} className="flex-1">
+              Save Changes
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Delete Quick Link Modal */}
+      <Modal isOpen={isDeleteQuickLinkModalOpen} onClose={() => setIsDeleteQuickLinkModalOpen(false)} title="Delete Quick Link">
+        <div className="space-y-4">
+          <p className="text-slate-300">
+            Are you sure you want to delete <span className="font-semibold text-slate-100">{selectedQuickLink?.name}</span>?
+          </p>
+          <div className="flex gap-3 pt-4">
+            <Button type="button" variant="secondary" onClick={() => setIsDeleteQuickLinkModalOpen(false)} className="flex-1">
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => selectedQuickLink && deleteQuickLinkMutation.mutate(selectedQuickLink.id)}
+              isLoading={deleteQuickLinkMutation.isPending}
+              className="flex-1"
+            >
+              Delete Link
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   )

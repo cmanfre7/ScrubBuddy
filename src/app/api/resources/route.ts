@@ -68,10 +68,10 @@ export async function POST(request: NextRequest) {
 
     const data = await request.json()
 
-    // Extract YouTube video ID and create embed URL
+    // Extract video embed URL (supports YouTube and Vimeo)
     let embedUrl = data.embedUrl
     if (data.type === 'video' && data.url && !embedUrl) {
-      embedUrl = getYouTubeEmbedUrl(data.url)
+      embedUrl = getVideoEmbedUrl(data.url)
     }
 
     // Extract Spotify embed URL
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
         embedUrl,
         duration: data.duration,
         channel: data.channel,
-        thumbnail: data.thumbnail || getYouTubeThumbnail(data.url),
+        thumbnail: data.thumbnail || getVideoThumbnail(data.url),
         fileUrl: data.fileUrl,
         fileName: data.fileName,
         fileSize: data.fileSize,
@@ -145,6 +145,47 @@ function getYouTubeThumbnail(url: string): string | null {
   }
 
   return null
+}
+
+function getVimeoVideoId(url: string): string | null {
+  if (!url) return null
+
+  const patterns = [
+    /vimeo\.com\/(\d+)/,
+    /vimeo\.com\/channels\/[^/]+\/(\d+)/,
+    /vimeo\.com\/groups\/[^/]+\/videos\/(\d+)/,
+    /player\.vimeo\.com\/video\/(\d+)/,
+  ]
+
+  for (const pattern of patterns) {
+    const match = url.match(pattern)
+    if (match) return match[1]
+  }
+  return null
+}
+
+function getVimeoEmbedUrl(url: string): string | null {
+  const videoId = getVimeoVideoId(url)
+  if (videoId) {
+    return `https://player.vimeo.com/video/${videoId}`
+  }
+  return null
+}
+
+function getVimeoThumbnail(url: string): string | null {
+  const videoId = getVimeoVideoId(url)
+  if (videoId) {
+    return `https://vumbnail.com/${videoId}.jpg`
+  }
+  return null
+}
+
+function getVideoEmbedUrl(url: string): string | null {
+  return getYouTubeEmbedUrl(url) || getVimeoEmbedUrl(url)
+}
+
+function getVideoThumbnail(url: string): string | null {
+  return getYouTubeThumbnail(url) || getVimeoThumbnail(url)
 }
 
 function getSpotifyEmbedUrl(url: string): string | null {
