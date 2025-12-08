@@ -401,14 +401,14 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between mb-8">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between mb-4 md:mb-8">
         <div>
-          <h1 className="text-4xl font-bold text-white mb-2">
+          <h1 className="text-2xl md:text-4xl font-bold text-white mb-1 md:mb-2">
             Welcome back{user.name ? `, ${user.name.split(' ')[0]}` : ''}
           </h1>
-          <p className="text-slate-400 text-lg">
+          <p className="text-slate-400 text-sm md:text-lg">
             {data.currentRotation ? (
               <>
                 Currently on <span className="text-blue-400 font-semibold">{data.currentRotation.name}</span> ·
@@ -419,22 +419,24 @@ export default async function DashboardPage() {
             )}
           </p>
         </div>
-        <ExamDateButtons
-          step2Date={data.user?.step2Date?.toISOString() || null}
-          comlexDate={data.user?.comlexDate?.toISOString() || null}
-          rotations={data.rotations.map((r) => ({
-            id: r.id,
-            name: r.name,
-            shelfDate: r.shelfDate?.toISOString() || null,
-          }))}
-        />
+        <div className="hidden md:block">
+          <ExamDateButtons
+            step2Date={data.user?.step2Date?.toISOString() || null}
+            comlexDate={data.user?.comlexDate?.toISOString() || null}
+            rotations={data.rotations.map((r) => ({
+              id: r.id,
+              name: r.name,
+              shelfDate: r.shelfDate?.toISOString() || null,
+            }))}
+          />
+        </div>
       </div>
 
       {/* Draggable Dashboard */}
       <DashboardClient
         countdownsWidget={
           countdownWidgets.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
               {countdownWidgets}
             </div>
           ) : null

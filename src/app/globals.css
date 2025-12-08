@@ -3,6 +3,11 @@
 :root {
   --font-sans: var(--font-dm-sans);
   --font-mono: var(--font-jetbrains-mono);
+  /* Safe area insets for iPhone notch/home indicator */
+  --safe-area-inset-top: env(safe-area-inset-top, 0px);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-inset-left: env(safe-area-inset-left, 0px);
+  --safe-area-inset-right: env(safe-area-inset-right, 0px);
 }
 
 @theme inline {
@@ -18,6 +23,7 @@
 * {
   scrollbar-width: thin;
   scrollbar-color: #475569 transparent;
+  -webkit-tap-highlight-color: transparent;
 }
 
 *::-webkit-scrollbar {
@@ -38,10 +44,96 @@
   background-color: #64748b;
 }
 
+html {
+  /* Prevent iOS bounce/overscroll */
+  overscroll-behavior: none;
+}
+
 body {
   font-family: var(--font-sans), system-ui, sans-serif;
+  /* Prevent text selection on double tap */
+  -webkit-user-select: none;
+  user-select: none;
+  /* Enable smooth scrolling on iOS */
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Allow text selection in form inputs and text areas */
+input, textarea, [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 code, pre, .font-mono {
   font-family: var(--font-mono), monospace;
+}
+
+/* Safe area utilities for iPhone */
+.safe-area-top {
+  padding-top: var(--safe-area-inset-top);
+}
+
+.safe-area-bottom {
+  padding-bottom: var(--safe-area-inset-bottom);
+}
+
+.pb-safe {
+  padding-bottom: max(1rem, var(--safe-area-inset-bottom));
+}
+
+.mb-safe {
+  margin-bottom: var(--safe-area-inset-bottom);
+}
+
+/* Mobile bottom nav safe area */
+.safe-area-bottom-nav {
+  padding-bottom: calc(1rem + var(--safe-area-inset-bottom));
+}
+
+/* Touch-friendly buttons - min 44px touch targets */
+@media (max-width: 767px) {
+  button, a, [role="button"] {
+    min-height: 44px;
+  }
+
+  /* But allow smaller inline elements */
+  .inline-btn, span button, p a {
+    min-height: auto;
+  }
+}
+
+/* Prevent zoom on input focus on iOS */
+@media screen and (max-width: 767px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="search"],
+  input[type="url"],
+  input[type="tel"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* Hide scrollbars on mobile for cleaner look */
+@media (max-width: 767px) {
+  *::-webkit-scrollbar {
+    display: none;
+  }
+
+  * {
+    scrollbar-width: none;
+  }
+}
+
+/* Utility to hide scrollbars but keep functionality */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

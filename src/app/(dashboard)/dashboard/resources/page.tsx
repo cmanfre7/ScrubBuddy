@@ -294,18 +294,18 @@ export default function ResourcesPage() {
   const filteredResources = resources
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white">Resources</h1>
-          <p className="text-slate-400 mt-1">
+          <h1 className="text-2xl md:text-3xl font-bold text-white">Resources</h1>
+          <p className="text-slate-400 text-sm md:text-base mt-1">
             Your curated collection of study materials
           </p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+          className="flex items-center justify-center gap-2 px-4 py-2.5 md:py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors w-full md:w-auto"
         >
           <Plus size={20} />
           Add Resource
@@ -313,79 +313,82 @@ export default function ResourcesPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        {/* Type Tabs */}
+      <div className="space-y-3 md:space-y-0 md:flex md:flex-row md:gap-4 md:items-center">
+        {/* Type Tabs - horizontal scroll on mobile */}
         <div
-          className="flex items-center gap-1 p-1 rounded-lg"
+          className="flex items-center gap-1 p-1 rounded-lg overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0"
           style={{ backgroundColor: '#1e293b' }}
         >
           {RESOURCE_TYPES.map((type) => (
             <button
               key={type.id}
               onClick={() => setActiveType(type.id)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`flex items-center gap-2 px-3 py-2.5 md:py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
                 activeType === type.id
                   ? 'bg-blue-600 text-white'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
               <type.icon size={16} />
-              <span className="hidden sm:inline">{type.label}</span>
+              <span>{type.label}</span>
             </button>
           ))}
         </div>
 
-        {/* Subject Filter */}
-        <select
-          value={activeSubject}
-          onChange={(e) => setActiveSubject(e.target.value)}
-          className="px-3 py-2 rounded-lg text-sm text-slate-300 border-0 focus:ring-2 focus:ring-blue-500"
-          style={{ backgroundColor: '#1e293b' }}
-        >
-          {SUBJECTS.map((subject) => (
-            <option key={subject} value={subject}>
-              {subject}
-            </option>
-          ))}
-        </select>
-
-        {/* Search */}
-        <div className="relative flex-1">
-          <Search
-            size={18}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-          />
-          <input
-            type="text"
-            placeholder="Search resources..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-lg text-sm text-white placeholder-slate-500 border-0 focus:ring-2 focus:ring-blue-500"
+        {/* Row with Subject Filter and Search */}
+        <div className="flex gap-2 md:flex-1">
+          {/* Subject Filter */}
+          <select
+            value={activeSubject}
+            onChange={(e) => setActiveSubject(e.target.value)}
+            className="px-3 py-2.5 md:py-2 rounded-lg text-sm text-slate-300 border-0 focus:ring-2 focus:ring-blue-500 flex-shrink-0"
             style={{ backgroundColor: '#1e293b' }}
-          />
-        </div>
+          >
+            {SUBJECTS.map((subject) => (
+              <option key={subject} value={subject}>
+                {subject}
+              </option>
+            ))}
+          </select>
 
-        {/* View Toggle */}
-        <div
-          className="flex items-center gap-1 p-1 rounded-lg"
-          style={{ backgroundColor: '#1e293b' }}
-        >
-          <button
-            onClick={() => setViewMode('grid')}
-            className={`p-2 rounded-md ${
-              viewMode === 'grid' ? 'bg-blue-600 text-white' : 'text-slate-400'
-            }`}
+          {/* Search */}
+          <div className="relative flex-1">
+            <Search
+              size={18}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            />
+            <input
+              type="text"
+              placeholder="Search..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 md:py-2 rounded-lg text-sm text-white placeholder-slate-500 border-0 focus:ring-2 focus:ring-blue-500"
+              style={{ backgroundColor: '#1e293b' }}
+            />
+          </div>
+
+          {/* View Toggle - hidden on mobile (always grid) */}
+          <div
+            className="hidden md:flex items-center gap-1 p-1 rounded-lg"
+            style={{ backgroundColor: '#1e293b' }}
           >
-            <Grid size={18} />
-          </button>
-          <button
-            onClick={() => setViewMode('list')}
-            className={`p-2 rounded-md ${
-              viewMode === 'list' ? 'bg-blue-600 text-white' : 'text-slate-400'
-            }`}
-          >
-            <List size={18} />
-          </button>
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-2 rounded-md ${
+                viewMode === 'grid' ? 'bg-blue-600 text-white' : 'text-slate-400'
+              }`}
+            >
+              <Grid size={18} />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2 rounded-md ${
+                viewMode === 'list' ? 'bg-blue-600 text-white' : 'text-slate-400'
+              }`}
+            >
+              <List size={18} />
+            </button>
+          </div>
         </div>
       </div>
 

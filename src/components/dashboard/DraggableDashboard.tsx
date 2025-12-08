@@ -81,9 +81,9 @@ function DraggableWidget({
 
   const sizeClasses: Record<WidgetSize, string> = {
     full: 'col-span-full',
-    half: 'col-span-full lg:col-span-1',
-    third: 'col-span-full lg:col-span-1',
-    quarter: 'col-span-1',
+    half: 'col-span-full md:col-span-1',
+    third: 'col-span-full md:col-span-1',
+    quarter: 'col-span-full md:col-span-1',
   }
 
   if (!isVisible && !isEditMode) return null
@@ -408,16 +408,16 @@ export function DraggableDashboard({
 
   if (!isLoaded) {
     return (
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
         {children}
       </div>
     )
   }
 
   return (
-    <div className="space-y-4">
-      {/* Edit Mode Toggle */}
-      <div className="flex justify-end gap-2">
+    <div className="space-y-3 md:space-y-4">
+      {/* Edit Mode Toggle - hidden on mobile */}
+      <div className="hidden md:flex justify-end gap-2">
         {isEditMode && (
           <motion.button
             initial={{ opacity: 0, scale: 0.9 }}
@@ -460,7 +460,7 @@ export function DraggableDashboard({
         onDragEnd={handleDragEnd}
       >
         <SortableContext items={config.map((c) => c.id)} strategy={rectSortingStrategy}>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
             {orderedWidgets.map((widget) => (
               <DraggableWidget
                 key={widget.id}
