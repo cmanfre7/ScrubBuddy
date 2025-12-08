@@ -284,10 +284,10 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-100">Settings</h1>
-        <p className="text-slate-400 mt-1">Manage your account and rotations</p>
+        <h1 className="text-xl md:text-2xl font-bold text-slate-100">Settings</h1>
+        <p className="text-sm md:text-base text-slate-400 mt-1">Manage your account and rotations</p>
       </div>
 
       {/* Profile Card */}
@@ -314,15 +314,15 @@ export default function SettingsPage() {
 
       {/* Rotations Card */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-base md:text-lg">
               <Calendar size={18} className="text-purple-400" />
               Rotations
             </CardTitle>
-            <CardDescription>Manage your clinical rotations</CardDescription>
+            <CardDescription className="text-xs md:text-sm">Manage your clinical rotations</CardDescription>
           </div>
-          <Button size="sm" onClick={() => setIsRotationModalOpen(true)}>
+          <Button size="sm" className="w-full sm:w-auto" onClick={() => setIsRotationModalOpen(true)}>
             <Plus size={16} className="mr-1" />
             Add Rotation
           </Button>
@@ -331,41 +331,42 @@ export default function SettingsPage() {
           {rotations.length === 0 ? (
             <p className="text-slate-500">No rotations set up yet. Add your first rotation to get started!</p>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2 md:space-y-3">
               {rotations.map((rotation) => (
                 <div
                   key={rotation.id}
-                  className={`flex items-center justify-between p-4 rounded-lg ${
+                  className={`flex items-start sm:items-center justify-between gap-2 p-3 md:p-4 rounded-lg ${
                     rotation.isCurrent
                       ? 'bg-blue-500/20 border border-blue-500/30'
                       : 'bg-slate-800/30'
                   }`}
                 >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium text-slate-200">{rotation.name}</p>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm md:text-base font-medium text-slate-200">{rotation.name}</p>
                       {rotation.isCurrent && (
-                        <span className="text-xs px-2 py-0.5 bg-blue-500/30 text-blue-300 rounded">
+                        <span className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 bg-blue-500/30 text-blue-300 rounded">
                           Current
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-slate-500 mt-1">
+                    <p className="text-xs md:text-sm text-slate-500 mt-1">
                       {formatDate(rotation.startDate)} - {formatDate(rotation.endDate)}
                     </p>
                     {rotation.shelfDate && (
-                      <p className="text-sm text-slate-500">
+                      <p className="text-xs md:text-sm text-slate-500">
                         Shelf: {formatDate(rotation.shelfDate)}
                       </p>
                     )}
-                    <p className="text-xs text-slate-600 mt-1">
+                    <p className="text-[10px] md:text-xs text-slate-600 mt-1">
                       {rotation._count.patients} patients logged
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1 md:gap-2 shrink-0">
                     <Button
                       size="sm"
                       variant="ghost"
+                      className="min-h-[44px] min-w-[44px] p-2"
                       onClick={() => handleEditClick(rotation)}
                     >
                       <Edit2 size={16} />
@@ -373,6 +374,7 @@ export default function SettingsPage() {
                     <Button
                       size="sm"
                       variant="danger"
+                      className="min-h-[44px] min-w-[44px] p-2"
                       onClick={() => handleDeleteClick(rotation)}
                     >
                       <Trash2 size={16} />
@@ -472,15 +474,15 @@ export default function SettingsPage() {
 
       {/* Quick Links Card */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-base md:text-lg">
               <Link size={18} className="text-cyan-400" />
               Quick Links
             </CardTitle>
-            <CardDescription>Customize your sidebar quick links</CardDescription>
+            <CardDescription className="text-xs md:text-sm">Customize your sidebar quick links</CardDescription>
           </div>
-          <Button size="sm" onClick={() => setIsQuickLinkModalOpen(true)}>
+          <Button size="sm" className="w-full sm:w-auto" onClick={() => setIsQuickLinkModalOpen(true)}>
             <Plus size={16} className="mr-1" />
             Add Link
           </Button>
@@ -493,17 +495,17 @@ export default function SettingsPage() {
               {quickLinks.map((link) => (
                 <div
                   key={link.id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30 hover:bg-slate-800/50 transition-colors"
+                  className="flex items-center justify-between p-2.5 md:p-3 rounded-lg bg-slate-800/30 hover:bg-slate-800/50 active:bg-slate-800/60 transition-colors gap-2"
                 >
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <ExternalLink size={16} className="text-slate-500 shrink-0" />
+                  <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+                    <ExternalLink size={14} className="text-slate-500 shrink-0 md:w-4 md:h-4" />
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium text-slate-200 truncate">{link.name}</p>
+                      <p className="text-sm md:text-base font-medium text-slate-200 truncate">{link.name}</p>
                       <a
                         href={link.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs text-slate-500 hover:text-blue-400 truncate block"
+                        className="text-[10px] md:text-xs text-slate-500 hover:text-blue-400 truncate block"
                       >
                         {link.url}
                       </a>
@@ -513,6 +515,7 @@ export default function SettingsPage() {
                     <Button
                       size="sm"
                       variant="ghost"
+                      className="min-h-[44px] min-w-[44px] p-2"
                       onClick={() => handleEditQuickLink(link)}
                     >
                       <Edit2 size={14} />
@@ -520,6 +523,7 @@ export default function SettingsPage() {
                     <Button
                       size="sm"
                       variant="danger"
+                      className="min-h-[44px] min-w-[44px] p-2"
                       onClick={() => handleDeleteQuickLink(link)}
                     >
                       <Trash2 size={14} />
@@ -551,7 +555,7 @@ export default function SettingsPage() {
             ]}
             required
           />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="Start Date *"
               type="date"
@@ -614,7 +618,7 @@ export default function SettingsPage() {
             ]}
             required
           />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="Start Date *"
               type="date"

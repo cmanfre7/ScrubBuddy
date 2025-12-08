@@ -59,11 +59,11 @@ export default function ClinicalNotesPage() {
   if (selectedRotationId) {
     const rotation = rotations.find((r) => r.id === selectedRotationId)
     return (
-      <div className="space-y-6">
-        {/* Back button */}
+      <div className="space-y-4 md:space-y-6">
+        {/* Back button - 44px touch target on mobile */}
         <button
           onClick={() => setSelectedRotationId(null)}
-          className="flex items-center gap-2 text-slate-400 hover:text-slate-200 transition-colors"
+          className="flex items-center gap-2 text-slate-400 hover:text-slate-200 transition-colors min-h-[44px] -ml-2 pl-2"
         >
           <ArrowLeft size={20} />
           <span className="text-sm font-medium">Back to Rotations</span>
@@ -76,11 +76,11 @@ export default function ClinicalNotesPage() {
 
   // Show rotation selector landing page
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-100">Clinical Notes</h1>
-        <p className="text-slate-400 mt-1">
+        <h1 className="text-xl md:text-2xl font-bold text-slate-100">Clinical Notes</h1>
+        <p className="text-sm md:text-base text-slate-400 mt-1">
           Select a rotation to view your notes, pearls, and resources
         </p>
       </div>
@@ -97,7 +97,7 @@ export default function ClinicalNotesPage() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
           {rotations.map((rotation) => {
             const isActive = rotation.isCurrent
             const weekNumber = getWeekNumber(rotation.startDate, rotation.endDate)
@@ -108,18 +108,18 @@ export default function ClinicalNotesPage() {
                 key={rotation.id}
                 onClick={() => setSelectedRotationId(rotation.id)}
                 className={cn(
-                  'group relative overflow-hidden rounded-xl border p-6 text-left transition-all duration-200',
-                  'hover:scale-[1.02] hover:shadow-xl',
+                  'group relative overflow-hidden rounded-xl border p-4 md:p-6 text-left transition-all duration-200',
+                  'active:scale-[0.98] md:hover:scale-[1.02] md:hover:shadow-xl',
                   isActive
                     ? 'bg-gradient-to-br from-blue-500/20 to-purple-500/20 border-blue-500/30 shadow-lg shadow-blue-500/10'
-                    : 'bg-slate-800/50 border-slate-700/50 hover:border-slate-600'
+                    : 'bg-slate-800/50 border-slate-700/50 md:hover:border-slate-600'
                 )}
               >
                 {/* Rotation Icon/Emoji */}
-                <div className="mb-4">
+                <div className="mb-3 md:mb-4">
                   <div
                     className={cn(
-                      'w-12 h-12 rounded-lg flex items-center justify-center text-2xl',
+                      'w-10 h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center text-xl md:text-2xl',
                       isActive
                         ? 'bg-blue-500/20 border border-blue-500/30'
                         : 'bg-slate-700/50'
@@ -130,7 +130,7 @@ export default function ClinicalNotesPage() {
                 </div>
 
                 {/* Rotation Name */}
-                <h3 className="text-lg font-bold text-slate-100 mb-1">
+                <h3 className="text-base md:text-lg font-bold text-slate-100 mb-1">
                   {rotation.name}
                 </h3>
 

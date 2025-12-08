@@ -246,15 +246,13 @@ export default function UWorldPage() {
   // Main shelf subject grid view
   if (!selectedSubject) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-100">UWorld Tracker</h1>
-            <p className="text-slate-400 mt-1">Select a shelf subject to view your progress</p>
-          </div>
+      <div className="space-y-4 md:space-y-6">
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold text-slate-100">UWorld Tracker</h1>
+          <p className="text-sm md:text-base text-slate-400 mt-1">Select a shelf subject to view your progress</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
           {SHELF_SUBJECTS.map((subject) => {
             const stats = getSubjectStats(subject)
             const colors = SHELF_COLORS[subject]
@@ -266,16 +264,16 @@ export default function UWorldPage() {
                 key={subject}
                 onClick={() => setSelectedSubject(subject)}
                 className={cn(
-                  'p-6 rounded-xl border-2 transition-all duration-200 text-left',
-                  'hover:scale-[1.02] hover:shadow-lg',
+                  'p-4 md:p-6 rounded-xl border-2 transition-all duration-200 text-left',
+                  'active:scale-[0.98] md:hover:scale-[1.02] md:hover:shadow-lg',
                   colors.bg,
                   colors.border,
-                  'hover:border-opacity-60'
+                  'md:hover:border-opacity-60'
                 )}
               >
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className={cn('text-xl font-bold', colors.text)}>{subject}</h3>
-                  <BookOpen className={cn('w-6 h-6', colors.text)} />
+                <div className="flex items-center justify-between mb-3 md:mb-4">
+                  <h3 className={cn('text-lg md:text-xl font-bold', colors.text)}>{subject}</h3>
+                  <BookOpen className={cn('w-5 h-5 md:w-6 md:h-6', colors.text)} />
                 </div>
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
@@ -313,43 +311,46 @@ export default function UWorldPage() {
   const colors = SHELF_COLORS[selectedSubject]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 md:gap-4">
           <button
             onClick={() => setSelectedSubject(null)}
-            className="p-2 rounded-lg hover:bg-slate-800 transition-colors"
+            className="p-2 -ml-2 rounded-lg hover:bg-slate-800 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
           >
             <ArrowLeft className="w-5 h-5 text-slate-400" />
           </button>
-          <div>
-            <h1 className={cn('text-2xl font-bold', colors.text)}>{selectedSubject}</h1>
-            <p className="text-slate-400 mt-1">
+          <div className="flex-1 min-w-0">
+            <h1 className={cn('text-xl md:text-2xl font-bold', colors.text)}>{selectedSubject}</h1>
+            <p className="text-sm md:text-base text-slate-400 mt-0.5 md:mt-1 truncate">
               {subjectStats?.totalQuestions} questions across {subjectStats?.sessions} sessions
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        {/* Action buttons - horizontal scroll on mobile */}
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
           <Button
             variant="secondary"
+            size="sm"
+            className="shrink-0"
             onClick={() => {
               setSettingsValue(getQuestionTotal(selectedSubject).toString())
               setIsSettingsOpen(true)
             }}
           >
-            <Settings size={18} className="mr-2" />
-            Set Total
+            <Settings size={16} className="mr-1.5" />
+            <span className="whitespace-nowrap">Set Total</span>
           </Button>
           {subjectLogs.length > 0 && (
-            <Button variant="secondary" onClick={() => setIsConfirmClearOpen(true)}>
-              <Trash2 size={18} className="mr-2" />
-              Clear Data
+            <Button variant="secondary" size="sm" className="shrink-0" onClick={() => setIsConfirmClearOpen(true)}>
+              <Trash2 size={16} className="mr-1.5" />
+              <span className="whitespace-nowrap">Clear</span>
             </Button>
           )}
-          <Button onClick={() => setIsModalOpen(true)}>
-            <Plus size={18} className="mr-2" />
-            Log Session
+          <Button size="sm" className="shrink-0" onClick={() => setIsModalOpen(true)}>
+            <Plus size={16} className="mr-1.5" />
+            <span className="whitespace-nowrap">Log Session</span>
           </Button>
         </div>
       </div>
@@ -359,29 +360,29 @@ export default function UWorldPage() {
         const totalAvailable = getQuestionTotal(selectedSubject)
         const progressPercent = Math.min(100, Math.round(((subjectStats?.totalQuestions || 0) / totalAvailable) * 100))
         return (
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
             <Card className={cn(colors.bg, colors.border, 'border')}>
-              <CardContent className="pt-6 text-center">
-                <p className={cn('text-4xl font-bold', colors.text)}>{subjectStats?.percentage}%</p>
-                <p className="text-slate-400 text-sm mt-1">Overall Score</p>
+              <CardContent className="p-3 md:pt-6 md:p-4 text-center">
+                <p className={cn('text-2xl md:text-4xl font-bold', colors.text)}>{subjectStats?.percentage}%</p>
+                <p className="text-slate-400 text-xs md:text-sm mt-1">Overall Score</p>
               </CardContent>
             </Card>
             <Card>
-              <CardContent className="pt-6 text-center">
-                <p className="text-4xl font-bold text-slate-100">{subjectStats?.totalCorrect}</p>
-                <p className="text-slate-400 text-sm mt-1">Correct</p>
+              <CardContent className="p-3 md:pt-6 md:p-4 text-center">
+                <p className="text-2xl md:text-4xl font-bold text-slate-100">{subjectStats?.totalCorrect}</p>
+                <p className="text-slate-400 text-xs md:text-sm mt-1">Correct</p>
               </CardContent>
             </Card>
             <Card>
-              <CardContent className="pt-6 text-center">
-                <p className="text-4xl font-bold text-slate-100">{subjectStats?.totalQuestions}</p>
-                <p className="text-slate-400 text-sm mt-1">Questions Done</p>
+              <CardContent className="p-3 md:pt-6 md:p-4 text-center">
+                <p className="text-2xl md:text-4xl font-bold text-slate-100">{subjectStats?.totalQuestions}</p>
+                <p className="text-slate-400 text-xs md:text-sm mt-1">Questions Done</p>
               </CardContent>
             </Card>
             <Card>
-              <CardContent className="pt-6 text-center">
-                <p className="text-4xl font-bold text-slate-100">{progressPercent}%</p>
-                <p className="text-slate-400 text-sm mt-1">of {totalAvailable} QBank</p>
+              <CardContent className="p-3 md:pt-6 md:p-4 text-center">
+                <p className="text-2xl md:text-4xl font-bold text-slate-100">{progressPercent}%</p>
+                <p className="text-slate-400 text-xs md:text-sm mt-1">of {totalAvailable} QBank</p>
               </CardContent>
             </Card>
           </div>
@@ -461,7 +462,7 @@ export default function UWorldPage() {
           {subjectLogs.length === 0 ? (
             <p className="text-slate-500">No sessions logged for {selectedSubject} yet.</p>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2 md:space-y-3">
               {subjectLogs
                 .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                 .map((log) => {
@@ -470,25 +471,25 @@ export default function UWorldPage() {
                     <div
                       key={log.id}
                       onClick={() => setEditingSession(log)}
-                      className="flex items-center justify-between p-4 bg-slate-800/30 rounded-lg hover:bg-slate-800/50 transition-colors cursor-pointer group"
+                      className="flex items-center justify-between p-3 md:p-4 bg-slate-800/30 rounded-lg hover:bg-slate-800/50 active:bg-slate-800/60 transition-colors cursor-pointer group min-h-[60px]"
                     >
-                      <div className="flex items-center gap-4">
-                        <div className="text-center min-w-[60px]">
-                          <p className="text-lg font-bold text-slate-100">
+                      <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
+                        <div className="text-center min-w-[50px] md:min-w-[60px]">
+                          <p className="text-sm md:text-lg font-bold text-slate-100">
                             {formatDateMMM_d(log.date)}
                           </p>
-                          <p className="text-xs text-slate-500">
+                          <p className="text-[10px] md:text-xs text-slate-500">
                             {formatTime(log.date)}
                           </p>
                         </div>
-                        <div className="h-10 w-px bg-slate-700" />
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-slate-200">
-                              {log.questionsCorrect}/{log.questionsTotal} correct
+                        <div className="h-8 md:h-10 w-px bg-slate-700 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 md:gap-2 flex-wrap">
+                            <span className="text-sm md:text-base font-medium text-slate-200">
+                              {log.questionsCorrect}/{log.questionsTotal}
                             </span>
                             <span
-                              className="px-2 py-0.5 text-xs font-medium rounded-full"
+                              className="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs font-medium rounded-full"
                               style={{
                                 backgroundColor: getScoreBgColor(percentage),
                                 color: getScoreColor(percentage),
@@ -497,27 +498,21 @@ export default function UWorldPage() {
                             >
                               {percentage}%
                             </span>
-                            {log.mode && <Badge variant="default">{log.mode}</Badge>}
+                            {log.mode && <Badge variant="default" className="text-[10px] md:text-xs">{log.mode}</Badge>}
                           </div>
                           {log.blockName && (
-                            <p className="text-sm text-slate-400 mt-1">{log.blockName}</p>
-                          )}
-                          {log.timeSpentMins && (
-                            <p className="text-sm text-slate-500 flex items-center gap-1 mt-1">
-                              <Clock size={12} />
-                              {log.timeSpentMins} minutes
-                            </p>
+                            <p className="text-xs md:text-sm text-slate-400 mt-0.5 md:mt-1 truncate">{log.blockName}</p>
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2 md:gap-4 shrink-0 ml-2">
                         <div
-                          className="text-2xl font-bold"
+                          className="text-lg md:text-2xl font-bold"
                           style={{ color: getScoreColor(percentage) }}
                         >
                           {percentage}%
                         </div>
-                        <Pencil size={16} className="text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <Pencil size={16} className="text-slate-500 hidden md:block opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
                     </div>
                   )

@@ -97,13 +97,13 @@ export default function PatientsPage() {
   const rotations = rotationsData?.rotations || []
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100">Patient Log</h1>
-          <p className="text-slate-400 mt-1">Track your clinical encounters</p>
+          <h1 className="text-xl md:text-2xl font-bold text-slate-100">Patient Log</h1>
+          <p className="text-sm md:text-base text-slate-400 mt-1">Track your clinical encounters</p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)}>
+        <Button onClick={() => setIsModalOpen(true)} className="w-full sm:w-auto">
           <Plus size={18} className="mr-2" />
           Log Patient
         </Button>
@@ -148,28 +148,28 @@ export default function PatientsPage() {
           ) : patients.length === 0 ? (
             <p className="text-slate-500">No patients logged yet. Start by adding your first encounter!</p>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2 md:space-y-3">
               {patients.map((patient) => (
                 <div
                   key={patient.id}
-                  className="flex items-center justify-between p-4 bg-slate-800/30 rounded-lg hover:bg-slate-800/50 transition-colors"
+                  className="flex items-start justify-between p-3 md:p-4 bg-slate-800/30 rounded-lg hover:bg-slate-800/50 active:bg-slate-800/60 transition-colors gap-2"
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium text-slate-200">{patient.diagnosis}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm md:text-base font-medium text-slate-200">{patient.diagnosis}</p>
                       {patient.rotation && (
-                        <Badge variant="info">{patient.rotation.name}</Badge>
+                        <Badge variant="info" className="text-[10px] md:text-xs">{patient.rotation.name}</Badge>
                       )}
                     </div>
-                    <p className="text-sm text-slate-400 mt-1">{patient.chiefComplaint}</p>
-                    <div className="flex items-center gap-4 mt-2 text-xs text-slate-500">
+                    <p className="text-xs md:text-sm text-slate-400 mt-1 line-clamp-2">{patient.chiefComplaint}</p>
+                    <div className="flex items-center gap-3 md:gap-4 mt-2 text-[10px] md:text-xs text-slate-500">
                       <span className="flex items-center gap-1">
-                        <Calendar size={12} />
+                        <Calendar size={10} className="md:w-3 md:h-3" />
                         {formatDate(patient.encounterDate)}
                       </span>
                       {patient.setting && (
                         <span className="flex items-center gap-1">
-                          <MapPin size={12} />
+                          <MapPin size={10} className="md:w-3 md:h-3" />
                           {patient.setting}
                         </span>
                       )}
@@ -177,7 +177,7 @@ export default function PatientsPage() {
                   </div>
                   <button
                     onClick={() => deleteMutation.mutate(patient.id)}
-                    className="p-2 text-slate-500 hover:text-red-400 transition-colors"
+                    className="p-2 -mr-1 text-slate-500 hover:text-red-400 active:text-red-500 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center shrink-0"
                   >
                     <Trash2 size={16} />
                   </button>
@@ -220,7 +220,7 @@ export default function PatientsPage() {
               ...rotations.map((r: { id: string; name: string }) => ({ value: r.id, label: r.name })),
             ]}
           />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select
               label="Setting"
               value={newPatient.setting}

@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Search, Stethoscope, Star, Clock } from 'lucide-react'
+import { Search, Stethoscope, Star, Clock, ArrowLeft } from 'lucide-react'
 
 interface Procedure {
   id: string
@@ -145,10 +145,10 @@ export default function ProceduresPage() {
   )
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-100">Procedure Reference</h1>
-        <p className="text-slate-400 mt-1">Quick access to procedure guides</p>
+        <h1 className="text-xl md:text-2xl font-bold text-slate-100">Procedure Reference</h1>
+        <p className="text-sm md:text-base text-slate-400 mt-1">Quick access to procedure guides</p>
       </div>
 
       {/* Search */}
@@ -162,30 +162,30 @@ export default function ProceduresPage() {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Procedure List */}
-        <div className="lg:col-span-1 space-y-3">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+        {/* Procedure List - hidden on mobile when procedure selected */}
+        <div className={`lg:col-span-1 space-y-2 md:space-y-3 ${selectedProcedure ? 'hidden lg:block' : ''}`}>
           {procedures.map((procedure) => (
             <Card
               key={procedure.id}
               hover
-              className={`cursor-pointer ${
+              className={`cursor-pointer active:scale-[0.99] ${
                 selectedProcedure?.id === procedure.id ? 'border-blue-500/50' : ''
               }`}
               onClick={() => setSelectedProcedure(procedure)}
             >
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-medium text-slate-200">{procedure.name}</h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="info">{procedure.specialty}</Badge>
-                      <Badge variant="default">{procedure.category}</Badge>
+              <CardContent className="p-3 md:p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-sm md:text-base font-medium text-slate-200">{procedure.name}</h3>
+                    <div className="flex items-center gap-1.5 md:gap-2 mt-1 flex-wrap">
+                      <Badge variant="info" className="text-[10px] md:text-xs">{procedure.specialty}</Badge>
+                      <Badge variant="default" className="text-[10px] md:text-xs">{procedure.category}</Badge>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 text-yellow-400">
+                  <div className="flex items-center gap-0.5 text-yellow-400 shrink-0">
                     {[...Array(procedure.difficulty)].map((_, i) => (
-                      <Star key={i} size={12} fill="currentColor" />
+                      <Star key={i} size={10} className="md:w-3 md:h-3" fill="currentColor" />
                     ))}
                   </div>
                 </div>
@@ -194,19 +194,27 @@ export default function ProceduresPage() {
           ))}
         </div>
 
-        {/* Procedure Detail */}
-        <div className="lg:col-span-2">
+        {/* Procedure Detail - full width on mobile */}
+        <div className={`lg:col-span-2 ${selectedProcedure ? '' : 'hidden lg:block'}`}>
           {selectedProcedure ? (
             <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <Stethoscope className="text-blue-400" size={20} />
-                    {selectedProcedure.name}
+              <CardHeader className="space-y-3">
+                {/* Back button - mobile only */}
+                <button
+                  onClick={() => setSelectedProcedure(null)}
+                  className="flex items-center gap-2 text-slate-400 hover:text-slate-200 transition-colors lg:hidden -ml-1 min-h-[44px]"
+                >
+                  <ArrowLeft size={20} />
+                  <span className="text-sm font-medium">Back to list</span>
+                </button>
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+                    <Stethoscope className="text-blue-400 shrink-0" size={18} />
+                    <span className="line-clamp-2">{selectedProcedure.name}</span>
                   </CardTitle>
                   {selectedProcedure.estimatedTime && (
-                    <Badge variant="default" className="flex items-center gap-1">
-                      <Clock size={12} />
+                    <Badge variant="default" className="flex items-center gap-1 shrink-0 text-xs">
+                      <Clock size={10} className="md:w-3 md:h-3" />
                       {selectedProcedure.estimatedTime}
                     </Badge>
                   )}
