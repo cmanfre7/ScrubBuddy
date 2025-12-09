@@ -17,7 +17,7 @@ interface LogSessionModalProps {
 }
 
 export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSessionModalProps) {
-  const [activeTab, setActiveTab] = useState<'manual' | 'paste' | 'pdf'>('manual')
+  const [activeTab, setActiveTab] = useState<'manual' | 'paste' | 'pdf'>('paste')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
@@ -208,8 +208,9 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
       }
 
       const stats = data.stats
+      const questionType = isIncorrectOnly ? 'incorrect questions' : 'questions'
       setSuccess(
-        `Successfully imported ${stats.questionsSaved} incorrect questions! ` +
+        `Successfully imported ${stats.questionsSaved} ${questionType}! ` +
         (stats.totalQuestions > 0
           ? `Test score: ${stats.totalCorrect}/${stats.totalQuestions} (${stats.percentCorrect}%)`
           : `Topics: ${stats.topics.slice(0, 3).join(', ')}${stats.topics.length > 3 ? '...' : ''}`)
@@ -245,17 +246,6 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
       <div className="flex gap-2 mb-6 border-b border-slate-700">
         <button
           type="button"
-          onClick={() => setActiveTab('manual')}
-          className={`px-4 py-2 font-medium transition-colors ${
-            activeTab === 'manual'
-              ? 'text-blue-400 border-b-2 border-blue-400'
-              : 'text-slate-400 hover:text-slate-300'
-          }`}
-        >
-          Manual Entry
-        </button>
-        <button
-          type="button"
           onClick={() => setActiveTab('paste')}
           className={`px-4 py-2 font-medium transition-colors ${
             activeTab === 'paste'
@@ -264,6 +254,17 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
           }`}
         >
           Paste Text
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('manual')}
+          className={`px-4 py-2 font-medium transition-colors ${
+            activeTab === 'manual'
+              ? 'text-blue-400 border-b-2 border-blue-400'
+              : 'text-slate-400 hover:text-slate-300'
+          }`}
+        >
+          Manual Entry
         </button>
         <button
           type="button"
@@ -369,14 +370,15 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
       {activeTab === 'paste' && (
         <form onSubmit={handlePasteSubmit} className="space-y-4">
           <div className="bg-blue-900/20 border border-blue-700/30 p-3 rounded-lg text-xs text-blue-300">
-            <p className="font-medium mb-1">Copy test results from UWorld block:</p>
+            <p className="font-medium mb-1">Copy test results from UWorld:</p>
             <p className="text-blue-400">
-              1. Filter the test results by incorrect questions<br />
-              2. Select all of the rows in table and copy (Ctrl+C or Cmd+C)<br />
-              3. Paste the data below
+              1. Open your test results in UWorld<br />
+              2. Filter to show incorrect only OR select all questions<br />
+              3. Select rows in table and copy (Ctrl+C / Cmd+C)<br />
+              4. Paste below
             </p>
             <p className="text-slate-400 mt-2 text-[11px]">
-              This will effectively log correct vs incorrect and begin to show areas of weakness over time.
+              Tracks subjects, systems, categories, and topics to identify weak areas over time.
             </p>
           </div>
 
@@ -423,8 +425,11 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
                 onChange={(e) => setIsIncorrectOnly(e.target.checked)}
                 className="rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500"
               />
-              Only pasting incorrect questions
+              Pasting incorrect questions only
             </label>
+            {!isIncorrectOnly && (
+              <span className="text-xs text-green-400">All questions will be saved</span>
+            )}
           </div>
 
           {isIncorrectOnly && (

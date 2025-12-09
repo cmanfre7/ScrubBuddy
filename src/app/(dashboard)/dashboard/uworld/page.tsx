@@ -9,7 +9,7 @@ import { Modal } from '@/components/ui/modal'
 import { Select } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { formatDate, calculatePercentage, cn } from '@/lib/utils'
-import { Plus, ArrowLeft, BookOpen, TrendingUp, Calendar, Clock, Trash2, Pencil, Settings, AlertTriangle } from 'lucide-react'
+import { Plus, ArrowLeft, BookOpen, TrendingUp, Calendar, Clock, Trash2, Pencil, Settings, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react'
 // ImportModal removed - paste text moved to LogSessionModal within each subject
 import { LogSessionModal } from '@/components/uworld/LogSessionModal'
 import { EditSessionModal } from '@/components/uworld/EditSessionModal'
@@ -115,6 +115,7 @@ export default function UWorldPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isConfirmClearOpen, setIsConfirmClearOpen] = useState(false)
   const [editingSession, setEditingSession] = useState<UWorldLog | null>(null)
+  const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [settingsValue, setSettingsValue] = useState('')
 
@@ -142,6 +143,17 @@ export default function UWorldPage() {
       const res = await fetch('/api/uworld/weak-areas')
       return res.json()
     },
+  })
+
+  // Fetch session details when expanded
+  const { data: sessionDetails, isLoading: isLoadingDetails } = useQuery({
+    queryKey: ['uworld-session', expandedSessionId],
+    queryFn: async () => {
+      if (!expandedSessionId) return null
+      const res = await fetch(`/api/uworld/${expandedSessionId}?includeQuestions=true`)
+      return res.json()
+    },
+    enabled: !!expandedSessionId,
   })
 
   // Get question total for a subject (user custom or default)
@@ -467,53 +479,166 @@ export default function UWorldPage() {
                 .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                 .map((log) => {
                   const percentage = calculatePercentage(log.questionsCorrect, log.questionsTotal)
+                  const isExpanded = expandedSessionId === log.id
                   return (
-                    <div
-                      key={log.id}
-                      onClick={() => setEditingSession(log)}
-                      className="flex items-center justify-between p-3 md:p-4 bg-slate-800/30 rounded-lg hover:bg-slate-800/50 active:bg-slate-800/60 transition-colors cursor-pointer group min-h-[60px]"
-                    >
-                      <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
-                        <div className="text-center min-w-[50px] md:min-w-[60px]">
-                          <p className="text-sm md:text-lg font-bold text-slate-100">
-                            {formatDateMMM_d(log.date)}
-                          </p>
-                          <p className="text-[10px] md:text-xs text-slate-500">
-                            {formatTime(log.date)}
-                          </p>
-                        </div>
-                        <div className="h-8 md:h-10 w-px bg-slate-700 shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 md:gap-2 flex-wrap">
-                            <span className="text-sm md:text-base font-medium text-slate-200">
-                              {log.questionsCorrect}/{log.questionsTotal}
-                            </span>
-                            <span
-                              className="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs font-medium rounded-full"
-                              style={{
-                                backgroundColor: getScoreBgColor(percentage),
-                                color: getScoreColor(percentage),
-                                border: `1px solid ${getScoreColor(percentage)}40`,
-                              }}
-                            >
-                              {percentage}%
-                            </span>
-                            {log.mode && <Badge variant="default" className="text-[10px] md:text-xs">{log.mode}</Badge>}
+                    <div key={log.id} className="rounded-lg overflow-hidden">
+                      <div
+                        onClick={() => setExpandedSessionId(isExpanded ? null : log.id)}
+                        className="flex items-center justify-between p-3 md:p-4 bg-slate-800/30 hover:bg-slate-800/50 active:bg-slate-800/60 transition-colors cursor-pointer group min-h-[60px]"
+                      >
+                        <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
+                          <div className="text-center min-w-[50px] md:min-w-[60px]">
+                            <p className="text-sm md:text-lg font-bold text-slate-100">
+                              {formatDateMMM_d(log.date)}
+                            </p>
+                            <p className="text-[10px] md:text-xs text-slate-500">
+                              {formatTime(log.date)}
+                            </p>
                           </div>
-                          {log.blockName && (
-                            <p className="text-xs md:text-sm text-slate-400 mt-0.5 md:mt-1 truncate">{log.blockName}</p>
+                          <div className="h-8 md:h-10 w-px bg-slate-700 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 md:gap-2 flex-wrap">
+                              <span className="text-sm md:text-base font-medium text-slate-200">
+                                {log.questionsCorrect}/{log.questionsTotal}
+                              </span>
+                              <span
+                                className="px-1.5 md:px-2 py-0.5 text-[10px] md:text-xs font-medium rounded-full"
+                                style={{
+                                  backgroundColor: getScoreBgColor(percentage),
+                                  color: getScoreColor(percentage),
+                                  border: `1px solid ${getScoreColor(percentage)}40`,
+                                }}
+                              >
+                                {percentage}%
+                              </span>
+                              {log.mode && <Badge variant="default" className="text-[10px] md:text-xs">{log.mode}</Badge>}
+                            </div>
+                            {log.blockName && (
+                              <p className="text-xs md:text-sm text-slate-400 mt-0.5 md:mt-1 truncate">{log.blockName}</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 md:gap-4 shrink-0 ml-2">
+                          <div
+                            className="text-lg md:text-2xl font-bold"
+                            style={{ color: getScoreColor(percentage) }}
+                          >
+                            {percentage}%
+                          </div>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setEditingSession(log); }}
+                            className="p-2 text-slate-500 hover:text-slate-300 transition-colors hidden md:block"
+                          >
+                            <Pencil size={16} />
+                          </button>
+                          {isExpanded ? (
+                            <ChevronUp size={18} className="text-slate-400" />
+                          ) : (
+                            <ChevronDown size={18} className="text-slate-400" />
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 md:gap-4 shrink-0 ml-2">
-                        <div
-                          className="text-lg md:text-2xl font-bold"
-                          style={{ color: getScoreColor(percentage) }}
-                        >
-                          {percentage}%
+
+                      {/* Expanded session details */}
+                      {isExpanded && (
+                        <div className="bg-slate-900/50 border-t border-slate-700/50 p-4">
+                          {isLoadingDetails ? (
+                            <p className="text-slate-400 text-sm text-center py-4">Loading question breakdown...</p>
+                          ) : sessionDetails?.breakdown ? (
+                            <div className="space-y-4">
+                              {/* Subject breakdown */}
+                              {sessionDetails.breakdown.bySubject?.length > 0 && (
+                                <div>
+                                  <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">By Subject</h4>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                    {sessionDetails.breakdown.bySubject.map((item: { name: string; total: number; correct: number; incorrect: number; percentage: number }) => (
+                                      <div key={item.name} className="flex items-center justify-between p-2 bg-slate-800/50 rounded">
+                                        <span className="text-sm text-slate-300 truncate flex-1">{item.name}</span>
+                                        <div className="flex items-center gap-2 ml-2">
+                                          <span className="text-xs text-red-400">{item.incorrect}x</span>
+                                          <span className="text-xs text-slate-500">/</span>
+                                          <span className="text-xs text-slate-400">{item.total}</span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* System breakdown */}
+                              {sessionDetails.breakdown.bySystem?.length > 0 && (
+                                <div>
+                                  <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">By System</h4>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                    {sessionDetails.breakdown.bySystem.map((item: { name: string; total: number; correct: number; incorrect: number; percentage: number }) => (
+                                      <div key={item.name} className="flex items-center justify-between p-2 bg-slate-800/50 rounded">
+                                        <span className="text-sm text-slate-300 truncate flex-1">{item.name}</span>
+                                        <div className="flex items-center gap-2 ml-2">
+                                          <span className="text-xs text-red-400">{item.incorrect}x</span>
+                                          <span className="text-xs text-slate-500">/</span>
+                                          <span className="text-xs text-slate-400">{item.total}</span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Category breakdown */}
+                              {sessionDetails.breakdown.byCategory?.length > 0 && (
+                                <div>
+                                  <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">By Category</h4>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                    {sessionDetails.breakdown.byCategory.slice(0, 6).map((item: { name: string; total: number; correct: number; incorrect: number; percentage: number }) => (
+                                      <div key={item.name} className="flex items-center justify-between p-2 bg-slate-800/50 rounded">
+                                        <span className="text-sm text-slate-300 truncate flex-1">{item.name}</span>
+                                        <div className="flex items-center gap-2 ml-2">
+                                          <span className="text-xs text-red-400">{item.incorrect}x</span>
+                                          <span className="text-xs text-slate-500">/</span>
+                                          <span className="text-xs text-slate-400">{item.total}</span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Topic breakdown */}
+                              {sessionDetails.breakdown.byTopic?.length > 0 && (
+                                <div>
+                                  <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">By Topic</h4>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                    {sessionDetails.breakdown.byTopic.slice(0, 8).map((item: { name: string; total: number; correct: number; incorrect: number; percentage: number }) => (
+                                      <div key={item.name} className="flex items-center justify-between p-2 bg-slate-800/50 rounded">
+                                        <span className="text-sm text-slate-300 truncate flex-1">{item.name}</span>
+                                        <div className="flex items-center gap-2 ml-2">
+                                          <span className="text-xs text-red-400">{item.incorrect}x</span>
+                                          <span className="text-xs text-slate-500">/</span>
+                                          <span className="text-xs text-slate-400">{item.total}</span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Questions list summary */}
+                              {sessionDetails.questions?.length > 0 && (
+                                <div className="pt-2 border-t border-slate-700/50">
+                                  <p className="text-xs text-slate-500">
+                                    {sessionDetails.questions.length} questions imported
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="text-center py-4">
+                              <p className="text-slate-400 text-sm">No detailed question data available</p>
+                              <p className="text-slate-500 text-xs mt-1">Import questions via Paste Text to see breakdowns</p>
+                            </div>
+                          )}
                         </div>
-                        <Pencil size={16} className="text-slate-500 hidden md:block opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
+                      )}
                     </div>
                   )
                 })}

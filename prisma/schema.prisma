@@ -28,6 +28,7 @@ model User {
   patients      Patient[]
   procedures    UserProcedure[]
   uworldLogs    UWorldLog[]
+  uworldQuestions UWorldQuestion[]
   uworldTests   UWorldTest[]
   uworldIncorrects UWorldIncorrect[]
   shelfScores   ShelfScore[]
@@ -223,10 +224,41 @@ model UWorldLog {
 
   notes         String?
 
+  // Relations
+  questions     UWorldQuestion[]
+
   createdAt     DateTime  @default(now())
 
   @@index([userId])
   @@index([date])
+}
+
+// Individual questions linked to a session (both correct and incorrect)
+model UWorldQuestion {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logId         String?   // Link to UWorldLog session
+  log           UWorldLog? @relation(fields: [logId], references: [id], onDelete: Cascade)
+
+  questionId    String?   // UWorld question ID (e.g., "104520")
+  subject       String    // Subject (e.g., "Surgery", "Medicine")
+  system        String    // System (e.g., "Hematology & Oncology")
+  category      String    // Category
+  topic         String    // Topic
+  percentOthers Int       @default(0)  // % of others who got it correct
+  timeSpent     Int       @default(0)  // Time spent in seconds
+  isCorrect     Boolean   // Whether user got this question correct
+  testName      String?   // Test name for reference
+
+  createdAt     DateTime  @default(now())
+
+  @@unique([userId, questionId])
+  @@index([userId])
+  @@index([logId])
+  @@index([subject])
+  @@index([system])
+  @@index([isCorrect])
 }
 
 // Individual UWorld Test with detailed subject breakdown

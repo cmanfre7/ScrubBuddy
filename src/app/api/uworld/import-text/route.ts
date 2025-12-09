@@ -84,14 +84,22 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Calculate stats
-    const incorrectCount = questions.length
+    // Calculate stats based on whether pasting incorrect only or all questions
+    const pastedCount = questions.length
     let calcTotalQuestions = totalQuestions || 0
     let calcTotalCorrect = totalCorrect || 0
 
-    // If only incorrect questions were pasted, calculate correct count
-    if (isIncorrectOnly && totalQuestions) {
-      calcTotalCorrect = totalQuestions - incorrectCount
+    if (isIncorrectOnly) {
+      // If pasting incorrect only, calculate correct from total
+      if (totalQuestions) {
+        calcTotalCorrect = totalQuestions - pastedCount
+      }
+    } else {
+      // If pasting all questions, total = pasted count
+      // In this case, we don't know which are correct yet without more info
+      // For now, assume all pasted questions are part of the test
+      calcTotalQuestions = pastedCount
+      calcTotalCorrect = 0 // Will be updated based on actual tracking
     }
 
     const percentCorrect = calcTotalQuestions > 0
@@ -101,9 +109,10 @@ export async function POST(request: NextRequest) {
     // Get unique subjects for categorization
     const uniqueSubjects = [...new Set(questions.map(q => q.subject))]
 
-    console.log(`Test: ${testName}, Total: ${calcTotalQuestions}, Correct: ${calcTotalCorrect}, Incorrect: ${incorrectCount}`)
+    console.log(`Test: ${testName}, Total: ${calcTotalQuestions}, Correct: ${calcTotalCorrect}, Pasted: ${pastedCount}`)
 
     // Check for existing UWorldLog with same test name
+    let logId: string | null = null
     const existingLog = await prisma.uWorldLog.findFirst({
       where: { userId, blockName: testName },
     })
@@ -117,49 +126,59 @@ export async function POST(request: NextRequest) {
           systems: uniqueSubjects,
         },
       })
-    } else if (calcTotalQuestions > 0) {
-      await prisma.uWorldLog.create({
+      logId = existingLog.id
+    } else if (calcTotalQuestions > 0 || !isIncorrectOnly) {
+      const newLog = await prisma.uWorldLog.create({
         data: {
           userId,
           date: new Date(),
-          questionsTotal: calcTotalQuestions,
+          questionsTotal: calcTotalQuestions || pastedCount,
           questionsCorrect: calcTotalCorrect,
           timeSpentMins: Math.round(questions.reduce((sum, q) => sum + q.timeSpent, 0) / 60),
           mode: 'Test',
           blockName: testName,
           systems: uniqueSubjects,
           subjects: [...new Set(questions.map(q => q.system))],
-          notes: `Imported via text paste - ${incorrectCount} incorrect questions`,
+          notes: isIncorrectOnly
+            ? `Imported via text paste - ${pastedCount} incorrect questions`
+            : `Imported via text paste - ${pastedCount} questions`,
         },
       })
+      logId = newLog.id
     }
 
-    // Save incorrect questions
+    // Save questions to UWorldQuestion (new model for ALL questions)
     let savedCount = 0
     for (const q of questions) {
       try {
-        const existing = await prisma.uWorldIncorrect.findFirst({
+        // For UWorldQuestion - store all questions with isCorrect flag
+        // When isIncorrectOnly is true, all pasted questions are incorrect
+        const isCorrect = !isIncorrectOnly // If pasting all, we assume they're mixed (default to false for now)
+
+        const existingQuestion = await prisma.uWorldQuestion.findFirst({
           where: { userId, questionId: q.questionId },
         })
 
-        if (existing) {
-          await prisma.uWorldIncorrect.update({
-            where: { id: existing.id },
+        if (existingQuestion) {
+          await prisma.uWorldQuestion.update({
+            where: { id: existingQuestion.id },
             data: {
+              logId,
               topic: q.topic,
               subject: q.subject,
               system: q.system,
               category: q.category,
               percentOthers: q.percentOthers,
               timeSpent: q.timeSpent,
+              isCorrect: isIncorrectOnly ? false : existingQuestion.isCorrect, // Keep existing if not pasting incorrect only
               testName,
-              status: 'needs_review',
             },
           })
         } else {
-          await prisma.uWorldIncorrect.create({
+          await prisma.uWorldQuestion.create({
             data: {
               userId,
+              logId,
               questionId: q.questionId,
               topic: q.topic,
               subject: q.subject,
@@ -167,11 +186,50 @@ export async function POST(request: NextRequest) {
               category: q.category,
               percentOthers: q.percentOthers,
               timeSpent: q.timeSpent,
+              isCorrect: isIncorrectOnly ? false : true, // If pasting all, default to correct (user can fix)
               testName,
-              status: 'needs_review',
             },
           })
         }
+
+        // Also save to UWorldIncorrect for backward compatibility with weak areas feature
+        if (isIncorrectOnly) {
+          const existingIncorrect = await prisma.uWorldIncorrect.findFirst({
+            where: { userId, questionId: q.questionId },
+          })
+
+          if (existingIncorrect) {
+            await prisma.uWorldIncorrect.update({
+              where: { id: existingIncorrect.id },
+              data: {
+                topic: q.topic,
+                subject: q.subject,
+                system: q.system,
+                category: q.category,
+                percentOthers: q.percentOthers,
+                timeSpent: q.timeSpent,
+                testName,
+                status: 'needs_review',
+              },
+            })
+          } else {
+            await prisma.uWorldIncorrect.create({
+              data: {
+                userId,
+                questionId: q.questionId,
+                topic: q.topic,
+                subject: q.subject,
+                system: q.system,
+                category: q.category,
+                percentOthers: q.percentOthers,
+                timeSpent: q.timeSpent,
+                testName,
+                status: 'needs_review',
+              },
+            })
+          }
+        }
+
         savedCount++
       } catch (err) {
         console.error(`Failed to save question ${q.questionId}:`, err)
@@ -184,11 +242,12 @@ export async function POST(request: NextRequest) {
         testName,
         questionsParsed: questions.length,
         questionsSaved: savedCount,
-        totalQuestions: calcTotalQuestions,
+        totalQuestions: calcTotalQuestions || pastedCount,
         totalCorrect: calcTotalCorrect,
         percentCorrect,
         subjects: uniqueSubjects,
         topics: questions.map(q => q.topic),
+        logId,
       },
     })
   } catch (error) {
