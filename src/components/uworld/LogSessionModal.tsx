@@ -37,11 +37,10 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
   const [isDragging, setIsDragging] = useState(false)
   const [pdfNotes, setPdfNotes] = useState('')
 
-  // Paste text state
+  // Paste text state - separate boxes for correct and incorrect
   const [testName, setTestName] = useState('')
-  const [pasteText, setPasteText] = useState('')
-  const [pasteTotalQuestions, setPasteTotalQuestions] = useState('')
-  const [isIncorrectOnly, setIsIncorrectOnly] = useState(true)
+  const [correctText, setCorrectText] = useState('')
+  const [incorrectText, setIncorrectText] = useState('')
 
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -180,8 +179,12 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
 
   const handlePasteSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!testName.trim() || !pasteText.trim()) {
-      setError('Please enter a test name and paste the table data')
+    if (!testName.trim()) {
+      setError('Please enter a test name')
+      return
+    }
+    if (!correctText.trim() && !incorrectText.trim()) {
+      setError('Please paste at least some questions (correct or incorrect)')
       return
     }
 
@@ -195,9 +198,9 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           testName: `${subject} - ${testName.trim()}`,
-          text: pasteText.trim(),
-          totalQuestions: pasteTotalQuestions ? parseInt(pasteTotalQuestions) : undefined,
-          isIncorrectOnly,
+          correctText: correctText.trim(),
+          incorrectText: incorrectText.trim(),
+          shelfSubject: subject, // Pass the shelf subject to tag the log correctly
         }),
       })
 
@@ -208,20 +211,17 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
       }
 
       const stats = data.stats
-      const questionType = isIncorrectOnly ? 'incorrect questions' : 'questions'
       setSuccess(
-        `Successfully imported ${stats.questionsSaved} ${questionType}! ` +
-        (stats.totalQuestions > 0
-          ? `Test score: ${stats.totalCorrect}/${stats.totalQuestions} (${stats.percentCorrect}%)`
-          : `Topics: ${stats.topics.slice(0, 3).join(', ')}${stats.topics.length > 3 ? '...' : ''}`)
+        `Successfully imported ${stats.questionsSaved} questions! ` +
+        `Score: ${stats.totalCorrect}/${stats.totalQuestions} (${stats.percentCorrect}%)`
       )
       setTimeout(() => {
         onSuccess()
         onClose()
         // Reset form
         setTestName('')
-        setPasteText('')
-        setPasteTotalQuestions('')
+        setCorrectText('')
+        setIncorrectText('')
       }, 2000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
@@ -231,7 +231,7 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
   }
 
   // Count lines in pasted text (excluding empty and header lines)
-  const pasteLineCount = pasteText.trim()
+  const countLines = (text: string) => text.trim()
     .split('\n')
     .filter(line => {
       const trimmed = line.trim()
@@ -239,6 +239,10 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
       if (trimmed.includes('SUBJECTS') || trimmed.includes('SYSTEMS')) return false
       return /\d+\s*[-–]\s*\d{5,}/.test(trimmed)
     }).length
+
+  const correctCount = countLines(correctText)
+  const incorrectCount = countLines(incorrectText)
+  const totalCount = correctCount + incorrectCount
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Log ${subject} Session`}>
@@ -372,13 +376,11 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
           <div className="bg-blue-900/20 border border-blue-700/30 p-3 rounded-lg text-xs text-blue-300">
             <p className="font-medium mb-1">Copy test results from UWorld:</p>
             <p className="text-blue-400">
-              1. Open your test results in UWorld<br />
-              2. Filter to show incorrect only OR select all questions<br />
-              3. Select rows in table and copy (Ctrl+C / Cmd+C)<br />
-              4. Paste below
-            </p>
-            <p className="text-slate-400 mt-2 text-[11px]">
-              Tracks subjects, systems, categories, and topics to identify weak areas over time.
+              1. Open your test in UWorld &gt; Review Test<br />
+              2. Filter to "Correct" questions, select all rows, copy<br />
+              3. Paste in the green box below<br />
+              4. Filter to "Incorrect" questions, select all rows, copy<br />
+              5. Paste in the red box below
             </p>
           </div>
 
@@ -390,7 +392,7 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
               type="text"
               value={testName}
               onChange={(e) => setTestName(e.target.value)}
-              placeholder="e.g., Week 1 Test"
+              placeholder="e.g., Week 3 Test"
               required
             />
             <p className="text-xs text-slate-500 mt-1">
@@ -398,70 +400,55 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
             </p>
           </div>
 
+          {/* Correct Questions Paste Box */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Paste Table Data
+            <label className="block text-sm font-medium text-green-400 mb-2">
+              Correct Questions
             </label>
             <Textarea
-              value={pasteText}
-              onChange={(e) => setPasteText(e.target.value)}
-              placeholder="Paste the copied table rows here..."
-              rows={5}
-              className="font-mono text-xs"
-              required
+              value={correctText}
+              onChange={(e) => setCorrectText(e.target.value)}
+              placeholder="Paste CORRECT questions here..."
+              rows={4}
+              className="font-mono text-xs border-green-700/50 focus:border-green-500"
             />
-            {pasteLineCount > 0 && (
-              <p className="text-xs text-slate-500 mt-1">
-                Detected {pasteLineCount} question{pasteLineCount !== 1 ? 's' : ''}
+            {correctCount > 0 && (
+              <p className="text-xs text-green-400 mt-1">
+                {correctCount} correct question{correctCount !== 1 ? 's' : ''}
               </p>
             )}
           </div>
 
-          <div className="flex items-center gap-4">
-            <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isIncorrectOnly}
-                onChange={(e) => setIsIncorrectOnly(e.target.checked)}
-                className="rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500"
-              />
-              Pasting incorrect questions only
+          {/* Incorrect Questions Paste Box */}
+          <div>
+            <label className="block text-sm font-medium text-red-400 mb-2">
+              Incorrect Questions
             </label>
-            {!isIncorrectOnly && (
-              <span className="text-xs text-green-400">All questions will be saved</span>
+            <Textarea
+              value={incorrectText}
+              onChange={(e) => setIncorrectText(e.target.value)}
+              placeholder="Paste INCORRECT questions here..."
+              rows={4}
+              className="font-mono text-xs border-red-700/50 focus:border-red-500"
+            />
+            {incorrectCount > 0 && (
+              <p className="text-xs text-red-400 mt-1">
+                {incorrectCount} incorrect question{incorrectCount !== 1 ? 's' : ''}
+              </p>
             )}
           </div>
 
-          {isIncorrectOnly && (
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Total Questions on Test (optional)
-              </label>
-              <Input
-                type="number"
-                value={pasteTotalQuestions}
-                onChange={(e) => setPasteTotalQuestions(e.target.value)}
-                placeholder="e.g., 40"
-                min="1"
-              />
-              <p className="text-xs text-slate-500 mt-1">
-                Enter total test size to calculate your score
-              </p>
-            </div>
-          )}
-
-          {isIncorrectOnly && pasteTotalQuestions && pasteLineCount > 0 && (
+          {/* Score Preview */}
+          {totalCount > 0 && (
             <div className="p-3 rounded-lg bg-slate-900/50 border border-slate-700/50">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-400">Questions Correct:</span>
-                <span className="font-semibold text-green-400">
-                  {parseInt(pasteTotalQuestions) - pasteLineCount} / {pasteTotalQuestions}
-                </span>
+                <span className="text-slate-400">Total Questions:</span>
+                <span className="font-semibold text-slate-200">{totalCount}</span>
               </div>
               <div className="flex items-center justify-between text-sm mt-1">
-                <span className="text-slate-400">Estimated Score:</span>
+                <span className="text-slate-400">Score:</span>
                 <span className="font-semibold text-blue-400">
-                  {Math.round(((parseInt(pasteTotalQuestions) - pasteLineCount) / parseInt(pasteTotalQuestions)) * 100)}%
+                  {correctCount}/{totalCount} ({Math.round((correctCount / totalCount) * 100)}%)
                 </span>
               </div>
             </div>
@@ -471,7 +458,7 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
             <Button variant="secondary" onClick={onClose} disabled={isLoading} className="flex-1">
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading || !testName.trim() || !pasteText.trim()} className="flex-1">
+            <Button type="submit" disabled={isLoading || !testName.trim() || totalCount === 0} className="flex-1">
               {isLoading ? 'Importing...' : 'Import Questions'}
             </Button>
           </div>
