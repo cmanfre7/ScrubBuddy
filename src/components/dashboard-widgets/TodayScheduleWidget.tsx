@@ -1,7 +1,8 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
-import { Calendar, MapPin, Clock } from 'lucide-react'
+import { Calendar, MapPin, Clock, ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface ScheduleEventInput {
   id: string
@@ -39,6 +40,8 @@ const EVENT_TYPE_COLORS: Record<string, string> = {
 }
 
 export function TodayScheduleWidget({ events }: TodayScheduleWidgetProps) {
+  const [dayOffset, setDayOffset] = useState(0)
+
   // Convert string dates to Date objects (needed when data is serialized from server to client)
   const normalizedEvents: ScheduleEvent[] = events.map((event) => ({
     ...event,
@@ -46,22 +49,37 @@ export function TodayScheduleWidget({ events }: TodayScheduleWidgetProps) {
     endTime: event.endTime instanceof Date ? event.endTime : new Date(event.endTime),
   }))
 
-  // Filter to only events that are "today" in the user's local timezone
-  // Server fetches a wider window to handle timezone differences
-  const todayEvents = normalizedEvents.filter((event) => {
-    const now = new Date()
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
-    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+  // Get the selected date based on offset
+  const getSelectedDate = () => {
+    const date = new Date()
+    date.setDate(date.getDate() + dayOffset)
+    return date
+  }
 
-    // Event is "today" if it starts today, ends today, or spans across today
-    const startsToday = event.startTime >= todayStart && event.startTime <= todayEnd
-    const endsToday = event.endTime >= todayStart && event.endTime <= todayEnd
-    const spansToday = event.startTime <= todayStart && event.endTime >= todayEnd
+  const selectedDate = getSelectedDate()
 
-    return startsToday || endsToday || spansToday
+  // Format the date for display
+  const formatDateLabel = () => {
+    if (dayOffset === 0) return "Today's Schedule"
+    if (dayOffset === 1) return "Tomorrow's Schedule"
+    if (dayOffset === -1) return "Yesterday's Schedule"
+    return selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+  }
+
+  // Filter to only events for the selected day
+  const selectedDayEvents = normalizedEvents.filter((event) => {
+    const dayStart = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), 0, 0, 0, 0)
+    const dayEnd = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), 23, 59, 59, 999)
+
+    // Event is for this day if it starts, ends, or spans across the day
+    const startsOnDay = event.startTime >= dayStart && event.startTime <= dayEnd
+    const endsOnDay = event.endTime >= dayStart && event.endTime <= dayEnd
+    const spansDay = event.startTime <= dayStart && event.endTime >= dayEnd
+
+    return startsOnDay || endsOnDay || spansDay
   })
 
-  const sortedEvents = [...todayEvents].sort(
+  const sortedEvents = [...selectedDayEvents].sort(
     (a, b) => a.startTime.getTime() - b.startTime.getTime()
   )
 
@@ -83,6 +101,8 @@ export function TodayScheduleWidget({ events }: TodayScheduleWidgetProps) {
   }
 
   const isOngoing = (event: ScheduleEvent) => {
+    // Only show "Now" badge when viewing today
+    if (dayOffset !== 0) return false
     const now = new Date()
     return event.startTime <= now && event.endTime >= now
   }
@@ -98,20 +118,46 @@ export function TodayScheduleWidget({ events }: TodayScheduleWidgetProps) {
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2">
           <Calendar size={20} className="text-blue-400" />
-          <h2 className="text-lg font-semibold text-white">Today's Schedule</h2>
+          <h2 className="text-lg font-semibold text-white">{formatDateLabel()}</h2>
         </div>
-        <Link
-          href="/dashboard/calendar"
-          className="text-xs text-blue-400 hover:text-blue-300 transition-colors font-medium"
-        >
-          View Calendar
-        </Link>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setDayOffset(d => d - 1)}
+            className="p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-slate-700/50 transition-colors"
+            aria-label="Previous day"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          {dayOffset !== 0 && (
+            <button
+              onClick={() => setDayOffset(0)}
+              className="px-2 py-1 rounded-md text-xs text-blue-400 hover:text-blue-300 hover:bg-slate-700/50 transition-colors"
+            >
+              Today
+            </button>
+          )}
+          <button
+            onClick={() => setDayOffset(d => d + 1)}
+            className="p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-slate-700/50 transition-colors"
+            aria-label="Next day"
+          >
+            <ChevronRight size={16} />
+          </button>
+          <Link
+            href="/dashboard/calendar"
+            className="ml-2 text-xs text-blue-400 hover:text-blue-300 transition-colors font-medium"
+          >
+            View Calendar
+          </Link>
+        </div>
       </div>
 
       {sortedEvents.length === 0 ? (
         <div className="text-center py-8">
           <Calendar size={48} className="mx-auto text-slate-600 mb-3" />
-          <p className="text-slate-400 text-sm">No events scheduled for today</p>
+          <p className="text-slate-400 text-sm">
+            No events scheduled for {dayOffset === 0 ? 'today' : dayOffset === 1 ? 'tomorrow' : dayOffset === -1 ? 'yesterday' : 'this day'}
+          </p>
           <Link
             href="/dashboard/calendar"
             className="text-xs text-blue-400 hover:text-blue-300 mt-2 inline-block"
