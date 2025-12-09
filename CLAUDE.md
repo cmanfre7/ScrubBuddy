@@ -26,11 +26,17 @@ This is the **single source of truth** for the ScrubBuddy project. AI agents MUS
 4. Commit the CLAUDE.md update with message: `docs: Update CLAUDE.md session log`
 
 ### Deployment Protocol
-**ALWAYS push to GitHub for deployment. Railway auto-deploys from GitHub.**
+**Railway auto-deploys from GitHub. Just push to main branch.**
 ```bash
 git add -A && git commit -m "your message" && git push origin main
+# That's it! Railway detects the push and deploys automatically.
+# You do NOT need to run `railway up` or check railway logs.
 ```
-**NEVER use `railway up` directly** - it bypasses GitHub and causes sync issues.
+
+**NEVER use `railway up` command** - It's unnecessary because:
+1. Railway is connected to GitHub and auto-deploys on every push to `main`
+2. Using `railway up` bypasses GitHub and can cause sync issues
+3. Just push to GitHub and the deploy happens automatically within 1-2 minutes
 
 ---
 
@@ -165,7 +171,8 @@ scrubbuddy/
 - **UWorldLog** - Daily session logs with systems and subjects
 - **UWorldTest** - Individual tests with subject breakdowns
 - **UWorldTestSubject** - Per-subject performance in each test
-- **UWorldIncorrect** - Tracked incorrect questions with spaced repetition
+- **UWorldQuestion** - ALL questions (correct AND incorrect) with subject/system/category/topic breakdown
+- **UWorldIncorrect** - Tracked incorrect questions with spaced repetition (legacy, still populated)
 
 ### Exams
 - **ShelfScore** - Shelf exam scores by rotation
@@ -241,32 +248,53 @@ The main dashboard is a **draggable widget system** using `DraggableDashboard.ts
 
 ### 3. UWorld Tracker (`/dashboard/uworld`)
 
-**Purpose:** Track UWorld question bank progress and performance.
+**Purpose:** Track UWorld question bank progress and performance with detailed analytics.
 
 **Features:**
 - Log daily question blocks with correct/incorrect counts
 - Track by system (Cardio, Pulm, GI, etc.) and subject
-- Import tests from UWorld (text paste or JSON)
-- Import incorrect questions from PDF export
+- **Paste Text Import (Primary Method):**
+  - "Paste Text" tab is now FIRST in the Log Session modal
+  - Copy table from UWorld's Review Test > Incorrect tab
+  - Toggle checkbox "Pasting incorrect questions only" to log correct OR incorrect questions
+  - Parses: Question ID, Subject, System, Category, Topic, % Others, Time Spent
+- **Expandable Session Details:**
+  - Click any session in the Sessions list to expand
+  - Shows detailed breakdown by Subject, System, Category, and Topic
+  - Displays total questions, correct/incorrect counts, and percentages
+- **UWorldQuestion Model:**
+  - Stores ALL questions (both correct and incorrect)
+  - Tracks isCorrect flag for cumulative analytics
+  - Links to parent UWorldLog session via logId
+  - Enables running totals across all exams (e.g., "7x missed in Cardiovascular Surgery")
+- Import tests from UWorld (text paste, JSON, or PDF)
 - View performance analytics by subject
-- Track incorrect questions with spaced repetition status
+- Track incorrect questions with spaced repetition status (UWorldIncorrect)
 - Custom question totals per subject (Settings)
-- Deduplicate and cleanup tools
+- Weak Areas widget shows cumulative stats across ALL tests
 
 **API Routes:**
 - `GET /api/uworld` - List all logs
 - `POST /api/uworld` - Create new log
-- `PUT /api/uworld/[id]` - Update log
+- `GET /api/uworld/[id]` - Get single log
+- `GET /api/uworld/[id]?includeQuestions=true` - Get log with questions + breakdown
+- `PATCH /api/uworld/[id]` - Update log
 - `DELETE /api/uworld/[id]` - Delete log
 - `POST /api/uworld/import` - Import from PDF
-- `POST /api/uworld/import-text` - Import from text
+- `POST /api/uworld/import-text` - Import from text (saves to UWorldQuestion + UWorldIncorrect)
 - `POST /api/uworld/import-json` - Import from JSON
 - `POST /api/uworld/dedupe` - Remove duplicates
 - `POST /api/uworld/cleanup` - Clean up data
 - `DELETE /api/uworld/clear` - Clear all data
-- `GET /api/uworld/weak-areas` - Get weak areas
+- `GET /api/uworld/weak-areas` - Get weak areas (cumulative across ALL tests)
 - `GET /api/uworld/settings` - Get custom totals
 - `POST /api/uworld/settings` - Set custom totals
+
+**UWorld Text Paste Format (tab-separated):**
+```
+1 - 118154  Surgery  Cardiovascular  Management  Aortic dissection  65%  45 sec
+2 - 118155  Medicine  Pulmonary  Diagnosis  COPD exacerbation  72%  38 sec
+```
 
 **Systems Tracked:**
 Cardiovascular, Pulmonary, GI, Renal, Neurology, MSK, Endocrine, Heme/Onc, ID, Psychiatry, Reproductive, Dermatology, Biostats, Ethics
@@ -586,4 +614,112 @@ git add -A && git commit -m "message" && git push origin main
 
 ---
 
-*Last updated: December 1, 2025*
+### December 8, 2024 - Session 2
+
+**Worked On:** UWorld question-level tracking, expandable session details, text paste improvements
+
+**Completed:**
+
+1. **Moved "Paste Text" to First Tab Position**
+   - In LogSessionModal, changed default tab from 'manual' to 'paste'
+   - Reordered tabs: Paste Text -> Manual Entry -> Upload PDF
+   - This reflects user's primary workflow for logging UWorld sessions
+
+2. **Created UWorldQuestion Model (New Database Table)**
+   - Stores ALL questions (both correct AND incorrect)
+   - Fields: userId, logId, questionId, subject, system, category, topic, percentOthers, timeSpent, isCorrect, testName
+   - Unique constraint on [userId, questionId] to prevent duplicates
+   - Indexes on userId, logId, subject, system, isCorrect for fast queries
+   - Migration file: `prisma/migrations/20241208000000_add_uworld_question/migration.sql`
+
+3. **Updated Text Paste Import to Support Both Correct and Incorrect Questions**
+   - Added checkbox "Pasting incorrect questions only" (checked by default for backward compat)
+   - When unchecked, all pasted questions are saved as correct
+   - Shows indicator: "All questions will be saved" when unchecked
+   - Questions now saved to both UWorldQuestion (all) and UWorldIncorrect (incorrect only)
+
+4. **Added Expandable Session Details View**
+   - Clicking a session in the Sessions list expands to show detailed breakdown
+   - Shows breakdown by Subject, System, Category, and Topic
+   - Each row displays: name, total questions, correct count, incorrect count, percentage
+   - Uses ChevronDown/ChevronUp icons for expand indicator
+   - Fetches data from `/api/uworld/[id]?includeQuestions=true`
+
+5. **Updated API Route `/api/uworld/[id]`**
+   - Added `?includeQuestions=true` query parameter support
+   - When enabled, includes all questions for that session
+   - Computes summary stats (bySubject, bySystem, byCategory, byTopic)
+   - Each breakdown includes: name, total, correct, incorrect, percentage
+
+6. **Fixed TypeScript Error in API Route**
+   - Prisma conditional `include` doesn't provide proper type inference
+   - Solution: Use separate queries for with/without questions
+   - This allows TypeScript to properly infer the `questions` property exists
+
+**Technical Details:**
+
+UWorldQuestion Schema:
+```prisma
+model UWorldQuestion {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logId         String?
+  log           UWorldLog? @relation(fields: [logId], references: [id], onDelete: Cascade)
+  questionId    String?
+  subject       String
+  system        String
+  category      String
+  topic         String
+  percentOthers Int       @default(0)
+  timeSpent     Int       @default(0)
+  isCorrect     Boolean
+  testName      String?
+  createdAt     DateTime  @default(now())
+
+  @@unique([userId, questionId])
+  @@index([userId])
+  @@index([logId])
+  @@index([subject])
+  @@index([system])
+  @@index([isCorrect])
+}
+```
+
+Session Detail API Response (when includeQuestions=true):
+```json
+{
+  "id": "session-id",
+  "blockName": "UWSA1",
+  "questions": [...],
+  "breakdown": {
+    "bySubject": [{"name": "Surgery", "total": 10, "correct": 7, "incorrect": 3, "percentage": 70}],
+    "bySystem": [...],
+    "byCategory": [...],
+    "byTopic": [...]
+  }
+}
+```
+
+**Files Changed:**
+- `prisma/schema.prisma` - Added UWorldQuestion model and relations
+- `prisma/migrations/20241208000000_add_uworld_question/migration.sql` - Database migration
+- `src/components/uworld/LogSessionModal.tsx` - Paste Text first, checkbox for correct/incorrect
+- `src/app/api/uworld/import-text/route.ts` - Save to UWorldQuestion + UWorldIncorrect
+- `src/app/api/uworld/[id]/route.ts` - GET with includeQuestions param + breakdown
+- `src/app/(dashboard)/dashboard/uworld/page.tsx` - Expandable session details UI
+- `CLAUDE.md` - Updated with December 8 session log
+
+**User Request:**
+"Move paste text to first slot, add all columns (subject, systems, categories, topics) when clicking a session, make paste text work for both correct and incorrect questions. Also ensure weak areas keeps a running total across ALL exams."
+
+**Resolution:**
+- Paste Text is now first tab
+- Clicking sessions shows expandable breakdown with all columns
+- Text paste now supports both correct/incorrect via checkbox
+- Weak Areas API already fetches ALL incorrect questions across all tests (verified existing functionality)
+- New UWorldQuestion model enables cumulative tracking across all exams
+
+---
+
+*Last updated: December 8, 2024*
