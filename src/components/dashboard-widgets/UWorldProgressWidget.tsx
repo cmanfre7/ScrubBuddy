@@ -1,14 +1,22 @@
+'use client'
+
+import { useMemo } from 'react'
 import Link from 'next/link'
+
+interface LogData {
+  date: string // ISO date string
+  questionsTotal: number
+  questionsCorrect: number
+  systems: string[]
+}
 
 interface UWorldProgressWidgetProps {
   percentage: number
   questionsDone: number
   totalQuestions: number
   overallCorrect: number
-  todayQuestions: number
-  todayCorrect: number
-  weekQuestions: number
-  weekCorrect: number
+  // Pass raw log data so we can calculate today/week using LOCAL timezone
+  recentLogs: LogData[]
 }
 
 export function UWorldProgressWidget({
@@ -16,11 +24,57 @@ export function UWorldProgressWidget({
   questionsDone,
   totalQuestions,
   overallCorrect,
-  todayQuestions,
-  todayCorrect,
-  weekQuestions,
-  weekCorrect,
+  recentLogs,
 }: UWorldProgressWidgetProps) {
+  // Calculate today and this week stats using LOCAL timezone
+  const { todayQuestions, todayCorrect, weekQuestions, weekCorrect } = useMemo(() => {
+    const now = new Date()
+
+    // Get today's date at midnight LOCAL time
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+    // Get 7 days ago at midnight LOCAL time
+    const weekStart = new Date(todayStart)
+    weekStart.setDate(weekStart.getDate() - 7)
+
+    let todayQ = 0
+    let todayC = 0
+    let weekQ = 0
+    let weekC = 0
+
+    for (const log of recentLogs) {
+      // Only count logs with systems assigned
+      if (!log.systems || log.systems.length === 0) continue
+
+      // Parse the log date and get it in LOCAL time
+      const logDate = new Date(log.date)
+      const logLocalDate = new Date(
+        logDate.getFullYear(),
+        logDate.getMonth(),
+        logDate.getDate()
+      )
+
+      // Check if this log is from today (local time)
+      if (logLocalDate.getTime() >= todayStart.getTime()) {
+        todayQ += log.questionsTotal
+        todayC += log.questionsCorrect
+      }
+
+      // Check if this log is from this week (local time)
+      if (logLocalDate.getTime() >= weekStart.getTime()) {
+        weekQ += log.questionsTotal
+        weekC += log.questionsCorrect
+      }
+    }
+
+    return {
+      todayQuestions: todayQ,
+      todayCorrect: todayC,
+      weekQuestions: weekQ,
+      weekCorrect: weekC,
+    }
+  }, [recentLogs])
+
   // SVG circle calculation
   const radius = 50
   const circumference = 2 * Math.PI * radius

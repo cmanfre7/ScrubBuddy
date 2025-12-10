@@ -17,28 +17,23 @@ import { RotationDayDisplay } from '@/components/RotationDayDisplay'
 import { Calendar as CalendarIcon, Target, FileText, Stethoscope } from 'lucide-react'
 
 async function getDashboardData(userId: string) {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const now = new Date()
 
-  const weekAgo = new Date(today)
-  weekAgo.setDate(weekAgo.getDate() - 7)
-
-  const todayEnd = new Date(today)
-  todayEnd.setHours(23, 59, 59, 999)
+  // For UWorld logs, fetch last 14 days to cover timezone differences
+  // The client-side will calculate today/week using LOCAL timezone
+  const twoWeeksAgo = new Date(now)
+  twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14)
 
   // For calendar events, expand the query window to account for timezone differences
-  // This ensures events that are "today" in any US timezone get fetched
-  // The client-side will display them correctly based on local time
-  const eventQueryStart = new Date(today)
-  eventQueryStart.setHours(-12, 0, 0, 0) // 12 hours before midnight (covers ahead timezones)
+  const eventQueryStart = new Date(now)
+  eventQueryStart.setHours(-12, 0, 0, 0)
 
-  const eventQueryEnd = new Date(today)
-  eventQueryEnd.setHours(35, 59, 59, 999) // 12 hours after end of day (covers behind timezones)
+  const eventQueryEnd = new Date(now)
+  eventQueryEnd.setHours(35, 59, 59, 999)
 
   const [
     user,
-    todayLogs,
-    weekLogs,
+    recentLogs,
     allLogs,
     allIncorrects,
     currentRotation,
@@ -52,11 +47,10 @@ async function getDashboardData(userId: string) {
       where: { id: userId },
       select: { name: true, step2Date: true, comlexDate: true, dailyGoal: true },
     }),
+    // Fetch last 14 days of logs - client will filter by local timezone
     prisma.uWorldLog.findMany({
-      where: { userId, date: { gte: today } },
-    }),
-    prisma.uWorldLog.findMany({
-      where: { userId, date: { gte: weekAgo } },
+      where: { userId, date: { gte: twoWeeksAgo } },
+      select: { date: true, questionsTotal: true, questionsCorrect: true, systems: true },
     }),
     prisma.uWorldLog.findMany({
       where: { userId },
@@ -132,16 +126,17 @@ async function getDashboardData(userId: string) {
   // Calculate UWorld stats - only count logs that have at least one system assigned
   // This excludes bulk imports with empty systems arrays that don't show under any subject
   const logsWithSystems = allLogs.filter(log => log.systems && log.systems.length > 0)
-  const todayLogsWithSystems = todayLogs.filter(log => log.systems && log.systems.length > 0)
-  const weekLogsWithSystems = weekLogs.filter(log => log.systems && log.systems.length > 0)
-
-  const questionsToday = todayLogsWithSystems.reduce((sum, log) => sum + log.questionsTotal, 0)
-  const correctToday = todayLogsWithSystems.reduce((sum, log) => sum + log.questionsCorrect, 0)
-  const questionsThisWeek = weekLogsWithSystems.reduce((sum, log) => sum + log.questionsTotal, 0)
-  const correctThisWeek = weekLogsWithSystems.reduce((sum, log) => sum + log.questionsCorrect, 0)
   const totalQuestions = logsWithSystems.reduce((sum, log) => sum + log.questionsTotal, 0)
   const totalCorrect = logsWithSystems.reduce((sum, log) => sum + log.questionsCorrect, 0)
   const uworldPercentage = calculatePercentage(totalCorrect, totalQuestions)
+
+  // Convert recent logs to serializable format for client-side today/week calculation
+  const recentLogsForClient = recentLogs.map(log => ({
+    date: log.date.toISOString(),
+    questionsTotal: log.questionsTotal,
+    questionsCorrect: log.questionsCorrect,
+    systems: log.systems,
+  }))
 
   // Calculate total UWorld questions available based on user's custom settings
   // Merge defaults with user's custom totals, then sum all subjects
@@ -195,7 +190,7 @@ async function getDashboardData(userId: string) {
 
   // Calculate study streak
   const last28Days = Array.from({ length: 28 }, (_, i) => {
-    const date = new Date(today)
+    const date = new Date(now)
     date.setDate(date.getDate() - (27 - i))
     const dayLogs = allLogs.filter((log) => {
       const logDate = new Date(log.date)
@@ -222,10 +217,7 @@ async function getDashboardData(userId: string) {
 
   return {
     user,
-    questionsToday,
-    correctToday,
-    questionsThisWeek,
-    correctThisWeek,
+    recentLogsForClient,
     totalQuestions,
     totalCorrect,
     uworldPercentage,
@@ -413,10 +405,7 @@ export default async function DashboardPage() {
             questionsDone={data.totalQuestions}
             totalQuestions={data.uworldTotalQuestions}
             overallCorrect={data.uworldPercentage}
-            todayQuestions={data.questionsToday}
-            todayCorrect={data.correctToday}
-            weekQuestions={data.questionsThisWeek}
-            weekCorrect={data.correctThisWeek}
+            recentLogs={data.recentLogsForClient}
           />
         }
         goalsWidget={<GoalsWidget initialGoals={data.tasks} />}
