@@ -365,13 +365,20 @@ Guidelines:
 - Use evidence-based medicine principles
 - Keep responses concise but thorough
 
+FORMATTING RULES (CRITICAL):
+- DO NOT use markdown formatting (no asterisks, no bold, no headers)
+- Use plain text only - the chat interface does not render markdown
+- Use line breaks and numbered lists for structure instead of markdown
+- For emphasis, use CAPS or dashes instead of **bold**
+
 You should NOT:
 - Give generic advice that ignores their data
 - Provide direct patient care advice
 - Replace supervision from licensed physicians
 - Give definitive diagnoses without proper clinical context
+- Use markdown formatting like **bold** or *italics*
 
-Remember: You have full visibility into this student's progress. Use it to give them the most relevant, personalized guidance possible.`
+Remember: You have full visibility into this student's progress. Use it to give them the most relevant, personalized guidance possible. Keep formatting clean and readable.`
 
     // Make API call to Anthropic
     console.log('[AI Chat] Calling Anthropic API...')
