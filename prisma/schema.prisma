@@ -52,6 +52,7 @@ model User {
   googleCalendarSync GoogleCalendarSync?
   uworldSettings UWorldSettings[]
   quickLinks    QuickLink[]
+  calendarFeed  CalendarFeed?
 }
 
 // ==================== ROTATIONS ====================
@@ -843,11 +844,15 @@ model GoogleCalendarSync {
   refreshToken      String    @db.Text
   tokenExpiresAt    DateTime
 
+  // Google user info
+  googleEmail       String?
+
   // Sync settings
   syncEnabled       Boolean   @default(true)
   selectedCalendars String[]  @default([]) // Google Calendar IDs to sync
   lastSyncAt        DateTime?
   syncDirection     String    @default("both") // "both", "to_google", "from_google"
+  syncToken         String?   @db.Text // For incremental sync
 
   // Conflict resolution
   preferLocal       Boolean   @default(false) // On conflict, prefer local or Google changes
@@ -873,4 +878,20 @@ model QuickLink {
   updatedAt   DateTime  @updatedAt
 
   @@index([userId])
+}
+
+// ==================== CALENDAR FEED (ICS) ====================
+
+model CalendarFeed {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  token       String    @unique  // Secure random token for feed URL
+  isActive    Boolean   @default(true)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([token])
 }

@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Modal } from '@/components/ui/modal'
 import { Select } from '@/components/ui/select'
 import { formatDate } from '@/lib/utils'
-import { Plus, Calendar, Trash2, Settings, Target, Edit2, Award, Link, GripVertical, ExternalLink } from 'lucide-react'
+import { Plus, Calendar, Trash2, Settings, Target, Edit2, Award, Link, GripVertical, ExternalLink, RefreshCw, Copy, Check, Cloud, Apple } from 'lucide-react'
 import { ROTATION_OPTIONS } from '@/types'
 
 interface BoardExam {
@@ -72,6 +72,10 @@ export default function SettingsPage() {
   const [newQuickLink, setNewQuickLink] = useState({ name: '', url: '' })
   const [editQuickLinkData, setEditQuickLinkData] = useState({ name: '', url: '' })
 
+  // Calendar sync states
+  const [feedUrlCopied, setFeedUrlCopied] = useState(false)
+  const [isSyncing, setIsSyncing] = useState(false)
+
   // Fetch board exams
   const { data: boardExamsData } = useQuery<BoardExam[]>({
     queryKey: ['board-exams'],
@@ -106,6 +110,31 @@ export default function SettingsPage() {
   })
 
   const quickLinks = quickLinksData || []
+
+  // Fetch Google Calendar status
+  const { data: googleCalendarStatus, refetch: refetchGoogleStatus } = useQuery({
+    queryKey: ['google-calendar-status'],
+    queryFn: async () => {
+      const res = await fetch('/api/google-calendar/status')
+      if (!res.ok) return { connected: false }
+      return res.json()
+    },
+  })
+
+  // Fetch ICS feed info
+  const { data: feedData, refetch: refetchFeed } = useQuery({
+    queryKey: ['calendar-feed'],
+    queryFn: async () => {
+      const res = await fetch('/api/calendar-feed')
+      if (!res.ok) return { exists: false }
+      return res.json()
+    },
+  })
+
+  // Generate ICS feed URL
+  const feedUrl = feedData?.token
+    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/api/calendar/feed/${feedData.token}`
+    : null
 
   const createRotationMutation = useMutation({
     mutationFn: async (data: typeof newRotation) => {
@@ -281,6 +310,67 @@ export default function SettingsPage() {
   const handleDeleteQuickLink = (link: QuickLink) => {
     setSelectedQuickLink(link)
     setIsDeleteQuickLinkModalOpen(true)
+  }
+
+  // Calendar sync handlers
+  const handleConnectGoogle = async () => {
+    try {
+      const res = await fetch('/api/google-calendar/connect')
+      const data = await res.json()
+      if (data.url) {
+        window.location.href = data.url
+      } else if (data.error) {
+        alert(data.error)
+      }
+    } catch (error) {
+      console.error('Failed to connect Google Calendar:', error)
+    }
+  }
+
+  const handleDisconnectGoogle = async () => {
+    if (!confirm('Are you sure you want to disconnect Google Calendar?')) return
+    try {
+      await fetch('/api/google-calendar/disconnect', { method: 'POST' })
+      refetchGoogleStatus()
+    } catch (error) {
+      console.error('Failed to disconnect Google Calendar:', error)
+    }
+  }
+
+  const handleSyncGoogle = async () => {
+    setIsSyncing(true)
+    try {
+      const res = await fetch('/api/google-calendar/sync', { method: 'POST' })
+      const data = await res.json()
+      if (data.success) {
+        alert(`Sync complete! Pulled: ${data.pulled}, Pushed: ${data.pushed}`)
+        refetchGoogleStatus()
+      } else {
+        alert(data.error || 'Sync failed')
+      }
+    } catch (error) {
+      console.error('Failed to sync:', error)
+      alert('Sync failed')
+    } finally {
+      setIsSyncing(false)
+    }
+  }
+
+  const handleGenerateFeed = async () => {
+    try {
+      await fetch('/api/calendar-feed', { method: 'POST' })
+      refetchFeed()
+    } catch (error) {
+      console.error('Failed to generate feed:', error)
+    }
+  }
+
+  const handleCopyFeedUrl = () => {
+    if (feedUrl) {
+      navigator.clipboard.writeText(feedUrl)
+      setFeedUrlCopied(true)
+      setTimeout(() => setFeedUrlCopied(false), 2000)
+    }
   }
 
   return (
@@ -533,6 +623,105 @@ export default function SettingsPage() {
               ))}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Calendar Sync Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+            <Calendar size={18} className="text-orange-400" />
+            Calendar Sync
+          </CardTitle>
+          <CardDescription className="text-xs md:text-sm">
+            Sync your ScrubBuddy calendar with Google and Apple
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Google Calendar Section */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Cloud size={16} className="text-blue-400" />
+              <span className="text-sm font-medium text-slate-200">Google Calendar</span>
+              {googleCalendarStatus?.connected && (
+                <span className="text-xs px-2 py-0.5 bg-green-500/20 text-green-400 rounded">Connected</span>
+              )}
+            </div>
+
+            {googleCalendarStatus?.connected ? (
+              <div className="space-y-3 pl-6">
+                <p className="text-xs text-slate-400">
+                  Connected as {googleCalendarStatus.googleEmail}
+                </p>
+                {googleCalendarStatus.lastSyncAt && (
+                  <p className="text-xs text-slate-500">
+                    Last synced: {new Date(googleCalendarStatus.lastSyncAt).toLocaleString()}
+                  </p>
+                )}
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={handleSyncGoogle} disabled={isSyncing}>
+                    <RefreshCw size={14} className={`mr-1 ${isSyncing ? 'animate-spin' : ''}`} />
+                    {isSyncing ? 'Syncing...' : 'Sync Now'}
+                  </Button>
+                  <Button size="sm" variant="danger" onClick={handleDisconnectGoogle}>
+                    Disconnect
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="pl-6">
+                <p className="text-xs text-slate-500 mb-2">
+                  Two-way sync: Events sync between ScrubBuddy and Google Calendar
+                </p>
+                <Button size="sm" onClick={handleConnectGoogle}>
+                  <Cloud size={14} className="mr-1" />
+                  Connect Google Calendar
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <hr className="border-slate-700" />
+
+          {/* Apple Calendar / ICS Feed Section */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Apple size={16} className="text-slate-300" />
+              <span className="text-sm font-medium text-slate-200">Apple Calendar / Other Apps</span>
+            </div>
+
+            <div className="pl-6 space-y-3">
+              <p className="text-xs text-slate-500">
+                Subscribe to an ICS feed to see ScrubBuddy events in Apple Calendar, Outlook, or any calendar app.
+                <br />
+                <span className="text-slate-600">(One-way: ScrubBuddy → Calendar app)</span>
+              </p>
+
+              {feedUrl ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 text-xs bg-slate-800 px-2 py-1.5 rounded text-slate-300 truncate">
+                      {feedUrl}
+                    </code>
+                    <Button size="sm" variant="secondary" onClick={handleCopyFeedUrl}>
+                      {feedUrlCopied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-slate-600">
+                    In Apple Calendar: File → New Calendar Subscription → paste URL
+                  </p>
+                  <Button size="sm" variant="secondary" onClick={handleGenerateFeed}>
+                    <RefreshCw size={14} className="mr-1" />
+                    Regenerate URL
+                  </Button>
+                </div>
+              ) : (
+                <Button size="sm" onClick={handleGenerateFeed}>
+                  Generate Feed URL
+                </Button>
+              )}
+            </div>
+          </div>
         </CardContent>
       </Card>
 
