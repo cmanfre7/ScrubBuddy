@@ -68,6 +68,30 @@ export function TodayScheduleWidget({ events }: TodayScheduleWidgetProps) {
 
   // Filter to only events for the selected day
   const selectedDayEvents = normalizedEvents.filter((event) => {
+    // For all-day events, compare dates only (ignoring timezone issues)
+    // All-day events are stored at noon UTC, so we use UTC date components
+    if (event.isAllDay) {
+      const dateYear = selectedDate.getFullYear()
+      const dateMonth = selectedDate.getMonth()
+      const dateDay = selectedDate.getDate()
+
+      const startYear = event.startTime.getUTCFullYear()
+      const startMonth = event.startTime.getUTCMonth()
+      const startDay = event.startTime.getUTCDate()
+
+      const endYear = event.endTime.getUTCFullYear()
+      const endMonth = event.endTime.getUTCMonth()
+      const endDay = event.endTime.getUTCDate()
+
+      // Create comparable dates (all at midnight local time)
+      const currDate = new Date(dateYear, dateMonth, dateDay)
+      const startDate = new Date(startYear, startMonth, startDay)
+      const endDate = new Date(endYear, endMonth, endDay)
+
+      return currDate >= startDate && currDate <= endDate
+    }
+
+    // For timed events, use the existing logic
     const dayStart = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), 0, 0, 0, 0)
     const dayEnd = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), 23, 59, 59, 999)
 

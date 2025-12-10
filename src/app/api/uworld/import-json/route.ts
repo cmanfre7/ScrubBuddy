@@ -92,37 +92,22 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Check for existing UWorldLog
-    const existingLog = await prisma.uWorldLog.findFirst({
-      where: { userId, blockName: testName },
+    // Always create a new UWorldLog - each session should be its own record
+    // (Previously this would overwrite existing logs with the same blockName, causing data loss)
+    await prisma.uWorldLog.create({
+      data: {
+        userId,
+        date: new Date(),
+        questionsTotal: totalQuestions,
+        questionsCorrect: totalCorrect,
+        timeSpentMins: Math.round(questions.reduce((sum, q) => sum + q.timeSpent, 0) / 60),
+        mode: 'Test',
+        blockName: testName,
+        systems: uniqueSubjects,
+        subjects: uniqueSystems,
+        notes: `Imported via browser scrape - ${testId}`,
+      },
     })
-
-    if (existingLog) {
-      await prisma.uWorldLog.update({
-        where: { id: existingLog.id },
-        data: {
-          questionsTotal: totalQuestions,
-          questionsCorrect: totalCorrect,
-          systems: uniqueSubjects, // Use subjects as systems for shelf categorization
-          subjects: uniqueSystems,
-        },
-      })
-    } else {
-      await prisma.uWorldLog.create({
-        data: {
-          userId,
-          date: new Date(),
-          questionsTotal: totalQuestions,
-          questionsCorrect: totalCorrect,
-          timeSpentMins: Math.round(questions.reduce((sum, q) => sum + q.timeSpent, 0) / 60),
-          mode: 'Test',
-          blockName: testName,
-          systems: uniqueSubjects,
-          subjects: uniqueSystems,
-          notes: `Imported via browser scrape - ${testId}`,
-        },
-      })
-    }
 
     // Save incorrect questions for weak areas
     let savedIncorrects = 0

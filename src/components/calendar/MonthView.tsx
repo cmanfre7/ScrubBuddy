@@ -66,6 +66,31 @@ export function MonthView({ currentDate, events, onDateClick, onEventClick, onSh
     return events.filter((event) => {
       const eventStart = new Date(event.startTime)
       const eventEnd = new Date(event.endTime)
+
+      // For all-day events, compare dates only (ignoring timezone issues)
+      // All-day events are stored at noon UTC, so we use UTC date components
+      if (event.isAllDay) {
+        const dateYear = date.getFullYear()
+        const dateMonth = date.getMonth()
+        const dateDay = date.getDate()
+
+        const startYear = eventStart.getUTCFullYear()
+        const startMonth = eventStart.getUTCMonth()
+        const startDay = eventStart.getUTCDate()
+
+        const endYear = eventEnd.getUTCFullYear()
+        const endMonth = eventEnd.getUTCMonth()
+        const endDay = eventEnd.getUTCDate()
+
+        // Create comparable dates (all at midnight local time)
+        const currentDate = new Date(dateYear, dateMonth, dateDay)
+        const startDate = new Date(startYear, startMonth, startDay)
+        const endDate = new Date(endYear, endMonth, endDay)
+
+        return currentDate >= startDate && currentDate <= endDate
+      }
+
+      // For timed events, use the existing logic
       const dateStart = new Date(date)
       dateStart.setHours(0, 0, 0, 0)
       const dateEnd = new Date(date)

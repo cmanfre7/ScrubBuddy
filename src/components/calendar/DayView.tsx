@@ -46,6 +46,30 @@ export function DayView({ currentDate, events, onEventClick }: DayViewProps) {
       const eventStart = new Date(event.startTime)
       const eventEnd = new Date(event.endTime)
 
+      // For all-day events, compare dates only (ignoring timezone issues)
+      // All-day events are stored at noon UTC, so we use UTC date components
+      if (event.isAllDay) {
+        const dateYear = currentDate.getFullYear()
+        const dateMonth = currentDate.getMonth()
+        const dateDay = currentDate.getDate()
+
+        const startYear = eventStart.getUTCFullYear()
+        const startMonth = eventStart.getUTCMonth()
+        const startDay = eventStart.getUTCDate()
+
+        const endYear = eventEnd.getUTCFullYear()
+        const endMonth = eventEnd.getUTCMonth()
+        const endDay = eventEnd.getUTCDate()
+
+        // Create comparable dates (all at midnight local time)
+        const currDate = new Date(dateYear, dateMonth, dateDay)
+        const startDate = new Date(startYear, startMonth, startDay)
+        const endDate = new Date(endYear, endMonth, endDay)
+
+        return currDate >= startDate && currDate <= endDate
+      }
+
+      // For timed events, use the existing logic
       return (
         (eventStart >= dateStart && eventStart <= dateEnd) ||
         (eventEnd >= dateStart && eventEnd <= dateEnd) ||

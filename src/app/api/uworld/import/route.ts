@@ -323,44 +323,22 @@ async function handleTestPdf(userId: string, text: string, notes?: string) {
       }
     }
 
-    // Check for existing UWorldLog with the same test name to prevent duplicates
-    const existingLog = await prisma.uWorldLog.findFirst({
-      where: {
+    // Always create a new UWorldLog - each session should be its own record
+    // (Previously this would overwrite existing logs with the same blockName, causing data loss)
+    await prisma.uWorldLog.create({
+      data: {
         userId,
+        date: new Date(),
+        questionsTotal: totalQuestions,
+        questionsCorrect: totalCorrect,
+        timeSpentMins: 0,
+        mode: 'Test',
         blockName: testName,
+        systems: systemsFromQuestions,
+        subjects: subjects.map(s => s.name),
+        notes: notes || `Imported from test: ${testName}`,
       },
     })
-
-    if (existingLog) {
-      // Update existing log instead of creating duplicate
-      console.log(`Updating existing UWorldLog for test: ${testName}`)
-      await prisma.uWorldLog.update({
-        where: { id: existingLog.id },
-        data: {
-          questionsTotal: totalQuestions,
-          questionsCorrect: totalCorrect,
-          systems: systemsFromQuestions,
-          subjects: subjects.map(s => s.name),
-          notes: notes || `Imported from test: ${testName}`,
-        },
-      })
-    } else {
-      // Create new log entry
-      await prisma.uWorldLog.create({
-        data: {
-          userId,
-          date: new Date(),
-          questionsTotal: totalQuestions,
-          questionsCorrect: totalCorrect,
-          timeSpentMins: 0,
-          mode: 'Test',
-          blockName: testName,
-          systems: systemsFromQuestions,
-          subjects: subjects.map(s => s.name),
-          notes: notes || `Imported from test: ${testName}`,
-        },
-      })
-    }
 
     // Save incorrect questions for weak areas tracking
     let savedIncorrects = 0
