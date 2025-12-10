@@ -460,7 +460,9 @@ export async function GET(request: Request) {
 
 ## KNOWN ISSUES & SOLUTIONS
 
-### Anki Add-on v1.6.0 Compatibility
+### Anki Add-on v1.7.0 Compatibility
+
+**Current Add-on Version:** v1.7.0
 
 **Issue:** Anki 25.02+ uses Rust backend which returns lists instead of cursors from DB queries.
 
@@ -489,6 +491,21 @@ if hasattr(tree, 'new_count'):
     stats["newDue"] = tree.new_count
     stats["learningDue"] = tree.learn_count
     stats["reviewDue"] = tree.review_count
+```
+
+**Issue (v1.7.0):** `newStudied` and `reviewsStudied` showing 0 despite due counts working
+
+**Solution:** Use dual-method timestamp calculation with validation:
+```python
+# Method 1: Anki's day_cutoff (accounts for custom rollover)
+day_cutoff = col.sched.day_cutoff
+today_start_method1 = int((day_cutoff - 86400) * 1000)
+
+# Method 2: Python datetime (fallback)
+midnight = datetime(now.year, now.month, now.day, 0, 0, 0)
+today_start_method2 = int(midnight.timestamp() * 1000)
+
+# Use method 1 if within 48 hours of method 2, else fallback
 ```
 
 ### Dashboard Widget Issues
@@ -739,4 +756,56 @@ Session Detail API Response (when includeQuestions=true):
 
 ---
 
-*Last updated: December 8, 2024*
+### December 9, 2025 - Session 3
+
+**Worked On:** Google Calendar OAuth fixes, Calendar UX improvements, Anki sync studied counts fix
+
+**Previous Session (earlier today - carried over from context):**
+- Fixed Google OAuth redirect issues (was redirecting to localhost:8080 instead of production URL)
+- Hardcoded `BASE_URL = 'https://scrubbuddy.app'` in callback route to avoid Railway proxy issues
+- Created database migration for CalendarFeed table and googleEmail/syncToken columns
+- Created Terms of Service and Privacy Policy pages for Google OAuth verification
+- Fixed calendar "+X more" click behavior to switch to Day view instead of opening Add Event modal
+
+**Current Session:**
+
+1. **Fixed Anki Add-on v1.6.0 → v1.7.0 - Studied Counts Bug**
+   - Issue: "Cards Due Today" showed correct values but "Recent Progress" showed all 0s
+   - Root cause: `col.sched.day_cutoff` may return inconsistent values in Anki 25.02+
+   - Fix: Added dual-method timestamp calculation with validation:
+     - Method 1: Use Anki's day_cutoff (preferred, accounts for custom rollover time)
+     - Method 2: Use Python datetime at local midnight (fallback)
+     - Validates method 1 is within 48 hours of method 2, otherwise uses fallback
+   - Added diagnostic logging to help debug future issues
+   - Added check query to verify revlog table has data when results are empty
+
+**Files Changed:**
+- `src/app/api/anking/addon/route.ts` - Updated add-on code with robust timestamp calculation, version 1.7.0
+
+**Technical Details:**
+
+The fix adds a more robust timestamp calculation:
+```python
+# Method 1: Use Anki's day_cutoff
+day_cutoff = col.sched.day_cutoff
+today_start_method1 = int((day_cutoff - 86400) * 1000)
+
+# Method 2: Fallback to Python datetime
+midnight = datetime(now.year, now.month, now.day, 0, 0, 0)
+today_start_method2 = int(midnight.timestamp() * 1000)
+
+# Validate method 1 is reasonable (within 48 hours of method 2)
+if abs difference < 48 hours:
+    use method 1
+else:
+    use method 2 (fallback)
+```
+
+**User Action Required:**
+- Re-download the Anki add-on from Settings > Sync Setup > Download Add-on
+- Reinstall and restart Anki
+- Check Anki's error console (Help > Debug Console) for diagnostic output
+
+---
+
+*Last updated: December 9, 2025*

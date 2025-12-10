@@ -186,12 +186,41 @@ def get_collection_stats() -> Dict[str, Any]:
             stats["youngCards"] = row[3] or 0
 
         # Get today's study stats from revlog
-        day_cutoff = col.sched.day_cutoff
-        today_start = int((day_cutoff - 86400) * 1000)
-        print(f"ScrubBuddy: day_cutoff={day_cutoff}, today_start={today_start}")
+        # Use multiple methods to calculate today's start timestamp for robustness
+        import time
+        from datetime import datetime, timedelta
 
-        # Use string formatting for timestamp (safe - it's always a number)
-        # Parameterized queries may fail silently in Anki 25.02+
+        # Method 1: Use Anki's day_cutoff (preferred, accounts for custom rollover time)
+        try:
+            day_cutoff = col.sched.day_cutoff
+            # day_cutoff is end of today, so subtract 86400 for start of today
+            today_start_method1 = int((day_cutoff - 86400) * 1000)
+            print(f"ScrubBuddy: Method 1 - day_cutoff={day_cutoff}, today_start={today_start_method1}")
+        except Exception as e:
+            print(f"ScrubBuddy: day_cutoff method failed: {e}")
+            today_start_method1 = None
+
+        # Method 2: Use Python's time module as fallback (midnight local time)
+        now = datetime.now()
+        midnight = datetime(now.year, now.month, now.day, 0, 0, 0)
+        today_start_method2 = int(midnight.timestamp() * 1000)
+        print(f"ScrubBuddy: Method 2 - midnight={midnight}, today_start={today_start_method2}")
+
+        # Use method 1 if available and seems reasonable, else fall back to method 2
+        # A "reasonable" timestamp should be within 48 hours of method 2
+        if today_start_method1 is not None:
+            diff_hours = abs(today_start_method1 - today_start_method2) / (1000 * 3600)
+            if diff_hours < 48:
+                today_start = today_start_method1
+                print(f"ScrubBuddy: Using Anki day_cutoff method")
+            else:
+                today_start = today_start_method2
+                print(f"ScrubBuddy: day_cutoff seems wrong ({diff_hours:.1f}h diff), using midnight method")
+        else:
+            today_start = today_start_method2
+            print(f"ScrubBuddy: Using midnight method (fallback)")
+
+        # Query revlog for today's stats
         try:
             sql = f"""
                 SELECT
@@ -205,7 +234,7 @@ def get_collection_stats() -> Dict[str, Any]:
                 FROM revlog WHERE id > {today_start}
             """
             result = col.db.execute(sql)
-            print(f"ScrubBuddy: revlog query result type={type(result)}")
+            print(f"ScrubBuddy: revlog query result type={type(result)}, value={result}")
 
             row = None
             if isinstance(result, list) and len(result) > 0:
@@ -224,13 +253,26 @@ def get_collection_stats() -> Dict[str, Any]:
                 stats["easyCount"] = row[5] or 0
                 stats["timeStudiedSecs"] = (row[6] or 0) // 1000
                 print(f"ScrubBuddy: Studied today - New: {stats['newStudied']}, Reviews: {stats['reviewsStudied']}, Time: {stats['timeStudiedSecs']}s")
+            else:
+                # If no results, try an alternative query to verify revlog has data
+                check_sql = "SELECT COUNT(*) FROM revlog"
+                check_result = col.db.execute(check_sql)
+                if isinstance(check_result, list) and check_result:
+                    total_reviews = check_result[0][0] if check_result[0] else 0
+                elif hasattr(check_result, 'fetchone'):
+                    check_row = check_result.fetchone()
+                    total_reviews = check_row[0] if check_row else 0
+                else:
+                    total_reviews = 0
+                print(f"ScrubBuddy: No reviews today (total revlog entries: {total_reviews})")
         except Exception as e:
             print(f"ScrubBuddy: Error querying revlog: {e}")
             import traceback
             traceback.print_exc()
 
         # Calculate 30-day retention rate
-        thirty_days_ago = int((day_cutoff - (30 * 86400)) * 1000)
+        # Use the calculated today_start and go back 30 days from there
+        thirty_days_ago = today_start - (30 * 24 * 3600 * 1000)
         try:
             sql = f"""
                 SELECT COUNT(*), SUM(CASE WHEN ease > 1 THEN 1 ELSE 0 END)
@@ -383,7 +425,7 @@ export async function POST(request: NextRequest) {
     zip.file('manifest.json', JSON.stringify({
       package: 'scrubbuddy_sync',
       name: 'ScrubBuddy Sync',
-      version: '1.6.0',
+      version: '1.7.0',
       author: 'ScrubBuddy',
       homepage: scrubbuddyUrl,
     }, null, 2))
