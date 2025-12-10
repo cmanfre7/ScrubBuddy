@@ -1,6 +1,6 @@
 import { getCurrentUser } from '@/lib/session'
 import prisma from '@/lib/prisma'
-import { daysUntil, calculatePercentage } from '@/lib/utils'
+import { calculatePercentage } from '@/lib/utils'
 import { UWORLD_QUESTION_TOTALS, SHELF_SUBJECTS, ShelfSubject } from '@/types'
 import { CountdownWidget } from '@/components/dashboard-widgets/CountdownWidget'
 import { UWorldProgressWidget } from '@/components/dashboard-widgets/UWorldProgressWidget'
@@ -13,6 +13,7 @@ import { TodayScheduleWidget } from '@/components/dashboard-widgets/TodaySchedul
 import { AnkiWidget } from '@/components/dashboard-widgets/AnkiWidget'
 import { ExamDateButtons } from '@/components/ExamDateButtons'
 import { DashboardClient } from '@/components/dashboard/DashboardClient'
+import { RotationDayDisplay } from '@/components/RotationDayDisplay'
 import { Calendar as CalendarIcon, Target, FileText, Stethoscope } from 'lucide-react'
 
 async function getDashboardData(userId: string) {
@@ -287,10 +288,8 @@ export default async function DashboardPage() {
     )
   }
 
-  const daysUntilStep2 = data.user?.step2Date ? daysUntil(data.user.step2Date) : null
-  const daysUntilComlex = data.user?.comlexDate ? daysUntil(data.user.comlexDate) : null
-
-  // Calculate rotation progress
+  // Calculate rotation progress (total days is static, can be calculated server-side)
+  // Current day will be calculated client-side using local timezone
   const rotationTotalDays =
     data.currentRotation && data.currentRotation.endDate && data.currentRotation.startDate
       ? Math.ceil(
@@ -299,100 +298,62 @@ export default async function DashboardPage() {
             (1000 * 60 * 60 * 24)
         ) + 1
       : 0
-  const rotationCurrentDay =
-    data.currentRotation && data.currentRotation.startDate
-      ? Math.ceil(
-          (new Date().getTime() - new Date(data.currentRotation.startDate).getTime()) /
-            (1000 * 60 * 60 * 24)
-        ) + 1
-      : 0
 
-  // Calculate shelf exam countdown - use current rotation's shelf date
-  const daysUntilShelf = data.currentRotation?.shelfDate
-    ? daysUntil(new Date(data.currentRotation.shelfDate))
-    : null
-  const shelfDateFormatted = data.currentRotation?.shelfDate
-    ? new Date(data.currentRotation.shelfDate).toLocaleDateString('en-US', {
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric',
-        timeZone: 'UTC', // Fix timezone issue - display date in UTC to match stored value
-      })
-    : null
+  // Get user's board exam targets
+  const step2Target = data.boardExams.find(e => e.examType === 'USMLE_STEP_2_CK')
+  const comlexTarget = data.boardExams.find(e => e.examType === 'COMLEX_LEVEL_2_CE')
 
-  // Build countdown widgets
+  // Build countdown widgets - pass ISO dates and let client calculate days using local timezone
   const countdownWidgets = []
-  if (data.currentRotation) {
+  if (data.currentRotation && data.currentRotation.startDate) {
     countdownWidgets.push(
       <CountdownWidget
         key="rotation"
         title="Current Rotation"
         icon={<Stethoscope size={16} />}
         iconBgColor="bg-red-900/40"
-        currentDay={rotationCurrentDay}
+        startDateISO={data.currentRotation.startDate.toISOString()}
         totalDays={rotationTotalDays}
         href="/dashboard/settings"
       />
     )
   }
-  if (daysUntilShelf !== null && data.currentRotation?.shelfDate) {
+  if (data.currentRotation?.shelfDate) {
     countdownWidgets.push(
       <CountdownWidget
         key="shelf"
         title="Shelf Exam"
         icon={<FileText size={16} />}
         iconBgColor="bg-amber-900/40"
-        daysLeft={daysUntilShelf}
-        examDate={shelfDateFormatted || undefined}
+        examDateISO={data.currentRotation.shelfDate.toISOString()}
         predicted="72-78"
         href="/dashboard/analytics?tab=shelf"
       />
     )
   }
-  // Get user's board exam targets
-  const step2Target = data.boardExams.find(e => e.examType === 'USMLE_STEP_2_CK')
-  const comlexTarget = data.boardExams.find(e => e.examType === 'COMLEX_LEVEL_2_CE')
 
-  if (daysUntilStep2 !== null && daysUntilStep2 > 0) {
+  if (data.user?.step2Date) {
     countdownWidgets.push(
       <CountdownWidget
         key="step2"
         title="Step 2 CK"
         icon={<Target size={16} />}
         iconBgColor="bg-blue-900/40"
-        daysLeft={daysUntilStep2}
-        examDate={
-          data.user?.step2Date
-            ? new Date(data.user.step2Date).toLocaleDateString('en-US', {
-                month: 'long',
-                day: 'numeric',
-                year: 'numeric',
-              })
-            : undefined
-        }
+        examDateISO={data.user.step2Date.toISOString()}
         predicted={step2Target?.predictedScore?.toString() || "245"}
         target={step2Target?.targetScore?.toString()}
         href="/dashboard/analytics"
       />
     )
   }
-  if (daysUntilComlex !== null && daysUntilComlex > 0) {
+  if (data.user?.comlexDate) {
     countdownWidgets.push(
       <CountdownWidget
         key="comlex"
         title="COMLEX Level 2"
         icon={<CalendarIcon size={16} />}
         iconBgColor="bg-green-900/40"
-        daysLeft={daysUntilComlex}
-        examDate={
-          data.user?.comlexDate
-            ? new Date(data.user.comlexDate).toLocaleDateString('en-US', {
-                month: 'long',
-                day: 'numeric',
-                year: 'numeric',
-              })
-            : undefined
-        }
+        examDateISO={data.user.comlexDate.toISOString()}
         predicted={comlexTarget?.predictedScore?.toString() || "585"}
         target={comlexTarget?.targetScore?.toString()}
         href="/dashboard/analytics"
@@ -409,11 +370,12 @@ export default async function DashboardPage() {
             Welcome back{user.name ? `, ${user.name.split(' ')[0]}` : ''}
           </h1>
           <p className="text-slate-400 text-sm md:text-lg">
-            {data.currentRotation ? (
-              <>
-                Currently on <span className="text-blue-400 font-semibold">{data.currentRotation.name}</span> ·
-                Day {rotationCurrentDay} of {rotationTotalDays}
-              </>
+            {data.currentRotation && data.currentRotation.startDate ? (
+              <RotationDayDisplay
+                startDateISO={data.currentRotation.startDate.toISOString()}
+                totalDays={rotationTotalDays}
+                rotationName={data.currentRotation.name}
+              />
             ) : (
               'Set up your rotations to get started'
             )}

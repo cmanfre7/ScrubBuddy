@@ -1,32 +1,115 @@
+'use client'
+
+import { useMemo } from 'react'
 import Link from 'next/link'
 
 interface CountdownWidgetProps {
   title: string
   icon: React.ReactNode
   iconBgColor: string
-  daysLeft?: number
+  // For countdown widgets - pass the ISO date string and let client calculate days
+  examDateISO?: string
+  // For rotation progress widgets
   totalDays?: number
   currentDay?: number
-  examDate?: string
+  startDateISO?: string
+  // Display options
   predicted?: string
   predictedLabel?: string
   target?: string
   href?: string
 }
 
+// Calculate days until a target date using LOCAL timezone
+// This must run on the client to get the user's actual local date
+function calculateDaysUntil(targetDateISO: string): number {
+  const now = new Date()
+  const target = new Date(targetDateISO)
+
+  // Get today's date at midnight LOCAL time
+  const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+  // Get target date at midnight LOCAL time
+  // Since dates are stored as midnight UTC, extract the UTC date components
+  // and create a local midnight date for comparison
+  const targetMidnight = new Date(
+    target.getUTCFullYear(),
+    target.getUTCMonth(),
+    target.getUTCDate()
+  )
+
+  // Calculate difference in days
+  const diffTime = targetMidnight.getTime() - todayMidnight.getTime()
+  return Math.round(diffTime / (1000 * 60 * 60 * 24))
+}
+
+// Calculate current day of rotation using LOCAL timezone
+function calculateCurrentDay(startDateISO: string): number {
+  const now = new Date()
+  const start = new Date(startDateISO)
+
+  // Get today's date at midnight LOCAL time
+  const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+  // Get start date at midnight LOCAL time (using UTC components from stored date)
+  const startMidnight = new Date(
+    start.getUTCFullYear(),
+    start.getUTCMonth(),
+    start.getUTCDate()
+  )
+
+  // Calculate days since start (add 1 because day 1 is the start date)
+  const diffTime = todayMidnight.getTime() - startMidnight.getTime()
+  return Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1
+}
+
+// Format a date for display using LOCAL timezone
+function formatExamDate(dateISO: string): string {
+  const date = new Date(dateISO)
+  // Use UTC components to get the actual stored date
+  return new Date(
+    date.getUTCFullYear(),
+    date.getUTCMonth(),
+    date.getUTCDate()
+  ).toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
 export function CountdownWidget({
   title,
   icon,
   iconBgColor,
-  daysLeft,
+  examDateISO,
   totalDays,
-  currentDay,
-  examDate,
+  currentDay: currentDayProp,
+  startDateISO,
   predicted,
   predictedLabel = 'Predicted:',
   target,
   href,
 }: CountdownWidgetProps) {
+  // Calculate values on the client using local timezone
+  const daysLeft = useMemo(() => {
+    if (!examDateISO) return undefined
+    return calculateDaysUntil(examDateISO)
+  }, [examDateISO])
+
+  const currentDay = useMemo(() => {
+    // If currentDay prop is provided, use it (for backwards compatibility)
+    if (currentDayProp !== undefined) return currentDayProp
+    // Otherwise calculate from startDateISO
+    if (!startDateISO) return undefined
+    return calculateCurrentDay(startDateISO)
+  }, [currentDayProp, startDateISO])
+
+  const examDateFormatted = useMemo(() => {
+    if (!examDateISO) return undefined
+    return formatExamDate(examDateISO)
+  }, [examDateISO])
+
   const isRotation = currentDay !== undefined && totalDays !== undefined
   const percentage = isRotation ? Math.round((currentDay / totalDays) * 100) : 0
   const isUrgent = daysLeft !== undefined && daysLeft <= 30
@@ -68,8 +151,8 @@ export function CountdownWidget({
             {daysLeft ?? 0}
           </div>
           <div className="text-xs text-slate-400 mb-1">days remaining</div>
-          {examDate && (
-            <div className="text-sm text-slate-300 mb-3">{examDate}</div>
+          {examDateFormatted && (
+            <div className="text-sm text-slate-300 mb-3">{examDateFormatted}</div>
           )}
           {predicted && (
             <div className="mt-3 pt-3 text-sm" style={{ borderTop: '1px solid #1e293b' }}>
