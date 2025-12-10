@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
-import { MessageSquare, X, Send, Loader2 } from 'lucide-react'
+import { MessageSquare, X, Send, Loader2, ImagePlus, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 // Simple markdown renderer for chat messages
@@ -13,7 +13,6 @@ function renderMarkdown(text: string): React.ReactNode {
   return lines.map((line, lineIdx) => {
     // Process inline formatting (bold, italic)
     const parts: React.ReactNode[] = []
-    let remaining = line
     let partIdx = 0
 
     // Match **bold** patterns
@@ -50,9 +49,16 @@ function renderMarkdown(text: string): React.ReactNode {
   })
 }
 
+interface ImageAttachment {
+  data: string // base64
+  mediaType: string
+  preview: string // data URL for display
+}
+
 interface Message {
   role: 'user' | 'assistant'
   content: string
+  images?: ImageAttachment[]
 }
 
 interface PageContext {
@@ -131,18 +137,36 @@ function getPageContext(pathname: string): PageContext {
   }
 }
 
+// Convert file to base64
+async function fileToBase64(file: File): Promise<{ data: string; mediaType: string }> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = reader.result as string
+      // Remove the data URL prefix to get just the base64
+      const base64 = result.split(',')[1]
+      resolve({ data: base64, mediaType: file.type })
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
 export function FloatingAIWidget() {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: 'Hi! I\'m your AI Medical Assistant with full access to your ScrubBuddy data - your UWorld stats, weak areas, exam dates, recent performance, and study streak. Ask me about your progress, what to focus on, or any clinical questions!'
+      content: 'Hi! I\'m your AI Medical Assistant - a master clinician with full access to your ScrubBuddy data. I can help you with:\n\n- **Clinical questions** - differential diagnoses, workups, management\n- **UWorld analysis** - your weak areas, study recommendations\n- **Image interpretation** - paste or attach images (Ctrl+V or click +)\n- **Patient vignettes** - help you work through cases\n\nAsk me anything!'
     }
   ])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [pendingImages, setPendingImages] = useState<ImageAttachment[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   // Get current page context
   const pageContext = getPageContext(pathname)
@@ -155,20 +179,109 @@ export function FloatingAIWidget() {
     scrollToBottom()
   }, [messages])
 
+  // Handle paste event for images
+  useEffect(() => {
+    const handlePaste = async (e: ClipboardEvent) => {
+      if (!isOpen) return
+
+      const items = e.clipboardData?.items
+      if (!items) return
+
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          e.preventDefault()
+          const file = item.getAsFile()
+          if (file) {
+            await addImage(file)
+          }
+          break
+        }
+      }
+    }
+
+    document.addEventListener('paste', handlePaste)
+    return () => document.removeEventListener('paste', handlePaste)
+  }, [isOpen])
+
+  const addImage = async (file: File) => {
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image must be less than 5MB')
+      return
+    }
+
+    try {
+      const { data, mediaType } = await fileToBase64(file)
+      const preview = `data:${mediaType};base64,${data}`
+      setPendingImages(prev => [...prev, { data, mediaType, preview }])
+    } catch (error) {
+      console.error('Error processing image:', error)
+    }
+  }
+
+  const removeImage = (index: number) => {
+    setPendingImages(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files) return
+
+    for (const file of files) {
+      await addImage(file)
+    }
+
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return
+    if ((!input.trim() && pendingImages.length === 0) || isLoading) return
 
     const userMessage = input.trim()
+    const imagesToSend = [...pendingImages]
+
     setInput('')
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }])
+    setPendingImages([])
+
+    // Add user message to chat
+    const newUserMessage: Message = {
+      role: 'user',
+      content: userMessage || (imagesToSend.length > 0 ? '[Image attached]' : ''),
+      images: imagesToSend.length > 0 ? imagesToSend : undefined
+    }
+
+    setMessages(prev => [...prev, newUserMessage])
     setIsLoading(true)
 
     try {
+      // Build messages for API - need to include image data
+      const apiMessages = [...messages, newUserMessage].map(msg => {
+        if (msg.images && msg.images.length > 0) {
+          return {
+            role: msg.role,
+            content: msg.content,
+            images: msg.images.map(img => ({
+              data: img.data,
+              mediaType: img.mediaType
+            }))
+          }
+        }
+        return { role: msg.role, content: msg.content }
+      })
+
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [...messages, { role: 'user', content: userMessage }],
+          messages: apiMessages,
           pageContext: pageContext
         })
       })
@@ -209,6 +322,16 @@ export function FloatingAIWidget() {
         </button>
       )}
 
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        onChange={handleFileSelect}
+        className="hidden"
+      />
+
       {/* Chat Window */}
       {isOpen && (
         <div className="fixed bottom-6 right-6 z-50 w-96 h-[600px] bg-slate-800 border border-slate-700 rounded-xl shadow-2xl flex flex-col">
@@ -220,7 +343,7 @@ export function FloatingAIWidget() {
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-slate-100">AI Medical Assistant</h3>
-                <p className="text-xs text-slate-400">Always here to help</p>
+                <p className="text-xs text-slate-400">Master Clinician Mode</p>
               </div>
             </div>
             <button
@@ -243,12 +366,25 @@ export function FloatingAIWidget() {
               >
                 <div
                   className={cn(
-                    'max-w-[80%] rounded-lg px-4 py-2.5 text-sm',
+                    'max-w-[85%] rounded-lg px-4 py-2.5 text-sm',
                     message.role === 'user'
                       ? 'bg-blue-500 text-white'
                       : 'bg-slate-700/50 text-slate-200 border border-slate-600/50'
                   )}
                 >
+                  {/* Display images if present */}
+                  {message.images && message.images.length > 0 && (
+                    <div className="mb-2 flex flex-wrap gap-2">
+                      {message.images.map((img, imgIdx) => (
+                        <img
+                          key={imgIdx}
+                          src={img.preview}
+                          alt="Attached"
+                          className="max-w-full max-h-40 rounded-lg border border-slate-600"
+                        />
+                      ))}
+                    </div>
+                  )}
                   <div className="whitespace-pre-wrap">
                     {message.role === 'assistant' ? renderMarkdown(message.content) : message.content}
                   </div>
@@ -265,28 +401,60 @@ export function FloatingAIWidget() {
             <div ref={messagesEndRef} />
           </div>
 
+          {/* Pending images preview */}
+          {pendingImages.length > 0 && (
+            <div className="px-4 py-2 border-t border-slate-700 bg-slate-800/50">
+              <div className="flex gap-2 flex-wrap">
+                {pendingImages.map((img, idx) => (
+                  <div key={idx} className="relative group">
+                    <img
+                      src={img.preview}
+                      alt="Pending"
+                      className="h-16 w-16 object-cover rounded-lg border border-slate-600"
+                    />
+                    <button
+                      onClick={() => removeImage(idx)}
+                      className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Trash2 size={12} className="text-white" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Input */}
           <div className="p-4 border-t border-slate-700">
             <div className="flex gap-2">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isLoading}
+                className="px-3 py-2.5 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 disabled:text-slate-600 rounded-lg transition-colors"
+                title="Attach image (or paste with Ctrl+V)"
+              >
+                <ImagePlus size={18} className="text-slate-300" />
+              </button>
               <input
+                ref={inputRef}
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Ask me anything medical..."
+                placeholder="Ask clinical questions, paste images..."
                 className="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-sm text-slate-100 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 disabled={isLoading}
               />
               <button
                 onClick={handleSend}
-                disabled={!input.trim() || isLoading}
+                disabled={(!input.trim() && pendingImages.length === 0) || isLoading}
                 className="px-4 py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-slate-700 disabled:text-slate-500 rounded-lg transition-colors"
               >
                 <Send size={16} />
               </button>
             </div>
             <p className="text-xs text-slate-500 mt-2 text-center">
-              AI can make mistakes. Verify critical information.
+              Ctrl+V to paste images | AI can make mistakes
             </p>
           </div>
         </div>

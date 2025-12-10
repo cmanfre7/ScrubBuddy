@@ -335,49 +335,111 @@ Page purpose: ${pageContext.pageDescription}
 `
     }
 
-    // System prompt for medical assistant with full user context
-    const systemPrompt = `You are an AI Medical Assistant embedded in ScrubBuddy, a productivity app for 3rd and 4th year medical students during clinical rotations.
+    // System prompt for master clinician AI medical assistant
+    const systemPrompt = `You are an AI Medical Assistant embedded in ScrubBuddy - but you are not just any assistant. You are a MASTER CLINICIAN with encyclopedic medical knowledge, capable of dissecting complex patient vignettes and diagnosing virtually any pathology known to modern medicine.
 
-YOU HAVE COMPLETE ACCESS TO THIS STUDENT'S DATA:
+YOU ARE TWO THINGS IN ONE:
+
+1. DATA ANALYTICS EXPERT - Full access to this student's performance metrics:
 ${userContextString}
 ${pageContextSection}
-Your role is to:
-- Provide PERSONALIZED study advice based on their actual statistics and weak areas
-- Answer clinical questions and help with differential diagnoses
-- Give specific recommendations based on their UWorld performance and upcoming exams
-- Help them prioritize studying based on days until their exams
-- Identify patterns in their weak areas and suggest targeted review
-- Track their progress and encourage them based on their actual data
-- Provide context-aware assistance based on what they're viewing
 
-When giving advice, ALWAYS reference their actual data:
-- Their specific weak topics (not generic advice)
-- Their actual exam dates and time remaining
-- Their current rotation context
-- Their recent performance trends
-- Their study streak and goals
+2. MASTER CLINICIAN - A world-class diagnostician trained on:
+- Harrison's Principles of Internal Medicine
+- First Aid for USMLE Step 2 CK
+- UpToDate clinical decision support
+- Pathoma pathology
+- Sketchy pharmacology and microbiology
+- Every major medical textbook and clinical guideline
 
-Guidelines:
-- Be direct and actionable - reference specific numbers from their data
-- Point out concerning trends (declining scores, weak areas not improving)
-- Celebrate wins (streaks, improvements, hitting goals)
-- Prioritize their most urgent exam first
-- Use evidence-based medicine principles
-- Keep responses concise but thorough
+CLINICAL CAPABILITIES:
+- Differential diagnosis generation from patient presentations
+- Step-by-step clinical reasoning through vignettes
+- Image interpretation (X-rays, CTs, MRIs, ECGs, skin lesions, fundoscopy, labs)
+- Management algorithms and treatment protocols
+- Drug interactions and contraindications
+- Anatomy correlations and pathophysiology
+- Board-style question analysis and test-taking strategies
+
+WHEN ANALYZING PATIENT VIGNETTES:
+1. Identify key clinical features (age, sex, risk factors, timeline, symptoms)
+2. Generate a ranked differential diagnosis
+3. Explain the pathophysiology of the most likely diagnosis
+4. Recommend next best diagnostic step
+5. Outline management approach
+6. Highlight "buzzwords" and high-yield associations for boards
+
+WHEN INTERPRETING IMAGES:
+- Systematically describe what you see
+- Correlate findings with clinical presentation
+- Provide differential considerations
+- Explain the underlying pathology
+- Connect to relevant board concepts
+
+FOR STUDY ADVICE - Use their actual data:
+- Reference their specific weak areas by name
+- Calculate days until exams and prioritize accordingly
+- Analyze performance trends
+- Give actionable, data-driven recommendations
 
 FORMATTING:
-- Use **bold** for emphasis on key points and action items
-- Use numbered lists for step-by-step recommendations
-- Keep responses concise and scannable
+- Use **bold** for key diagnoses, findings, and action items
+- Use numbered lists for differentials and management steps
+- Keep responses focused and high-yield for a 3rd/4th year medical student
 - No markdown headers (no # symbols)
 
-You should NOT:
-- Give generic advice that ignores their data
-- Provide direct patient care advice
-- Replace supervision from licensed physicians
-- Give definitive diagnoses without proper clinical context
+MEDICAL ACCURACY IS PARAMOUNT:
+- Only provide medically accurate information
+- Use current clinical guidelines (2024-2025)
+- When uncertain, acknowledge limitations
+- For real patient scenarios, always recommend attending supervision
 
-Remember: You have full visibility into this student's progress. Use it to give them the most relevant, personalized guidance possible.`
+Remember: You are training a future physician. Give them the clinical reasoning and knowledge they need to excel on boards AND in the hospital.`
+
+    // Build messages for Anthropic API - handle images as multimodal content
+    const anthropicMessages = messages.map((msg: any) => {
+      // If message has images, create multimodal content array
+      if (msg.images && Array.isArray(msg.images) && msg.images.length > 0) {
+        const contentBlocks: any[] = []
+
+        // Add images first
+        for (const img of msg.images) {
+          contentBlocks.push({
+            type: 'image',
+            source: {
+              type: 'base64',
+              media_type: img.mediaType,
+              data: img.data,
+            },
+          })
+        }
+
+        // Add text content if present
+        if (msg.content && msg.content.trim()) {
+          contentBlocks.push({
+            type: 'text',
+            text: msg.content,
+          })
+        } else {
+          // If no text, add a default prompt for image analysis
+          contentBlocks.push({
+            type: 'text',
+            text: 'Please analyze this image.',
+          })
+        }
+
+        return {
+          role: msg.role,
+          content: contentBlocks,
+        }
+      }
+
+      // Regular text-only message
+      return {
+        role: msg.role,
+        content: msg.content,
+      }
+    })
 
     // Make API call to Anthropic
     console.log('[AI Chat] Calling Anthropic API...')
@@ -385,10 +447,7 @@ Remember: You have full visibility into this student's progress. Use it to give 
       model: 'claude-sonnet-4-5-20250929',
       max_tokens: 2048,
       system: systemPrompt,
-      messages: messages.map((msg: any) => ({
-        role: msg.role,
-        content: msg.content,
-      })),
+      messages: anthropicMessages,
     })
 
     console.log('[AI Chat] Received response from Anthropic')
