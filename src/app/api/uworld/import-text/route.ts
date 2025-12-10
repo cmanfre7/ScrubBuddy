@@ -88,42 +88,25 @@ export async function POST(request: NextRequest) {
 
     const percentCorrect = Math.round((totalCorrect / totalQuestions) * 100)
 
-    // Create or update UWorldLog - use shelfSubject as the primary subject for filtering
-    let logId: string | null = null
-    const existingLog = await prisma.uWorldLog.findFirst({
-      where: { userId, blockName: testName },
+    // Always create a new UWorldLog - each session should be its own record
+    // (Previously this would overwrite existing logs with the same blockName, causing data loss)
+    const allQuestions = [...correctQuestions, ...incorrectQuestions]
+    const newLog = await prisma.uWorldLog.create({
+      data: {
+        userId,
+        date: new Date(),
+        questionsTotal: totalQuestions,
+        questionsCorrect: totalCorrect,
+        timeSpentMins: Math.round(allQuestions.reduce((sum, q) => sum + q.timeSpent, 0) / 60),
+        mode: 'Test',
+        blockName: testName,
+        // Use shelf subject as primary - this is what determines which subject tab it shows under
+        systems: shelfSubject ? [shelfSubject] : [],
+        subjects: [...new Set(allQuestions.map(q => q.system))],
+        notes: `Imported via text paste - ${totalCorrect} correct, ${totalIncorrect} incorrect`,
+      },
     })
-
-    if (existingLog) {
-      await prisma.uWorldLog.update({
-        where: { id: existingLog.id },
-        data: {
-          questionsTotal: totalQuestions,
-          questionsCorrect: totalCorrect,
-          // Store shelf subject as the primary system for filtering
-          systems: shelfSubject ? [shelfSubject] : existingLog.systems,
-        },
-      })
-      logId = existingLog.id
-    } else {
-      const allQuestions = [...correctQuestions, ...incorrectQuestions]
-      const newLog = await prisma.uWorldLog.create({
-        data: {
-          userId,
-          date: new Date(),
-          questionsTotal: totalQuestions,
-          questionsCorrect: totalCorrect,
-          timeSpentMins: Math.round(allQuestions.reduce((sum, q) => sum + q.timeSpent, 0) / 60),
-          mode: 'Test',
-          blockName: testName,
-          // Use shelf subject as primary - this is what determines which subject tab it shows under
-          systems: shelfSubject ? [shelfSubject] : [],
-          subjects: [...new Set(allQuestions.map(q => q.system))],
-          notes: `Imported via text paste - ${totalCorrect} correct, ${totalIncorrect} incorrect`,
-        },
-      })
-      logId = newLog.id
-    }
+    const logId = newLog.id
 
     // Save all questions to UWorldQuestion
     let savedCount = 0
