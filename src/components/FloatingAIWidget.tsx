@@ -106,6 +106,10 @@ function getPageContext(pathname: string): PageContext {
       name: 'Clinical Notes & Pearls',
       description: 'Store clinical pearls, learning points, and notes from rotations for future reference.'
     },
+    '/dashboard/algorithms': {
+      name: 'Clinical Algorithms',
+      description: 'Save and reference diagnostic flowcharts and decision trees from UWorld and other sources, organized by shelf subject.'
+    },
   }
 
   // Find matching route (handle dynamic routes)

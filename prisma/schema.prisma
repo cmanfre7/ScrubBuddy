@@ -53,6 +53,7 @@ model User {
   uworldSettings UWorldSettings[]
   quickLinks    QuickLink[]
   calendarFeed  CalendarFeed?
+  clinicalAlgorithms ClinicalAlgorithm[]
 }
 
 // ==================== ROTATIONS ====================
@@ -77,6 +78,7 @@ model Rotation {
   clinicalPearls ClinicalPearl[]
   clinicalReferences ClinicalReference[]
   pharmNotes  PharmNote[]
+  clinicalAlgorithms ClinicalAlgorithm[]
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -894,4 +896,35 @@ model CalendarFeed {
   updatedAt   DateTime  @updatedAt
 
   @@index([token])
+}
+
+// ==================== CLINICAL ALGORITHMS ====================
+
+model ClinicalAlgorithm {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rotationId  String?
+  rotation    Rotation? @relation(fields: [rotationId], references: [id])
+
+  title       String    // "Blunt Chest Trauma", "Breast Mass Workup", etc.
+  description String?   @db.Text // Optional notes about the algorithm
+  subject     String    // "Surgery", "OBGYN", "Internal Medicine", etc. (shelf subject)
+
+  // Image storage (base64)
+  imageData   String    @db.Text // Base64 encoded image data
+  imageType   String    // MIME type: "image/png", "image/jpeg", etc.
+
+  // Metadata
+  source      String?   // "UWorld", "UpToDate", "First Aid", etc.
+  tags        String[]  @default([])
+  isHighYield Boolean   @default(false) // Mark important ones for quick review
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([rotationId])
+  @@index([subject])
+  @@index([isHighYield])
 }
