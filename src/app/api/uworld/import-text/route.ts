@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { testName, correctText, incorrectText, shelfSubject } = body
+    const { testName, correctText, incorrectText, shelfSubject, date } = body
 
     if (!testName) {
       return NextResponse.json({ error: 'testName is required' }, { status: 400 })
@@ -91,10 +91,11 @@ export async function POST(request: NextRequest) {
     // Always create a new UWorldLog - each session should be its own record
     // (Previously this would overwrite existing logs with the same blockName, causing data loss)
     const allQuestions = [...correctQuestions, ...incorrectQuestions]
+    const sessionDate = date ? new Date(date) : new Date()
     const newLog = await prisma.uWorldLog.create({
       data: {
         userId,
-        date: new Date(),
+        date: sessionDate,
         questionsTotal: totalQuestions,
         questionsCorrect: totalCorrect,
         timeSpentMins: Math.round(allQuestions.reduce((sum, q) => sum + q.timeSpent, 0) / 60),

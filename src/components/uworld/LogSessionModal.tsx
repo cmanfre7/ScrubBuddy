@@ -41,6 +41,7 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
   const [testName, setTestName] = useState('')
   const [correctText, setCorrectText] = useState('')
   const [incorrectText, setIncorrectText] = useState('')
+  const [pasteDate, setPasteDate] = useState(new Date().toISOString().split('T')[0])
 
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -193,6 +194,9 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
     setIsLoading(true)
 
     try {
+      // Add noon time to prevent timezone rollover issues
+      const dateWithNoon = new Date(`${pasteDate}T12:00:00`)
+
       const res = await fetch('/api/uworld/import-text', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -201,6 +205,7 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
           correctText: correctText.trim(),
           incorrectText: incorrectText.trim(),
           shelfSubject: subject, // Pass the shelf subject to tag the log correctly
+          date: dateWithNoon.toISOString(), // Custom date for the session
         }),
       })
 
@@ -222,6 +227,7 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
         setTestName('')
         setCorrectText('')
         setIncorrectText('')
+        setPasteDate(new Date().toISOString().split('T')[0])
       }, 2000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
@@ -384,20 +390,36 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
             </p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Test Name
-            </label>
-            <Input
-              type="text"
-              value={testName}
-              onChange={(e) => setTestName(e.target.value)}
-              placeholder="e.g., Week 3 Test"
-              required
-            />
-            <p className="text-xs text-slate-500 mt-1">
-              Will be saved as "{subject} - [your test name]"
-            </p>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Test Name
+              </label>
+              <Input
+                type="text"
+                value={testName}
+                onChange={(e) => setTestName(e.target.value)}
+                placeholder="e.g., Week 3 Test"
+                required
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Will be saved as "{subject} - [your test name]"
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Date Completed
+              </label>
+              <Input
+                type="date"
+                value={pasteDate}
+                onChange={(e) => setPasteDate(e.target.value)}
+                required
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                When you took this test
+              </p>
+            </div>
           </div>
 
           {/* Correct Questions Paste Box */}
