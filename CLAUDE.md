@@ -71,6 +71,23 @@ A **personal productivity app for medical students** (3rd/4th year clerkships). 
 
 ---
 
+## Environment Variables
+
+```bash
+# Database (Railway provides this)
+DATABASE_URL="postgresql://..."
+
+# NextAuth
+NEXTAUTH_SECRET="..."
+NEXTAUTH_URL="https://scrubbuddy.app"
+
+# Google Calendar OAuth
+GOOGLE_CLIENT_ID="21359139766-13b6gum58ovhem2g6vs0vfp70jseiehi.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET="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"
+```
+
+---
+
 ## Project Structure
 
 ```
