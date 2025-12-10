@@ -21,13 +21,13 @@ export async function GET(request: Request) {
   if (error) {
     console.error('Google OAuth error:', error)
     return NextResponse.redirect(
-      new URL('/dashboard/settings?error=google_auth_denied', request.url)
+      new URL('/dashboard/calendar?error=google_auth_denied', request.url)
     )
   }
 
   if (!code || !state) {
     return NextResponse.redirect(
-      new URL('/dashboard/settings?error=google_auth_invalid', request.url)
+      new URL('/dashboard/calendar?error=google_auth_invalid', request.url)
     )
   }
 
@@ -36,7 +36,7 @@ export async function GET(request: Request) {
     const stateData = JSON.parse(Buffer.from(state, 'base64').toString())
     if (stateData.userId !== session.user.id) {
       return NextResponse.redirect(
-        new URL('/dashboard/settings?error=google_auth_invalid', request.url)
+        new URL('/dashboard/calendar?error=google_auth_invalid', request.url)
       )
     }
 
@@ -46,7 +46,7 @@ export async function GET(request: Request) {
     if (!tokens.access_token || !tokens.refresh_token) {
       console.error('Missing tokens from Google OAuth')
       return NextResponse.redirect(
-        new URL('/dashboard/settings?error=google_auth_failed', request.url)
+        new URL('/dashboard/calendar?error=google_auth_failed', request.url)
       )
     }
 
@@ -80,14 +80,14 @@ export async function GET(request: Request) {
       },
     })
 
-    // Redirect back to settings with success
+    // Redirect back to calendar with success
     return NextResponse.redirect(
-      new URL('/dashboard/settings?success=google_connected', request.url)
+      new URL('/dashboard/calendar?success=google_connected', request.url)
     )
   } catch (error) {
     console.error('Google Calendar callback error:', error)
     return NextResponse.redirect(
-      new URL('/dashboard/settings?error=google_auth_failed', request.url)
+      new URL('/dashboard/calendar?error=google_auth_failed', request.url)
     )
   }
 }
