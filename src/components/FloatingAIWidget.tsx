@@ -92,7 +92,7 @@ export function FloatingAIWidget() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: 'Hi! I\'m your AI Medical Assistant. I can see what page you\'re on and help with clinical questions, study tips, differential diagnoses, and more. What can I help you with today?'
+      content: 'Hi! I\'m your AI Medical Assistant with full access to your ScrubBuddy data - your UWorld stats, weak areas, exam dates, recent performance, and study streak. Ask me about your progress, what to focus on, or any clinical questions!'
     }
   ])
   const [input, setInput] = useState('')

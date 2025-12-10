@@ -1,7 +1,290 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import prisma from '@/lib/prisma'
 import Anthropic from '@anthropic-ai/sdk'
+import { UWORLD_QUESTION_TOTALS, SHELF_SUBJECTS, ShelfSubject } from '@/types'
+
+// Helper to calculate days until a date
+function daysUntil(targetDate: Date): number {
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const target = new Date(
+    targetDate.getUTCFullYear(),
+    targetDate.getUTCMonth(),
+    targetDate.getUTCDate()
+  )
+  return Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+}
+
+// Helper to calculate rotation day
+function getRotationDay(startDate: Date): number {
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const start = new Date(
+    startDate.getUTCFullYear(),
+    startDate.getUTCMonth(),
+    startDate.getUTCDate()
+  )
+  return Math.round((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
+}
+
+// Fetch all user data for AI context
+async function getUserContext(userId: string) {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const weekAgo = new Date(today)
+  weekAgo.setDate(weekAgo.getDate() - 7)
+
+  const [
+    user,
+    currentRotation,
+    allLogs,
+    todayLogs,
+    weekLogs,
+    recentSessions,
+    weakAreas,
+    practiceExams,
+    boardExams,
+    ankiStats,
+    uworldSettings,
+  ] = await Promise.all([
+    // User info with exam dates
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, step2Date: true, comlexDate: true, dailyGoal: true, weeklyGoal: true },
+    }),
+    // Current rotation
+    prisma.rotation.findFirst({
+      where: { userId, isCurrent: true },
+    }),
+    // All UWorld logs
+    prisma.uWorldLog.findMany({
+      where: { userId },
+    }),
+    // Today's logs
+    prisma.uWorldLog.findMany({
+      where: { userId, date: { gte: today } },
+    }),
+    // This week's logs
+    prisma.uWorldLog.findMany({
+      where: { userId, date: { gte: weekAgo } },
+    }),
+    // Recent sessions with questions
+    prisma.uWorldLog.findMany({
+      where: { userId },
+      orderBy: { date: 'desc' },
+      take: 10,
+      include: {
+        questions: {
+          select: { subject: true, system: true, topic: true, isCorrect: true },
+        },
+      },
+    }),
+    // Weak areas (all incorrects grouped by topic)
+    prisma.uWorldIncorrect.groupBy({
+      by: ['topic', 'subject', 'system'],
+      where: { userId },
+      _count: { topic: true },
+      orderBy: { _count: { topic: 'desc' } },
+      take: 15,
+    }),
+    // Practice exams
+    prisma.practiceExam.findMany({
+      where: { userId },
+      orderBy: { date: 'desc' },
+    }),
+    // Board exam targets
+    prisma.boardExam.findMany({
+      where: { userId },
+    }),
+    // Latest Anki stats
+    prisma.ankiSyncStats.findFirst({
+      where: { userId },
+      orderBy: { syncedAt: 'desc' },
+    }),
+    // UWorld custom settings
+    prisma.uWorldSettings.findMany({
+      where: { userId },
+    }),
+  ])
+
+  // Calculate UWorld totals
+  const settingsMap: Record<string, number> = {}
+  uworldSettings.forEach((s) => {
+    settingsMap[s.subject] = s.totalQuestions
+  })
+  const uworldTotalQuestions = SHELF_SUBJECTS.reduce((sum, subject) => {
+    return sum + (settingsMap[subject] ?? UWORLD_QUESTION_TOTALS[subject])
+  }, 0)
+
+  // Calculate stats - only count logs with systems assigned
+  const logsWithSystems = allLogs.filter(log => log.systems && log.systems.length > 0)
+  const todayLogsWithSystems = todayLogs.filter(log => log.systems && log.systems.length > 0)
+  const weekLogsWithSystems = weekLogs.filter(log => log.systems && log.systems.length > 0)
+
+  const totalQuestions = logsWithSystems.reduce((sum, log) => sum + log.questionsTotal, 0)
+  const totalCorrect = logsWithSystems.reduce((sum, log) => sum + log.questionsCorrect, 0)
+  const overallPercentage = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0
+  const progressPercentage = uworldTotalQuestions > 0 ? Math.round((totalQuestions / uworldTotalQuestions) * 100) : 0
+
+  const questionsToday = todayLogsWithSystems.reduce((sum, log) => sum + log.questionsTotal, 0)
+  const correctToday = todayLogsWithSystems.reduce((sum, log) => sum + log.questionsCorrect, 0)
+  const todayPercentage = questionsToday > 0 ? Math.round((correctToday / questionsToday) * 100) : 0
+
+  const questionsThisWeek = weekLogsWithSystems.reduce((sum, log) => sum + log.questionsTotal, 0)
+  const correctThisWeek = weekLogsWithSystems.reduce((sum, log) => sum + log.questionsCorrect, 0)
+  const weekPercentage = questionsThisWeek > 0 ? Math.round((correctThisWeek / questionsThisWeek) * 100) : 0
+
+  // Calculate study streak
+  let currentStreak = 0
+  for (let i = 0; i < 28; i++) {
+    const checkDate = new Date(today)
+    checkDate.setDate(checkDate.getDate() - i)
+    const dayLogs = allLogs.filter((log) => {
+      const logDate = new Date(log.date)
+      return logDate.toDateString() === checkDate.toDateString()
+    })
+    if (dayLogs.reduce((sum, log) => sum + log.questionsTotal, 0) > 0) {
+      currentStreak++
+    } else {
+      break
+    }
+  }
+
+  return {
+    user,
+    currentRotation,
+    uworldStats: {
+      totalQuestions,
+      totalCorrect,
+      overallPercentage,
+      progressPercentage,
+      uworldTotalQuestions,
+      questionsToday,
+      correctToday,
+      todayPercentage,
+      questionsThisWeek,
+      correctThisWeek,
+      weekPercentage,
+      currentStreak,
+      dailyGoal: user?.dailyGoal || 40,
+    },
+    recentSessions: recentSessions.map(s => ({
+      date: s.date,
+      blockName: s.blockName,
+      questionsTotal: s.questionsTotal,
+      questionsCorrect: s.questionsCorrect,
+      percentage: s.questionsTotal > 0 ? Math.round((s.questionsCorrect / s.questionsTotal) * 100) : 0,
+      systems: s.systems,
+    })),
+    weakAreas: weakAreas.map(w => ({
+      topic: w.topic,
+      subject: w.subject,
+      system: w.system,
+      missCount: w._count.topic,
+    })),
+    practiceExams,
+    boardExams,
+    ankiStats,
+  }
+}
+
+// Build comprehensive context string for AI
+function buildUserContextString(data: Awaited<ReturnType<typeof getUserContext>>): string {
+  const lines: string[] = ['USER DATA & STATISTICS:']
+  lines.push('')
+
+  // User name
+  if (data.user?.name) {
+    lines.push(`Student: ${data.user.name}`)
+  }
+
+  // Current rotation
+  if (data.currentRotation) {
+    const { name, startDate, endDate, shelfDate } = data.currentRotation
+    if (startDate && endDate) {
+      const totalDays = Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1
+      const currentDay = getRotationDay(startDate)
+      lines.push(`Current Rotation: ${name} (Day ${currentDay} of ${totalDays})`)
+    } else {
+      lines.push(`Current Rotation: ${name}`)
+    }
+    if (shelfDate) {
+      const daysLeft = daysUntil(shelfDate)
+      lines.push(`Shelf Exam: ${daysLeft} days away`)
+    }
+  }
+  lines.push('')
+
+  // Exam dates
+  lines.push('UPCOMING EXAMS:')
+  if (data.user?.step2Date) {
+    const step2Days = daysUntil(data.user.step2Date)
+    const step2Target = data.boardExams.find(e => e.examType === 'USMLE_STEP_2_CK')
+    lines.push(`- Step 2 CK: ${step2Days} days away${step2Target?.targetScore ? ` (Target: ${step2Target.targetScore})` : ''}`)
+  }
+  if (data.user?.comlexDate) {
+    const comlexDays = daysUntil(data.user.comlexDate)
+    const comlexTarget = data.boardExams.find(e => e.examType === 'COMLEX_LEVEL_2_CE')
+    lines.push(`- COMLEX Level 2-CE: ${comlexDays} days away${comlexTarget?.targetScore ? ` (Target: ${comlexTarget.targetScore})` : ''}`)
+  }
+  lines.push('')
+
+  // UWorld stats
+  lines.push('UWORLD PROGRESS:')
+  const { uworldStats } = data
+  lines.push(`- Total Questions Done: ${uworldStats.totalQuestions} of ${uworldStats.uworldTotalQuestions} (${uworldStats.progressPercentage}% complete)`)
+  lines.push(`- Overall Correct: ${uworldStats.overallPercentage}%`)
+  lines.push(`- Today: ${uworldStats.questionsToday} questions, ${uworldStats.todayPercentage}% correct (Goal: ${uworldStats.dailyGoal}/day)`)
+  lines.push(`- This Week: ${uworldStats.questionsThisWeek} questions, ${uworldStats.weekPercentage}% correct`)
+  lines.push(`- Current Study Streak: ${uworldStats.currentStreak} days`)
+  lines.push('')
+
+  // Recent sessions
+  if (data.recentSessions.length > 0) {
+    lines.push('RECENT UWORLD SESSIONS:')
+    data.recentSessions.slice(0, 5).forEach(s => {
+      const dateStr = new Date(s.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      lines.push(`- ${dateStr}: ${s.blockName || 'Session'} - ${s.questionsCorrect}/${s.questionsTotal} (${s.percentage}%)`)
+    })
+    lines.push('')
+  }
+
+  // Weak areas
+  if (data.weakAreas.length > 0) {
+    lines.push('WEAK AREAS (Topics with most incorrect answers):')
+    data.weakAreas.slice(0, 10).forEach(w => {
+      lines.push(`- ${w.topic} (${w.system}): ${w.missCount} incorrect`)
+    })
+    lines.push('')
+  }
+
+  // Practice exams
+  if (data.practiceExams.length > 0) {
+    lines.push('PRACTICE EXAM SCORES:')
+    data.practiceExams.slice(0, 5).forEach(exam => {
+      const dateStr = new Date(exam.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      lines.push(`- ${exam.examType} (${dateStr}): ${exam.score}`)
+    })
+    lines.push('')
+  }
+
+  // Anki stats
+  if (data.ankiStats) {
+    const studiedToday = data.ankiStats.newStudied + data.ankiStats.reviewsStudied
+    lines.push('ANKI STATUS:')
+    lines.push(`- Due Today: ${data.ankiStats.totalDue} cards`)
+    lines.push(`- Studied Today: ${studiedToday} cards`)
+    if (data.ankiStats.matureCards !== null) {
+      lines.push(`- Mature Cards: ${data.ankiStats.matureCards}`)
+    }
+    lines.push('')
+  }
+
+  return lines.join('\n')
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,74 +312,66 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('[AI Chat] API key found and validated')
-
     const { messages, pageContext } = await request.json()
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ error: 'Messages required' }, { status: 400 })
     }
 
-    console.log(`[AI Chat] Processing ${messages.length} messages`)
-    if (pageContext) {
-      console.log(`[AI Chat] Page context: ${pageContext.pageName} (${pageContext.currentPage})`)
-    }
+    // Fetch user's actual data
+    const userData = await getUserContext(session.user.id)
+    const userContextString = buildUserContextString(userData)
 
     // Initialize Anthropic client
-    let anthropic: Anthropic
-    try {
-      anthropic = new Anthropic({
-        apiKey: apiKey,
-      })
-      console.log('[AI Chat] Anthropic client initialized')
-    } catch (initError: any) {
-      console.error('[AI Chat] Failed to initialize Anthropic client:', initError)
-      return NextResponse.json(
-        { error: `Failed to initialize AI client: ${initError.message}` },
-        { status: 500 }
-      )
-    }
+    const anthropic = new Anthropic({ apiKey })
 
     // Build page context section for system prompt
     let pageContextSection = ''
     if (pageContext && pageContext.pageName && pageContext.pageDescription) {
       pageContextSection = `
-CURRENT CONTEXT:
-The user is currently on the "${pageContext.pageName}" page (${pageContext.currentPage}).
-This page is for: ${pageContext.pageDescription}
-
-You have full awareness of what page the user is viewing. Use this context to provide more relevant and helpful responses. If they ask about something related to the current page, you can reference it specifically.
+CURRENT PAGE:
+The user is on the "${pageContext.pageName}" page (${pageContext.currentPage}).
+Page purpose: ${pageContext.pageDescription}
 `
     }
 
-    // System prompt for medical assistant with page context
+    // System prompt for medical assistant with full user context
     const systemPrompt = `You are an AI Medical Assistant embedded in ScrubBuddy, a productivity app for 3rd and 4th year medical students during clinical rotations.
+
+YOU HAVE COMPLETE ACCESS TO THIS STUDENT'S DATA:
+${userContextString}
 ${pageContextSection}
 Your role is to:
+- Provide PERSONALIZED study advice based on their actual statistics and weak areas
 - Answer clinical questions and help with differential diagnoses
-- Provide study tips and exam preparation advice (Step 2 CK, COMLEX Level 2-CE, Shelf Exams)
-- Explain medical concepts clearly and concisely
-- Help with case presentations and clinical reasoning
-- Offer mnemonic devices and memory aids
-- Help users understand and use features of the current page they're on
-- Provide context-aware assistance based on what page the user is viewing
+- Give specific recommendations based on their UWorld performance and upcoming exams
+- Help them prioritize studying based on days until their exams
+- Identify patterns in their weak areas and suggest targeted review
+- Track their progress and encourage them based on their actual data
+- Provide context-aware assistance based on what they're viewing
+
+When giving advice, ALWAYS reference their actual data:
+- Their specific weak topics (not generic advice)
+- Their actual exam dates and time remaining
+- Their current rotation context
+- Their recent performance trends
+- Their study streak and goals
 
 Guidelines:
-- Always emphasize patient safety and proper medical practice
-- Remind students to verify critical information with attendings/residents
+- Be direct and actionable - reference specific numbers from their data
+- Point out concerning trends (declining scores, weak areas not improving)
+- Celebrate wins (streaks, improvements, hitting goals)
+- Prioritize their most urgent exam first
 - Use evidence-based medicine principles
-- Be encouraging and supportive of their learning journey
 - Keep responses concise but thorough
-- Use medical terminology appropriately while explaining complex concepts
-- Reference the current page context when relevant to help users navigate the app
 
 You should NOT:
+- Give generic advice that ignores their data
 - Provide direct patient care advice
 - Replace supervision from licensed physicians
 - Give definitive diagnoses without proper clinical context
-- Encourage unsafe or unethical practices
 
-Remember: You're a study companion and knowledge resource with awareness of the user's current location in the app.`
+Remember: You have full visibility into this student's progress. Use it to give them the most relevant, personalized guidance possible.`
 
     // Make API call to Anthropic
     console.log('[AI Chat] Calling Anthropic API...')
