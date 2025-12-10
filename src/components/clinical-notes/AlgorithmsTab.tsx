@@ -2,12 +2,17 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Search, Filter, X, Trash2, Star, StarOff, ImagePlus, ChevronDown, Maximize2 } from 'lucide-react'
+import { Plus, Search, X, Trash2, Star, StarOff, ImagePlus, Maximize2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Modal } from '@/components/ui/modal'
 import { SHELF_SUBJECTS } from '@/types'
+
+interface AlgorithmsTabProps {
+  rotationId: string
+  rotationName?: string
+}
 
 interface Algorithm {
   id: string
@@ -22,12 +27,7 @@ interface Algorithm {
   createdAt: string
   updatedAt: string
   hasImage: boolean
-  imageData?: string // Only when fetching single
-}
-
-interface Rotation {
-  id: string
-  name: string
+  imageData?: string
 }
 
 // Convert file to base64
@@ -44,10 +44,9 @@ async function fileToBase64(file: File): Promise<{ data: string; mediaType: stri
   })
 }
 
-export default function AlgorithmsPage() {
+export function AlgorithmsTab({ rotationId, rotationName }: AlgorithmsTabProps) {
   const queryClient = useQueryClient()
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedSubject, setSelectedSubject] = useState<string>('')
   const [showAddModal, setShowAddModal] = useState(false)
   const [showViewModal, setShowViewModal] = useState(false)
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<Algorithm | null>(null)
@@ -60,29 +59,18 @@ export default function AlgorithmsPage() {
     description: '',
     subject: '',
     source: '',
-    rotationId: '',
     isHighYield: false,
   })
   const [pendingImage, setPendingImage] = useState<{ data: string; mediaType: string; preview: string } | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
 
-  // Fetch algorithms
+  // Fetch algorithms for this rotation
   const { data: algorithms = [], isLoading } = useQuery<Algorithm[]>({
-    queryKey: ['algorithms', selectedSubject],
+    queryKey: ['algorithms', 'rotation', rotationId],
     queryFn: async () => {
       const params = new URLSearchParams()
-      if (selectedSubject) params.set('subject', selectedSubject)
+      params.set('rotationId', rotationId)
       const res = await fetch(`/api/clinical-algorithms?${params}`)
-      if (!res.ok) throw new Error('Failed to fetch')
-      return res.json()
-    },
-  })
-
-  // Fetch rotations for dropdown
-  const { data: rotations = [] } = useQuery<Rotation[]>({
-    queryKey: ['rotations'],
-    queryFn: async () => {
-      const res = await fetch('/api/rotations')
       if (!res.ok) throw new Error('Failed to fetch')
       return res.json()
     },
@@ -103,7 +91,7 @@ export default function AlgorithmsPage() {
       return res.json()
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['algorithms'] })
+      queryClient.invalidateQueries({ queryKey: ['algorithms', 'rotation', rotationId] })
       resetForm()
       setShowAddModal(false)
     },
@@ -120,7 +108,7 @@ export default function AlgorithmsPage() {
       return res.json()
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['algorithms'] })
+      queryClient.invalidateQueries({ queryKey: ['algorithms', 'rotation', rotationId] })
     },
   })
 
@@ -136,7 +124,7 @@ export default function AlgorithmsPage() {
       return res.json()
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['algorithms'] })
+      queryClient.invalidateQueries({ queryKey: ['algorithms', 'rotation', rotationId] })
     },
   })
 
@@ -198,7 +186,6 @@ export default function AlgorithmsPage() {
       description: '',
       subject: '',
       source: '',
-      rotationId: '',
       isHighYield: false,
     })
     setPendingImage(null)
@@ -216,7 +203,7 @@ export default function AlgorithmsPage() {
       ...formData,
       imageData: pendingImage.data,
       imageType: pendingImage.mediaType,
-      rotationId: formData.rotationId || null,
+      rotationId: rotationId,
     })
   }
 
@@ -225,7 +212,6 @@ export default function AlgorithmsPage() {
     setShowViewModal(true)
     setViewImageData(null)
 
-    // Fetch full algorithm with image data
     try {
       const res = await fetch(`/api/clinical-algorithms/${algo.id}`)
       if (res.ok) {
@@ -244,23 +230,40 @@ export default function AlgorithmsPage() {
     algo.source?.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
+  // Hidden file input
+  const fileInput = (
+    <input
+      ref={fileInputRef}
+      type="file"
+      accept="image/*"
+      onChange={handleFileSelect}
+      className="hidden"
+    />
+  )
+
+  if (isLoading) {
+    return <div className="text-center py-12 text-slate-400">Loading algorithms...</div>
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {fileInput}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-white">Clinical Algorithms</h1>
-          <p className="text-slate-400 mt-1">Save and reference diagnostic flowcharts by rotation</p>
+        <div className="flex items-center gap-2">
+          <span className="text-lg font-semibold text-slate-200">{algorithms.length}</span>
+          <span className="text-slate-400">Algorithm{algorithms.length !== 1 ? 's' : ''}</span>
         </div>
-        <Button onClick={() => setShowAddModal(true)} className="flex items-center gap-2">
-          <Plus size={18} />
+        <Button onClick={() => setShowAddModal(true)} size="sm" className="flex items-center gap-2">
+          <Plus size={16} />
           Add Algorithm
         </Button>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
+      {/* Search */}
+      {algorithms.length > 0 && (
+        <div className="relative">
           <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <Input
             placeholder="Search algorithms..."
@@ -269,32 +272,23 @@ export default function AlgorithmsPage() {
             className="pl-10"
           />
         </div>
-        <div className="relative">
-          <select
-            value={selectedSubject}
-            onChange={(e) => setSelectedSubject(e.target.value)}
-            className="w-full sm:w-48 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-slate-200 appearance-none cursor-pointer focus:outline-none focus:border-blue-500"
-          >
-            <option value="">All Subjects</option>
-            {SHELF_SUBJECTS.map(subject => (
-              <option key={subject} value={subject}>{subject}</option>
-            ))}
-          </select>
-          <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-        </div>
-      </div>
+      )}
 
       {/* Algorithm Grid */}
-      {isLoading ? (
-        <div className="text-center py-12 text-slate-400">Loading...</div>
-      ) : filteredAlgorithms.length === 0 ? (
+      {filteredAlgorithms.length === 0 ? (
         <div className="text-center py-12">
-          <div className="text-slate-400 mb-4">
-            {algorithms.length === 0 ? 'No algorithms saved yet' : 'No algorithms match your search'}
-          </div>
-          <Button onClick={() => setShowAddModal(true)} variant="secondary">
-            Add Your First Algorithm
-          </Button>
+          <ImagePlus className="mx-auto text-slate-600 mb-4" size={48} />
+          <p className="text-slate-400 mb-2">
+            {algorithms.length === 0 ? 'No algorithms saved for this rotation' : 'No algorithms match your search'}
+          </p>
+          <p className="text-sm text-slate-500 mb-4">
+            Save diagnostic flowcharts and decision trees from UWorld
+          </p>
+          {algorithms.length === 0 && (
+            <Button onClick={() => setShowAddModal(true)} variant="secondary" size="sm">
+              Add Your First Algorithm
+            </Button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -349,11 +343,6 @@ export default function AlgorithmsPage() {
               {algo.description && (
                 <p className="text-sm text-slate-400 line-clamp-2 mb-2">{algo.description}</p>
               )}
-              {algo.rotation && (
-                <div className="text-xs text-slate-500">
-                  Rotation: {algo.rotation.name}
-                </div>
-              )}
               <div className="mt-3 flex items-center justify-center p-4 bg-slate-900/50 rounded-lg">
                 <div className="text-slate-500 text-sm flex items-center gap-2">
                   <Maximize2 size={14} />
@@ -364,15 +353,6 @@ export default function AlgorithmsPage() {
           ))}
         </div>
       )}
-
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleFileSelect}
-        className="hidden"
-      />
 
       {/* Add Algorithm Modal */}
       <Modal isOpen={showAddModal} onClose={() => { setShowAddModal(false); resetForm(); }}>
@@ -448,32 +428,15 @@ export default function AlgorithmsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">
-                  Source
-                </label>
-                <Input
-                  value={formData.source}
-                  onChange={(e) => setFormData({ ...formData, source: e.target.value })}
-                  placeholder="e.g., UWorld, UpToDate"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">
-                  Rotation
-                </label>
-                <select
-                  value={formData.rotationId}
-                  onChange={(e) => setFormData({ ...formData, rotationId: e.target.value })}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-slate-200 focus:outline-none focus:border-blue-500"
-                >
-                  <option value="">No specific rotation</option>
-                  {rotations.map(rotation => (
-                    <option key={rotation.id} value={rotation.id}>{rotation.name}</option>
-                  ))}
-                </select>
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">
+                Source
+              </label>
+              <Input
+                value={formData.source}
+                onChange={(e) => setFormData({ ...formData, source: e.target.value })}
+                placeholder="e.g., UWorld, UpToDate"
+              />
             </div>
 
             <div>
@@ -552,10 +515,6 @@ export default function AlgorithmsPage() {
 
             {selectedAlgorithm.description && (
               <p className="text-slate-400 text-sm mb-4">{selectedAlgorithm.description}</p>
-            )}
-
-            {selectedAlgorithm.rotation && (
-              <p className="text-xs text-slate-500 mb-4">Rotation: {selectedAlgorithm.rotation.name}</p>
             )}
 
             {/* Image */}

@@ -2,10 +2,10 @@
 
 import { useState } from 'react'
 import { cn, formatDate } from '@/lib/utils'
-import { FileText, Lightbulb, BookOpen, Pill, Plus } from 'lucide-react'
+import { FileText, Lightbulb, GitBranch, Pill, Plus } from 'lucide-react'
 import { PatientsTab } from '@/components/clinical-notes/PatientsTab'
 import { PearlsTab } from '@/components/clinical-notes/PearlsTab'
-import { ReferenceTab } from '@/components/clinical-notes/ReferenceTab'
+import { AlgorithmsTab } from '@/components/clinical-notes/AlgorithmsTab'
 import { PharmTab } from '@/components/clinical-notes/PharmTab'
 import { QuickCapture } from '@/components/clinical-notes/QuickCapture'
 
@@ -25,7 +25,7 @@ interface RotationWorkspaceProps {
 const tabs = [
   { id: 'patients', name: 'Patients', icon: FileText },
   { id: 'pearls', name: 'Pearls', icon: Lightbulb },
-  { id: 'reference', name: 'Reference', icon: BookOpen },
+  { id: 'algorithms', name: 'Algorithms', icon: GitBranch },
   { id: 'pharm', name: 'Pharm', icon: Pill },
 ]
 
@@ -84,7 +84,7 @@ export function RotationWorkspace({ rotation }: RotationWorkspaceProps) {
         <div className="min-h-[500px]">
           {activeTab === 'patients' && <PatientsTab rotationId={rotation.id} />}
           {activeTab === 'pearls' && <PearlsTab rotationId={rotation.id} />}
-          {activeTab === 'reference' && <ReferenceTab rotationId={rotation.id} />}
+          {activeTab === 'algorithms' && <AlgorithmsTab rotationId={rotation.id} rotationName={rotation.name} />}
           {activeTab === 'pharm' && <PharmTab rotationId={rotation.id} />}
         </div>
       </div>

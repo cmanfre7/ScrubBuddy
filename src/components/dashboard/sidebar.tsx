@@ -20,7 +20,6 @@ import {
   ExternalLink,
   X,
   Layers,
-  GitBranch,
 } from 'lucide-react'
 import { useSidebar } from '@/components/providers/sidebar-provider'
 import { useQuery } from '@tanstack/react-query'
@@ -28,7 +27,6 @@ import { useQuery } from '@tanstack/react-query'
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Clinical Notes', href: '/dashboard/clinical-notes', icon: FileText },
-  { name: 'Clinical Algorithms', href: '/dashboard/algorithms', icon: GitBranch },
   { name: 'Procedures', href: '/dashboard/procedures', icon: Stethoscope },
   { name: 'UWorld', href: '/dashboard/uworld', icon: BookOpen },
   { name: 'Board/Shelf Analytics', href: '/dashboard/analytics', icon: BarChart3 },

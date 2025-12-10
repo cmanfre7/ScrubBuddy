@@ -103,12 +103,8 @@ function getPageContext(pathname: string): PageContext {
       description: 'Track AnKing flashcard progress by deck and subject for medical school studying.'
     },
     '/dashboard/clinical-notes': {
-      name: 'Clinical Notes & Pearls',
-      description: 'Store clinical pearls, learning points, and notes from rotations for future reference.'
-    },
-    '/dashboard/algorithms': {
-      name: 'Clinical Algorithms',
-      description: 'Save and reference diagnostic flowcharts and decision trees from UWorld and other sources, organized by shelf subject.'
+      name: 'Clinical Notes',
+      description: 'Rotation workspace with tabs for Patients, Pearls, Algorithms (diagnostic flowcharts from UWorld), and Pharm notes. Organized by rotation for shelf exam studying.'
     },
   }
 
