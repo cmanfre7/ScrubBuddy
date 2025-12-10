@@ -5,11 +5,14 @@ const SCOPES = [
   'https://www.googleapis.com/auth/userinfo.email',
 ]
 
+// Hardcode production URL to avoid environment variable issues
+const REDIRECT_URI = 'https://scrubbuddy.app/api/google-calendar/callback'
+
 export function getOAuth2Client() {
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
-    `${process.env.NEXTAUTH_URL}/api/google-calendar/callback`
+    REDIRECT_URI
   )
 }
 
