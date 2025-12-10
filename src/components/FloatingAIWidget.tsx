@@ -1,9 +1,54 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { usePathname } from 'next/navigation'
 import { MessageSquare, X, Send, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+// Simple markdown renderer for chat messages
+function renderMarkdown(text: string): React.ReactNode {
+  // Split by lines first to handle line breaks
+  const lines = text.split('\n')
+
+  return lines.map((line, lineIdx) => {
+    // Process inline formatting (bold, italic)
+    const parts: React.ReactNode[] = []
+    let remaining = line
+    let partIdx = 0
+
+    // Match **bold** patterns
+    const boldRegex = /\*\*([^*]+)\*\*/g
+    let lastIndex = 0
+    let match
+
+    while ((match = boldRegex.exec(line)) !== null) {
+      // Add text before the match
+      if (match.index > lastIndex) {
+        parts.push(<span key={`${lineIdx}-${partIdx++}`}>{line.slice(lastIndex, match.index)}</span>)
+      }
+      // Add the bold text
+      parts.push(<strong key={`${lineIdx}-${partIdx++}`} className="font-semibold text-white">{match[1]}</strong>)
+      lastIndex = match.index + match[0].length
+    }
+
+    // Add remaining text after last match
+    if (lastIndex < line.length) {
+      parts.push(<span key={`${lineIdx}-${partIdx++}`}>{line.slice(lastIndex)}</span>)
+    }
+
+    // If no matches, just use the line as-is
+    if (parts.length === 0) {
+      parts.push(<span key={`${lineIdx}-0`}>{line}</span>)
+    }
+
+    return (
+      <span key={lineIdx}>
+        {parts}
+        {lineIdx < lines.length - 1 && <br />}
+      </span>
+    )
+  })
+}
 
 interface Message {
   role: 'user' | 'assistant'
@@ -204,7 +249,9 @@ export function FloatingAIWidget() {
                       : 'bg-slate-700/50 text-slate-200 border border-slate-600/50'
                   )}
                 >
-                  <p className="whitespace-pre-wrap">{message.content}</p>
+                  <div className="whitespace-pre-wrap">
+                    {message.role === 'assistant' ? renderMarkdown(message.content) : message.content}
+                  </div>
                 </div>
               </div>
             ))}
