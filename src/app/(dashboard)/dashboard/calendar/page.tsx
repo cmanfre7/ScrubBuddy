@@ -242,13 +242,17 @@ export default function CalendarPage() {
     }
   }
 
-  const handleSyncGoogle = async () => {
+  const handleSyncGoogle = async (fullSync = false) => {
     setIsSyncing(true)
     try {
-      const res = await fetch('/api/google-calendar/sync', { method: 'POST' })
+      const url = fullSync
+        ? '/api/google-calendar/sync?fullSync=true'
+        : '/api/google-calendar/sync'
+      const res = await fetch(url, { method: 'POST' })
       const data = await res.json()
       if (data.success) {
-        alert(`Sync complete! Pulled: ${data.pulled}, Pushed: ${data.pushed}`)
+        const syncType = fullSync ? 'Full sync' : 'Sync'
+        alert(`${syncType} complete! Pulled: ${data.pulled}, Pushed: ${data.pushed}`)
         refetchGoogleStatus()
         queryClient.invalidateQueries({ queryKey: ['calendar-events'] })
       } else {
@@ -438,15 +442,22 @@ export default function CalendarPage() {
                     Last synced: {new Date(googleCalendarStatus.lastSyncAt).toLocaleString()}
                   </p>
                 )}
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={handleSyncGoogle} disabled={isSyncing}>
+                <div className="flex gap-2 flex-wrap">
+                  <Button size="sm" onClick={() => handleSyncGoogle(false)} disabled={isSyncing}>
                     <RefreshCw size={14} className={`mr-1 ${isSyncing ? 'animate-spin' : ''}`} />
-                    {isSyncing ? 'Syncing...' : 'Sync Now'}
+                    {isSyncing ? 'Syncing...' : 'Sync'}
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={() => handleSyncGoogle(true)} disabled={isSyncing}>
+                    <RefreshCw size={14} className={`mr-1 ${isSyncing ? 'animate-spin' : ''}`} />
+                    Full Sync
                   </Button>
                   <Button size="sm" variant="danger" onClick={handleDisconnectGoogle}>
                     Disconnect
                   </Button>
                 </div>
+                <p className="text-xs text-slate-500 mt-2">
+                  Use &quot;Full Sync&quot; to re-fetch all events (fixes date display issues)
+                </p>
               </div>
             ) : (
               <div className="pl-7">

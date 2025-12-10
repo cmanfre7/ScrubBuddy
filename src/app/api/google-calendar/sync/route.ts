@@ -11,14 +11,20 @@ import {
 } from '@/lib/google-calendar'
 
 // POST /api/google-calendar/sync - Perform sync
+// Query params:
+//   ?fullSync=true - Force a full sync (ignore sync token, re-fetch all events)
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  // Check for fullSync query parameter
+  const { searchParams } = new URL(request.url)
+  const fullSync = searchParams.get('fullSync') === 'true'
+
   try {
-    const sync = await prisma.googleCalendarSync.findUnique({
+    let sync = await prisma.googleCalendarSync.findUnique({
       where: { userId: session.user.id },
     })
 
@@ -27,6 +33,15 @@ export async function POST(request: Request) {
         { error: 'Google Calendar sync not enabled' },
         { status: 400 }
       )
+    }
+
+    // If fullSync requested, clear the sync token to force re-fetching all events
+    if (fullSync && sync.syncToken) {
+      await prisma.googleCalendarSync.update({
+        where: { userId: session.user.id },
+        data: { syncToken: null },
+      })
+      sync = { ...sync, syncToken: null }
     }
 
     let accessToken = sync.accessToken
@@ -50,7 +65,9 @@ export async function POST(request: Request) {
     const results = {
       pulled: 0,
       pushed: 0,
+      updated: 0,
       errors: [] as string[],
+      fullSync,
     }
 
     // Get time range for sync (past 30 days to 1 year ahead)
@@ -96,21 +113,23 @@ export async function POST(request: Request) {
             if (gEvent.start?.dateTime) {
               startTime = new Date(gEvent.start.dateTime)
             } else if (gEvent.start?.date) {
-              // Parse as local date: "2024-12-13" -> December 13 at midnight LOCAL time
+              // For all-day events, use noon UTC to avoid timezone boundary issues
+              // This ensures the date displays correctly regardless of user's timezone
+              // "2024-12-13" -> December 13 at 12:00 UTC
               const [year, month, day] = gEvent.start.date.split('-').map(Number)
-              startTime = new Date(year, month - 1, day, 0, 0, 0)
+              startTime = new Date(Date.UTC(year, month - 1, day, 12, 0, 0))
             }
 
             if (gEvent.end?.dateTime) {
               endTime = new Date(gEvent.end.dateTime)
             } else if (gEvent.end?.date) {
               // For all-day events, Google's end date is exclusive (next day)
-              // So "2024-12-14" end means the event ends at end of "2024-12-13"
-              // We'll set end to 23:59:59 of the previous day
+              // So "2024-12-14" end means the event ends on "2024-12-13"
+              // We use noon UTC of the day BEFORE the exclusive end date
               const [year, month, day] = gEvent.end.date.split('-').map(Number)
-              const exclusiveEnd = new Date(year, month - 1, day, 0, 0, 0)
-              // Subtract 1 second to get 23:59:59 of the actual end day
-              endTime = new Date(exclusiveEnd.getTime() - 1000)
+              // Subtract one day since Google's end is exclusive
+              const actualEndDate = new Date(Date.UTC(year, month - 1, day - 1, 12, 0, 0))
+              endTime = actualEndDate
             }
 
             if (!startTime || !endTime) continue
