@@ -4,12 +4,15 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getTokensFromCode, getUserEmail } from '@/lib/google-calendar'
 
+// Hardcode production URL to avoid Railway proxy issues
+const BASE_URL = 'https://scrubbuddy.app'
+
 // GET /api/google-calendar/callback - Handle Google OAuth callback
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) {
     // Redirect to login if not authenticated
-    return NextResponse.redirect(new URL('/login', request.url))
+    return NextResponse.redirect(`${BASE_URL}/login`)
   }
 
   const { searchParams } = new URL(request.url)
@@ -20,24 +23,18 @@ export async function GET(request: Request) {
   // Handle OAuth errors
   if (error) {
     console.error('Google OAuth error:', error)
-    return NextResponse.redirect(
-      new URL('/dashboard/calendar?error=google_auth_denied', request.url)
-    )
+    return NextResponse.redirect(`${BASE_URL}/dashboard/calendar?error=google_auth_denied`)
   }
 
   if (!code || !state) {
-    return NextResponse.redirect(
-      new URL('/dashboard/calendar?error=google_auth_invalid', request.url)
-    )
+    return NextResponse.redirect(`${BASE_URL}/dashboard/calendar?error=google_auth_invalid`)
   }
 
   try {
     // Verify state token
     const stateData = JSON.parse(Buffer.from(state, 'base64').toString())
     if (stateData.userId !== session.user.id) {
-      return NextResponse.redirect(
-        new URL('/dashboard/calendar?error=google_auth_invalid', request.url)
-      )
+      return NextResponse.redirect(`${BASE_URL}/dashboard/calendar?error=google_auth_invalid`)
     }
 
     // Exchange code for tokens
@@ -45,9 +42,7 @@ export async function GET(request: Request) {
 
     if (!tokens.access_token || !tokens.refresh_token) {
       console.error('Missing tokens from Google OAuth')
-      return NextResponse.redirect(
-        new URL('/dashboard/calendar?error=google_auth_failed', request.url)
-      )
+      return NextResponse.redirect(`${BASE_URL}/dashboard/calendar?error=google_auth_failed`)
     }
 
     // Get user's Google email
@@ -81,13 +76,9 @@ export async function GET(request: Request) {
     })
 
     // Redirect back to calendar with success
-    return NextResponse.redirect(
-      new URL('/dashboard/calendar?success=google_connected', request.url)
-    )
+    return NextResponse.redirect(`${BASE_URL}/dashboard/calendar?success=google_connected`)
   } catch (error) {
     console.error('Google Calendar callback error:', error)
-    return NextResponse.redirect(
-      new URL('/dashboard/calendar?error=google_auth_failed', request.url)
-    )
+    return NextResponse.redirect(`${BASE_URL}/dashboard/calendar?error=google_auth_failed`)
   }
 }
