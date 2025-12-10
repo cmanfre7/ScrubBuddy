@@ -87,22 +87,49 @@ export async function POST(request: Request) {
             }
 
             // Parse start/end times
-            const startTime = gEvent.start?.dateTime
-              ? new Date(gEvent.start.dateTime)
-              : gEvent.start?.date
-                ? new Date(gEvent.start.date)
-                : null
-            const endTime = gEvent.end?.dateTime
-              ? new Date(gEvent.end.dateTime)
-              : gEvent.end?.date
-                ? new Date(gEvent.end.date)
-                : null
+            // For all-day events, Google returns date strings like "2024-12-13"
+            // We need to parse these as LOCAL dates, not UTC
+            let startTime: Date | null = null
+            let endTime: Date | null = null
+            const isAllDay = !!gEvent.start?.date
+
+            if (gEvent.start?.dateTime) {
+              startTime = new Date(gEvent.start.dateTime)
+            } else if (gEvent.start?.date) {
+              // Parse as local date: "2024-12-13" -> December 13 at midnight LOCAL time
+              const [year, month, day] = gEvent.start.date.split('-').map(Number)
+              startTime = new Date(year, month - 1, day, 0, 0, 0)
+            }
+
+            if (gEvent.end?.dateTime) {
+              endTime = new Date(gEvent.end.dateTime)
+            } else if (gEvent.end?.date) {
+              // For all-day events, Google's end date is exclusive (next day)
+              // So "2024-12-14" end means the event ends at end of "2024-12-13"
+              // We'll set end to 23:59:59 of the previous day
+              const [year, month, day] = gEvent.end.date.split('-').map(Number)
+              const exclusiveEnd = new Date(year, month - 1, day, 0, 0, 0)
+              // Subtract 1 second to get 23:59:59 of the actual end day
+              endTime = new Date(exclusiveEnd.getTime() - 1000)
+            }
 
             if (!startTime || !endTime) continue
 
-            const isAllDay = !!gEvent.start?.date
+            // Check if local event exists and was modified after last sync
+            const existingEvent = await prisma.calendarEvent.findUnique({
+              where: { googleEventId: gEvent.id },
+            })
 
-            // Upsert local event
+            if (existingEvent) {
+              // If local event was modified after last sync, skip pulling (we'll push instead)
+              const locallyModified = existingEvent.updatedAt > (existingEvent.lastSyncedAt || new Date(0))
+              if (locallyModified) {
+                // Skip this event - it will be pushed to Google instead
+                continue
+              }
+            }
+
+            // Upsert local event (only if not locally modified)
             await prisma.calendarEvent.upsert({
               where: {
                 googleEventId: gEvent.id,
@@ -146,8 +173,10 @@ export async function POST(request: Request) {
 
         // PUSH: Send local events to Google
         if (sync.syncDirection === 'both' || sync.syncDirection === 'to_google') {
-          // Get local events that aren't synced yet
-          const localEvents = await prisma.calendarEvent.findMany({
+          // Get local events that need to be pushed:
+          // 1. New events (googleEventId is null)
+          // 2. Modified events (updatedAt > lastSyncedAt)
+          const newLocalEvents = await prisma.calendarEvent.findMany({
             where: {
               userId: session.user.id,
               googleEventId: null,
@@ -155,7 +184,21 @@ export async function POST(request: Request) {
             },
           })
 
-          for (const localEvent of localEvents) {
+          const modifiedLocalEvents = await prisma.calendarEvent.findMany({
+            where: {
+              userId: session.user.id,
+              googleEventId: { not: null },
+              startTime: { gte: timeMin, lte: timeMax },
+            },
+          })
+
+          // Filter to only events modified after last sync
+          const eventsToUpdate = modifiedLocalEvents.filter(
+            (event) => event.updatedAt > (event.lastSyncedAt || new Date(0))
+          )
+
+          // Push new events (create in Google)
+          for (const localEvent of newLocalEvents) {
             try {
               const gEvent = await createGoogleEvent(
                 accessToken,
@@ -183,7 +226,41 @@ export async function POST(request: Request) {
               })
               results.pushed++
             } catch (err) {
-              results.errors.push(`Failed to push event: ${localEvent.title}`)
+              results.errors.push(`Failed to push new event: ${localEvent.title}`)
+            }
+          }
+
+          // Push modified events (update in Google)
+          for (const localEvent of eventsToUpdate) {
+            try {
+              if (!localEvent.googleEventId) continue
+
+              await updateGoogleEvent(
+                accessToken,
+                sync.refreshToken,
+                localEvent.googleCalendarId || calendarId,
+                localEvent.googleEventId,
+                {
+                  summary: localEvent.title,
+                  description: localEvent.description || undefined,
+                  location: localEvent.location || undefined,
+                  start: localEvent.startTime,
+                  end: localEvent.endTime,
+                  allDay: localEvent.isAllDay,
+                }
+              )
+
+              // Update last synced time
+              await prisma.calendarEvent.update({
+                where: { id: localEvent.id },
+                data: {
+                  isSynced: true,
+                  lastSyncedAt: new Date(),
+                },
+              })
+              results.pushed++
+            } catch (err) {
+              results.errors.push(`Failed to update event: ${localEvent.title}`)
             }
           }
         }
