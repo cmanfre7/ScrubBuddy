@@ -21,6 +21,7 @@ interface MonthViewProps {
   events: CalendarEvent[]
   onDateClick: (date: Date) => void
   onEventClick: (event: CalendarEvent) => void
+  onShowMoreClick?: (date: Date) => void
 }
 
 const EVENT_TYPE_COLORS: Record<string, string> = {
@@ -34,7 +35,7 @@ const EVENT_TYPE_COLORS: Record<string, string> = {
   appointment: 'bg-pink-500/80 hover:bg-pink-500',
 }
 
-export function MonthView({ currentDate, events, onDateClick, onEventClick }: MonthViewProps) {
+export function MonthView({ currentDate, events, onDateClick, onEventClick, onShowMoreClick }: MonthViewProps) {
   const calendar = useMemo(() => {
     const year = currentDate.getFullYear()
     const month = currentDate.getMonth()
@@ -153,7 +154,15 @@ export function MonthView({ currentDate, events, onDateClick, onEventClick }: Mo
                     </button>
                   ))}
                   {dayEvents.length > 3 && (
-                    <div className="text-xs text-slate-400 px-2">+{dayEvents.length - 3} more</div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onShowMoreClick?.(date)
+                      }}
+                      className="text-xs text-slate-400 px-2 hover:text-blue-400 transition-colors"
+                    >
+                      +{dayEvents.length - 3} more
+                    </button>
                   )}
                 </div>
               </div>

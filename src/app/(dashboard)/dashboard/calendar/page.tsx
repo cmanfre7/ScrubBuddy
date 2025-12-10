@@ -197,6 +197,11 @@ export default function CalendarPage() {
     setIsEventModalOpen(true)
   }
 
+  const handleShowMoreClick = (date: Date) => {
+    setCurrentDate(date)
+    setViewMode('day')
+  }
+
   const handleSaveEvent = (data: Partial<CalendarEvent>) => {
     if (selectedEvent) {
       updateEventMutation.mutate({ ...data, id: selectedEvent.id })
@@ -371,6 +376,7 @@ export default function CalendarPage() {
                 events={events}
                 onDateClick={handleDateClick}
                 onEventClick={handleEventClick}
+                onShowMoreClick={handleShowMoreClick}
               />
             )}
             {viewMode === 'week' && (
