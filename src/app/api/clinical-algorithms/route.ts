@@ -45,8 +45,9 @@ export async function GET(request: NextRequest) {
       rotation: algo.rotation,
       createdAt: algo.createdAt,
       updatedAt: algo.updatedAt,
-      // Include a small preview indicator
+      // Include content type indicators
       hasImage: !!algo.imageData,
+      hasText: !!algo.textContent,
     }))
 
     return NextResponse.json(algorithmsWithoutImageData)
@@ -65,18 +66,28 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, description, subject, imageData, imageType, source, tags, isHighYield, rotationId } = body
+    const { title, description, subject, imageData, imageType, textContent, source, tags, isHighYield, rotationId } = body
 
-    // Validate required fields
-    if (!title || !subject || !imageData || !imageType) {
+    // Validate required fields - need either image OR text content
+    if (!title || !subject) {
       return NextResponse.json(
-        { error: 'Title, subject, and image are required' },
+        { error: 'Title and subject are required' },
         { status: 400 }
       )
     }
 
-    // Validate image size (max 10MB base64 ~ 13MB string)
-    if (imageData.length > 13 * 1024 * 1024) {
+    // Must have either image or text content
+    const hasImage = imageData && imageType
+    const hasText = textContent && textContent.trim().length > 0
+    if (!hasImage && !hasText) {
+      return NextResponse.json(
+        { error: 'Either an image or text content is required' },
+        { status: 400 }
+      )
+    }
+
+    // Validate image size if provided (max 10MB base64 ~ 13MB string)
+    if (imageData && imageData.length > 13 * 1024 * 1024) {
       return NextResponse.json(
         { error: 'Image too large. Maximum size is 10MB.' },
         { status: 400 }
@@ -89,8 +100,9 @@ export async function POST(request: NextRequest) {
         title,
         description: description || null,
         subject,
-        imageData,
-        imageType,
+        imageData: imageData || null,
+        imageType: imageType || null,
+        textContent: textContent || null,
         source: source || null,
         tags: tags || [],
         isHighYield: isHighYield || false,
@@ -103,7 +115,7 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Return without image data
+    // Return without full image data
     return NextResponse.json({
       id: algorithm.id,
       title: algorithm.title,
@@ -116,7 +128,8 @@ export async function POST(request: NextRequest) {
       rotation: algorithm.rotation,
       createdAt: algorithm.createdAt,
       updatedAt: algorithm.updatedAt,
-      hasImage: true,
+      hasImage: !!algorithm.imageData,
+      hasText: !!algorithm.textContent,
     })
   } catch (error) {
     console.error('Error creating algorithm:', error)

@@ -911,9 +911,10 @@ model ClinicalAlgorithm {
   description String?   @db.Text // Optional notes about the algorithm
   subject     String    // "Surgery", "OBGYN", "Internal Medicine", etc. (shelf subject)
 
-  // Image storage (base64)
-  imageData   String    @db.Text // Base64 encoded image data
-  imageType   String    // MIME type: "image/png", "image/jpeg", etc.
+  // Content - either image OR text (at least one required)
+  imageData   String?   @db.Text // Base64 encoded image data (optional if textContent provided)
+  imageType   String?   // MIME type: "image/png", "image/jpeg", etc.
+  textContent String?   @db.Text // Text-based algorithm content (markdown supported)
 
   // Metadata
   source      String?   // "UWorld", "UpToDate", "First Aid", etc.

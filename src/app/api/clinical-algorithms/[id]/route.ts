@@ -50,7 +50,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     const { id } = await params
     const body = await request.json()
-    const { title, description, subject, imageData, imageType, source, tags, isHighYield, rotationId } = body
+    const { title, description, subject, imageData, imageType, textContent, source, tags, isHighYield, rotationId } = body
 
     // Check ownership
     const existing = await prisma.clinicalAlgorithm.findFirst({
@@ -73,6 +73,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     if (tags !== undefined) updateData.tags = tags
     if (isHighYield !== undefined) updateData.isHighYield = isHighYield
     if (rotationId !== undefined) updateData.rotationId = rotationId || null
+    if (textContent !== undefined) updateData.textContent = textContent || null
 
     // Only update image if new image is provided
     if (imageData && imageType) {
@@ -111,6 +112,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       createdAt: algorithm.createdAt,
       updatedAt: algorithm.updatedAt,
       hasImage: !!algorithm.imageData,
+      hasText: !!algorithm.textContent,
     })
   } catch (error) {
     console.error('Error updating algorithm:', error)

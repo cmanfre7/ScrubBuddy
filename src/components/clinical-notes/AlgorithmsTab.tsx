@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Search, X, Trash2, Star, StarOff, ImagePlus, Maximize2 } from 'lucide-react'
+import { Plus, Search, X, Trash2, Star, StarOff, ImagePlus, Maximize2, FileText, Image } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -19,7 +19,7 @@ interface Algorithm {
   title: string
   description: string | null
   subject: string
-  imageType: string
+  imageType: string | null
   source: string | null
   tags: string[]
   isHighYield: boolean
@@ -27,7 +27,9 @@ interface Algorithm {
   createdAt: string
   updatedAt: string
   hasImage: boolean
+  hasText: boolean
   imageData?: string
+  textContent?: string
 }
 
 // Convert file to base64
@@ -54,12 +56,14 @@ export function AlgorithmsTab({ rotationId, rotationName }: AlgorithmsTabProps) 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Form state
+  const [contentType, setContentType] = useState<'image' | 'text'>('image')
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     subject: '',
     source: '',
     isHighYield: false,
+    textContent: '',
   })
   const [pendingImage, setPendingImage] = useState<{ data: string; mediaType: string; preview: string } | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
@@ -181,12 +185,14 @@ export function AlgorithmsTab({ rotationId, rotationName }: AlgorithmsTabProps) 
   }
 
   const resetForm = () => {
+    setContentType('image')
     setFormData({
       title: '',
       description: '',
       subject: '',
       source: '',
       isHighYield: false,
+      textContent: '',
     })
     setPendingImage(null)
     setFormError(null)
@@ -194,29 +200,52 @@ export function AlgorithmsTab({ rotationId, rotationName }: AlgorithmsTabProps) 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formData.title || !formData.subject || !pendingImage) {
-      setFormError('Title, subject, and image are required')
+    if (!formData.title || !formData.subject) {
+      setFormError('Title and subject are required')
+      return
+    }
+
+    // Validate content based on type
+    if (contentType === 'image' && !pendingImage) {
+      setFormError('Please upload an image')
+      return
+    }
+    if (contentType === 'text' && !formData.textContent.trim()) {
+      setFormError('Please enter algorithm content')
       return
     }
 
     createMutation.mutate({
-      ...formData,
-      imageData: pendingImage.data,
-      imageType: pendingImage.mediaType,
+      title: formData.title,
+      description: formData.description,
+      subject: formData.subject,
+      source: formData.source,
+      isHighYield: formData.isHighYield,
+      imageData: pendingImage?.data || null,
+      imageType: pendingImage?.mediaType || null,
+      textContent: formData.textContent || null,
       rotationId: rotationId,
     })
   }
+
+  const [viewTextContent, setViewTextContent] = useState<string | null>(null)
 
   const viewAlgorithm = async (algo: Algorithm) => {
     setSelectedAlgorithm(algo)
     setShowViewModal(true)
     setViewImageData(null)
+    setViewTextContent(null)
 
     try {
       const res = await fetch(`/api/clinical-algorithms/${algo.id}`)
       if (res.ok) {
         const data = await res.json()
-        setViewImageData(`data:${data.imageType};base64,${data.imageData}`)
+        if (data.imageData && data.imageType) {
+          setViewImageData(`data:${data.imageType};base64,${data.imageData}`)
+        }
+        if (data.textContent) {
+          setViewTextContent(data.textContent)
+        }
       }
     } catch (error) {
       console.error('Error fetching algorithm:', error)
@@ -345,8 +374,8 @@ export function AlgorithmsTab({ rotationId, rotationName }: AlgorithmsTabProps) 
               )}
               <div className="mt-3 flex items-center justify-center p-4 bg-slate-900/50 rounded-lg">
                 <div className="text-slate-500 text-sm flex items-center gap-2">
-                  <Maximize2 size={14} />
-                  Click to view
+                  {algo.hasImage ? <Image size={14} /> : <FileText size={14} />}
+                  {algo.hasImage ? 'Image' : 'Text'} - Click to view
                 </div>
               </div>
             </div>
@@ -366,37 +395,92 @@ export function AlgorithmsTab({ rotationId, rotationName }: AlgorithmsTabProps) 
               </div>
             )}
 
-            {/* Image upload area */}
+            {/* Content Type Toggle */}
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
-                Algorithm Image <span className="text-red-400">*</span>
+                Content Type
               </label>
-              {pendingImage ? (
-                <div className="relative">
-                  <img
-                    src={pendingImage.preview}
-                    alt="Preview"
-                    className="w-full max-h-64 object-contain rounded-lg border border-slate-600"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setPendingImage(null)}
-                    className="absolute top-2 right-2 p-1.5 bg-red-500 rounded-full hover:bg-red-600"
-                  >
-                    <X size={14} className="text-white" />
-                  </button>
-                </div>
-              ) : (
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-slate-600 rounded-lg p-8 text-center cursor-pointer hover:border-blue-500 transition-colors"
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setContentType('image')}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border transition-all ${
+                    contentType === 'image'
+                      ? 'bg-blue-500/20 border-blue-500/50 text-blue-400'
+                      : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'
+                  }`}
                 >
-                  <ImagePlus size={32} className="mx-auto mb-2 text-slate-400" />
-                  <p className="text-slate-400">Click to upload or paste image (Ctrl+V)</p>
-                  <p className="text-xs text-slate-500 mt-1">PNG, JPG, GIF up to 10MB</p>
-                </div>
-              )}
+                  <Image size={16} />
+                  Image
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setContentType('text')}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border transition-all ${
+                    contentType === 'text'
+                      ? 'bg-blue-500/20 border-blue-500/50 text-blue-400'
+                      : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'
+                  }`}
+                >
+                  <FileText size={16} />
+                  Text
+                </button>
+              </div>
             </div>
+
+            {/* Content Area - Image or Text */}
+            {contentType === 'image' ? (
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Algorithm Image <span className="text-red-400">*</span>
+                </label>
+                {pendingImage ? (
+                  <div className="relative">
+                    <img
+                      src={pendingImage.preview}
+                      alt="Preview"
+                      className="w-full max-h-64 object-contain rounded-lg border border-slate-600"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setPendingImage(null)}
+                      className="absolute top-2 right-2 p-1.5 bg-red-500 rounded-full hover:bg-red-600"
+                    >
+                      <X size={14} className="text-white" />
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="border-2 border-dashed border-slate-600 rounded-lg p-8 text-center cursor-pointer hover:border-blue-500 transition-colors"
+                  >
+                    <ImagePlus size={32} className="mx-auto mb-2 text-slate-400" />
+                    <p className="text-slate-400">Click to upload or paste image (Ctrl+V)</p>
+                    <p className="text-xs text-slate-500 mt-1">PNG, JPG, GIF up to 10MB</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Algorithm Content <span className="text-red-400">*</span>
+                </label>
+                <Textarea
+                  value={formData.textContent}
+                  onChange={(e) => setFormData({ ...formData, textContent: e.target.value })}
+                  placeholder="Type your algorithm steps here...
+
+Example:
+1. Check vitals and stabilize patient
+2. Order labs: CBC, CMP, lipase
+3. If lipase > 3x ULN → acute pancreatitis
+4. NPO, IV fluids, pain management"
+                  rows={8}
+                  className="font-mono text-sm"
+                />
+                <p className="text-xs text-slate-500 mt-1">Supports markdown formatting</p>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -487,7 +571,7 @@ export function AlgorithmsTab({ rotationId, rotationName }: AlgorithmsTabProps) 
       </Modal>
 
       {/* View Algorithm Modal */}
-      <Modal isOpen={showViewModal} onClose={() => { setShowViewModal(false); setSelectedAlgorithm(null); setViewImageData(null); }}>
+      <Modal isOpen={showViewModal} onClose={() => { setShowViewModal(false); setSelectedAlgorithm(null); setViewImageData(null); setViewTextContent(null); }}>
         {selectedAlgorithm && (
           <div className="p-6">
             <div className="flex items-start justify-between mb-4">
@@ -506,7 +590,7 @@ export function AlgorithmsTab({ rotationId, rotationName }: AlgorithmsTabProps) 
                 </div>
               </div>
               <button
-                onClick={() => { setShowViewModal(false); setSelectedAlgorithm(null); setViewImageData(null); }}
+                onClick={() => { setShowViewModal(false); setSelectedAlgorithm(null); setViewImageData(null); setViewTextContent(null); }}
                 className="p-1.5 hover:bg-slate-700 rounded-lg"
               >
                 <X size={20} className="text-slate-400" />
@@ -517,20 +601,34 @@ export function AlgorithmsTab({ rotationId, rotationName }: AlgorithmsTabProps) 
               <p className="text-slate-400 text-sm mb-4">{selectedAlgorithm.description}</p>
             )}
 
-            {/* Image */}
-            <div className="bg-white rounded-lg p-2">
-              {viewImageData ? (
-                <img
-                  src={viewImageData}
-                  alt={selectedAlgorithm.title}
-                  className="w-full max-h-[70vh] object-contain"
-                />
-              ) : (
-                <div className="flex items-center justify-center h-64 text-slate-500">
-                  Loading image...
-                </div>
-              )}
-            </div>
+            {/* Content - Image or Text */}
+            {selectedAlgorithm.hasImage ? (
+              <div className="bg-white rounded-lg p-2">
+                {viewImageData ? (
+                  <img
+                    src={viewImageData}
+                    alt={selectedAlgorithm.title}
+                    className="w-full max-h-[70vh] object-contain"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-64 text-slate-500">
+                    Loading image...
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
+                {viewTextContent ? (
+                  <pre className="text-slate-200 whitespace-pre-wrap font-mono text-sm leading-relaxed">
+                    {viewTextContent}
+                  </pre>
+                ) : (
+                  <div className="flex items-center justify-center h-32 text-slate-500">
+                    Loading content...
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </Modal>
