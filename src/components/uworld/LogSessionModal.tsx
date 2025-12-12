@@ -29,6 +29,7 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
     timeSpentMins: '',
     mode: '',
     date: new Date().toISOString().split('T')[0],
+    time: new Date().toTimeString().slice(0, 5), // HH:MM format
     notes: '',
   })
 
@@ -42,6 +43,7 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
   const [correctText, setCorrectText] = useState('')
   const [incorrectText, setIncorrectText] = useState('')
   const [pasteDate, setPasteDate] = useState(new Date().toISOString().split('T')[0])
+  const [pasteTime, setPasteTime] = useState(new Date().toTimeString().slice(0, 5))
 
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -50,9 +52,8 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
     setIsLoading(true)
 
     try {
-      // Add noon time to prevent timezone rollover issues
-      // manualData.date is "YYYY-MM-DD", we add T12:00:00 to make it noon local time
-      const dateWithNoon = new Date(`${manualData.date}T12:00:00`)
+      // Use the selected time instead of hardcoded noon
+      const dateWithTime = new Date(`${manualData.date}T${manualData.time}:00`)
 
       const res = await fetch('/api/uworld', {
         method: 'POST',
@@ -62,7 +63,7 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
           questionsCorrect: parseInt(manualData.questionsCorrect),
           timeSpentMins: manualData.timeSpentMins ? parseInt(manualData.timeSpentMins) : null,
           mode: manualData.mode || null,
-          date: dateWithNoon.toISOString(),
+          date: dateWithTime.toISOString(),
           systems: [subject],
           notes: manualData.notes || null,
         }),
@@ -84,6 +85,7 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
           timeSpentMins: '',
           mode: '',
           date: new Date().toISOString().split('T')[0],
+          time: new Date().toTimeString().slice(0, 5),
           notes: '',
         })
       }, 1500)
@@ -194,8 +196,8 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
     setIsLoading(true)
 
     try {
-      // Add noon time to prevent timezone rollover issues
-      const dateWithNoon = new Date(`${pasteDate}T12:00:00`)
+      // Use the selected time instead of hardcoded noon
+      const dateWithTime = new Date(`${pasteDate}T${pasteTime}:00`)
 
       const res = await fetch('/api/uworld/import-text', {
         method: 'POST',
@@ -205,7 +207,7 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
           correctText: correctText.trim(),
           incorrectText: incorrectText.trim(),
           shelfSubject: subject, // Pass the shelf subject to tag the log correctly
-          date: dateWithNoon.toISOString(), // Custom date for the session
+          date: dateWithTime.toISOString(), // Custom date and time for the session
         }),
       })
 
@@ -228,6 +230,7 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
         setCorrectText('')
         setIncorrectText('')
         setPasteDate(new Date().toISOString().split('T')[0])
+        setPasteTime(new Date().toTimeString().slice(0, 5))
       }, 2000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
@@ -346,13 +349,22 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
               ]}
             />
           </div>
-          <Input
-            label="Date *"
-            type="date"
-            value={manualData.date}
-            onChange={(e) => setManualData({ ...manualData, date: e.target.value })}
-            required
-          />
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Date *"
+              type="date"
+              value={manualData.date}
+              onChange={(e) => setManualData({ ...manualData, date: e.target.value })}
+              required
+            />
+            <Input
+              label="Time *"
+              type="time"
+              value={manualData.time}
+              onChange={(e) => setManualData({ ...manualData, time: e.target.value })}
+              required
+            />
+          </div>
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
               Notes (Optional)
@@ -390,22 +402,22 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
             </p>
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Test Name
+            </label>
+            <Input
+              type="text"
+              value={testName}
+              onChange={(e) => setTestName(e.target.value)}
+              placeholder="e.g., Week 3 Test"
+              required
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              Will be saved as "{subject} - [your test name]"
+            </p>
+          </div>
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Test Name
-              </label>
-              <Input
-                type="text"
-                value={testName}
-                onChange={(e) => setTestName(e.target.value)}
-                placeholder="e.g., Week 3 Test"
-                required
-              />
-              <p className="text-xs text-slate-500 mt-1">
-                Will be saved as "{subject} - [your test name]"
-              </p>
-            </div>
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
                 Date Completed
@@ -416,9 +428,17 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
                 onChange={(e) => setPasteDate(e.target.value)}
                 required
               />
-              <p className="text-xs text-slate-500 mt-1">
-                When you took this test
-              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Time Completed
+              </label>
+              <Input
+                type="time"
+                value={pasteTime}
+                onChange={(e) => setPasteTime(e.target.value)}
+                required
+              />
             </div>
           </div>
 
