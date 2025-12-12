@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -44,6 +44,23 @@ export function LogSessionModal({ isOpen, onClose, onSuccess, subject }: LogSess
   const [incorrectText, setIncorrectText] = useState('')
   const [pasteDate, setPasteDate] = useState(new Date().toISOString().split('T')[0])
   const [pasteTime, setPasteTime] = useState(new Date().toTimeString().slice(0, 5))
+
+  // Reset time to current time when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      const now = new Date()
+      const currentTime = now.toTimeString().slice(0, 5)
+      const currentDate = now.toISOString().split('T')[0]
+
+      setPasteTime(currentTime)
+      setPasteDate(currentDate)
+      setManualData(prev => ({
+        ...prev,
+        time: currentTime,
+        date: currentDate,
+      }))
+    }
+  }, [isOpen])
 
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

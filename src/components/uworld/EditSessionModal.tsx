@@ -33,6 +33,7 @@ export function EditSessionModal({ isOpen, onClose, onSuccess, session }: EditSe
 
   const [formData, setFormData] = useState({
     date: '',
+    time: '',
     questionsTotal: '',
     questionsCorrect: '',
     timeSpentMins: '',
@@ -49,10 +50,14 @@ export function EditSessionModal({ isOpen, onClose, onSuccess, session }: EditSe
       const year = sessionDate.getFullYear()
       const month = String(sessionDate.getMonth() + 1).padStart(2, '0')
       const day = String(sessionDate.getDate()).padStart(2, '0')
+      const hours = String(sessionDate.getHours()).padStart(2, '0')
+      const minutes = String(sessionDate.getMinutes()).padStart(2, '0')
       const localDateString = `${year}-${month}-${day}`
+      const localTimeString = `${hours}:${minutes}`
 
       setFormData({
         date: localDateString,
+        time: localTimeString,
         questionsTotal: session.questionsTotal.toString(),
         questionsCorrect: session.questionsCorrect.toString(),
         timeSpentMins: session.timeSpentMins?.toString() || '',
@@ -72,15 +77,14 @@ export function EditSessionModal({ isOpen, onClose, onSuccess, session }: EditSe
     setIsLoading(true)
 
     try {
-      // Add noon time to prevent timezone rollover issues
-      // formData.date is "YYYY-MM-DD", we add T12:00:00 to make it noon local time
-      const dateWithNoon = new Date(`${formData.date}T12:00:00`)
+      // Use the actual time from the form
+      const dateWithTime = new Date(`${formData.date}T${formData.time}:00`)
 
       const res = await fetch(`/api/uworld/${session.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          date: dateWithNoon.toISOString(),
+          date: dateWithTime.toISOString(),
           questionsTotal: parseInt(formData.questionsTotal),
           questionsCorrect: parseInt(formData.questionsCorrect),
           timeSpentMins: formData.timeSpentMins ? parseInt(formData.timeSpentMins) : null,
@@ -155,13 +159,22 @@ export function EditSessionModal({ isOpen, onClose, onSuccess, session }: EditSe
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <Input
-          label="Date *"
-          type="date"
-          value={formData.date}
-          onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-          required
-        />
+        <div className="grid grid-cols-2 gap-4">
+          <Input
+            label="Date *"
+            type="date"
+            value={formData.date}
+            onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+            required
+          />
+          <Input
+            label="Time *"
+            type="time"
+            value={formData.time}
+            onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+            required
+          />
+        </div>
 
         <div className="grid grid-cols-2 gap-4">
           <Input
