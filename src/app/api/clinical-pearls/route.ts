@@ -62,13 +62,23 @@ export async function POST(request: Request) {
     }
 
     const data = await request.json()
-    const { content, backContent, tags, isHighYield, source, rotationId, patientId } = data
+    const { content, backContent, imageData, imageType, tags, isHighYield, source, rotationId, patientId } = data
+
+    // Validate image size if provided (max 10MB base64 ~ 13MB string)
+    if (imageData && imageData.length > 13 * 1024 * 1024) {
+      return NextResponse.json(
+        { error: 'Image too large. Maximum size is 10MB.' },
+        { status: 400 }
+      )
+    }
 
     const pearl = await prisma.clinicalPearl.create({
       data: {
         userId: session.user.id,
         content,
         backContent: backContent || null,
+        imageData: imageData || null,
+        imageType: imageType || null,
         tags: tags || [],
         isHighYield: isHighYield || false,
         source,

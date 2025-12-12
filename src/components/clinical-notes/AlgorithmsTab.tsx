@@ -570,8 +570,8 @@ Example:
         </div>
       </Modal>
 
-      {/* View Algorithm Modal */}
-      <Modal isOpen={showViewModal} onClose={() => { setShowViewModal(false); setSelectedAlgorithm(null); setViewImageData(null); setViewTextContent(null); }}>
+      {/* View Algorithm Modal - Large size for better image viewing */}
+      <Modal isOpen={showViewModal} onClose={() => { setShowViewModal(false); setSelectedAlgorithm(null); setViewImageData(null); setViewTextContent(null); }} className="max-w-5xl">
         {selectedAlgorithm && (
           <div className="p-6">
             <div className="flex items-start justify-between mb-4">
@@ -608,7 +608,7 @@ Example:
                   <img
                     src={viewImageData}
                     alt={selectedAlgorithm.title}
-                    className="w-full max-h-[70vh] object-contain"
+                    className="w-full max-h-[85vh] object-contain"
                   />
                 ) : (
                   <div className="flex items-center justify-center h-64 text-slate-500">
