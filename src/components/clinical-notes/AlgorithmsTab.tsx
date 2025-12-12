@@ -284,7 +284,7 @@ export function AlgorithmsTab({ rotationId, rotationName }: AlgorithmsTabProps) 
           <span className="text-lg font-semibold text-slate-200">{algorithms.length}</span>
           <span className="text-slate-400">Algorithm{algorithms.length !== 1 ? 's' : ''}</span>
         </div>
-        <Button onClick={() => setShowAddModal(true)} size="sm" className="flex items-center gap-2">
+        <Button onClick={() => { resetForm(); setShowAddModal(true); }} size="sm" className="flex items-center gap-2">
           <Plus size={16} />
           Add Algorithm
         </Button>
@@ -314,7 +314,7 @@ export function AlgorithmsTab({ rotationId, rotationName }: AlgorithmsTabProps) 
             Save diagnostic flowcharts and decision trees from UWorld
           </p>
           {algorithms.length === 0 && (
-            <Button onClick={() => setShowAddModal(true)} variant="secondary" size="sm">
+            <Button onClick={() => { resetForm(); setShowAddModal(true); }} variant="secondary" size="sm">
               Add Your First Algorithm
             </Button>
           )}
@@ -403,7 +403,7 @@ export function AlgorithmsTab({ rotationId, rotationName }: AlgorithmsTabProps) 
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => setContentType('image')}
+                  onClick={() => { setContentType('image'); setFormData(prev => ({ ...prev, textContent: '' })); }}
                   className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border transition-all ${
                     contentType === 'image'
                       ? 'bg-blue-500/20 border-blue-500/50 text-blue-400'
@@ -415,7 +415,7 @@ export function AlgorithmsTab({ rotationId, rotationName }: AlgorithmsTabProps) 
                 </button>
                 <button
                   type="button"
-                  onClick={() => setContentType('text')}
+                  onClick={() => { setContentType('text'); setPendingImage(null); }}
                   className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border transition-all ${
                     contentType === 'text'
                       ? 'bg-blue-500/20 border-blue-500/50 text-blue-400'
