@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { Modal } from '@/components/ui/modal'
 import { formatDate, cn } from '@/lib/utils'
 import {
@@ -152,7 +151,10 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...data, rotationId: selectedRotationId }),
       })
-      if (!res.ok) throw new Error('Failed to create pearl')
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ error: 'Unknown error' }))
+        throw new Error(error.error || 'Failed to create pearl')
+      }
       return res.json()
     },
     onSuccess: () => {
@@ -163,6 +165,10 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
       setPendingImage(null)
       setFocusedField(null)
       setSelectedRotationId(rotationId)
+    },
+    onError: (error: Error) => {
+      console.error('Failed to create pearl:', error.message)
+      alert(`Failed to save pearl: ${error.message}`)
     },
   })
 
@@ -576,31 +582,39 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
               <HelpCircle size={16} className="text-blue-400" />
               Front (Question/Prompt)
             </label>
-            <Textarea
-              placeholder="E.g., What are the classic signs of appendicitis?"
-              value={newPearl.content}
-              onChange={(e) => setNewPearl({ ...newPearl, content: e.target.value })}
-              onFocus={() => setFocusedField('front')}
-              rows={3}
-              required
-            />
-            {/* Inline image preview for front */}
-            {pendingImage && pendingImage.placement === 'front' && (
-              <div className="relative mt-2">
-                <img
-                  src={pendingImage.preview}
-                  alt="Preview"
-                  className="max-h-32 object-contain rounded border border-slate-600 bg-slate-800"
-                />
-                <button
-                  type="button"
-                  onClick={() => setPendingImage(null)}
-                  className="absolute top-1 right-1 p-1 bg-red-500/80 rounded-full hover:bg-red-600"
-                >
-                  <X size={12} className="text-white" />
-                </button>
-              </div>
-            )}
+            <div className={cn(
+              "rounded-lg border bg-slate-800 overflow-hidden transition-colors",
+              focusedField === 'front' ? "border-blue-500 ring-1 ring-blue-500" : "border-slate-600"
+            )}>
+              <textarea
+                placeholder="E.g., What are the classic signs of appendicitis?"
+                value={newPearl.content}
+                onChange={(e) => setNewPearl({ ...newPearl, content: e.target.value })}
+                onFocus={() => setFocusedField('front')}
+                rows={3}
+                required
+                className="w-full px-3 py-2 bg-transparent text-slate-100 placeholder:text-slate-500 focus:outline-none resize-none"
+              />
+              {/* Image preview inside the input area */}
+              {pendingImage && pendingImage.placement === 'front' && (
+                <div className="relative px-3 pb-3">
+                  <div className="relative inline-block">
+                    <img
+                      src={pendingImage.preview}
+                      alt="Preview"
+                      className="max-h-24 object-contain rounded"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setPendingImage(null)}
+                      className="absolute -top-2 -right-2 p-1 bg-red-500 rounded-full hover:bg-red-600 shadow-lg"
+                    >
+                      <X size={10} className="text-white" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Back Text Box */}
@@ -609,30 +623,38 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
               <Lightbulb size={16} className="text-green-400" />
               Back (Answer/Explanation)
             </label>
-            <Textarea
-              placeholder="E.g., McBurney's point tenderness, RLQ pain, rebound tenderness..."
-              value={newPearl.backContent}
-              onChange={(e) => setNewPearl({ ...newPearl, backContent: e.target.value })}
-              onFocus={() => setFocusedField('back')}
-              rows={3}
-            />
-            {/* Inline image preview for back */}
-            {pendingImage && pendingImage.placement === 'back' && (
-              <div className="relative mt-2">
-                <img
-                  src={pendingImage.preview}
-                  alt="Preview"
-                  className="max-h-32 object-contain rounded border border-slate-600 bg-slate-800"
-                />
-                <button
-                  type="button"
-                  onClick={() => setPendingImage(null)}
-                  className="absolute top-1 right-1 p-1 bg-red-500/80 rounded-full hover:bg-red-600"
-                >
-                  <X size={12} className="text-white" />
-                </button>
-              </div>
-            )}
+            <div className={cn(
+              "rounded-lg border bg-slate-800 overflow-hidden transition-colors",
+              focusedField === 'back' ? "border-green-500 ring-1 ring-green-500" : "border-slate-600"
+            )}>
+              <textarea
+                placeholder="E.g., McBurney's point tenderness, RLQ pain, rebound tenderness..."
+                value={newPearl.backContent}
+                onChange={(e) => setNewPearl({ ...newPearl, backContent: e.target.value })}
+                onFocus={() => setFocusedField('back')}
+                rows={3}
+                className="w-full px-3 py-2 bg-transparent text-slate-100 placeholder:text-slate-500 focus:outline-none resize-none"
+              />
+              {/* Image preview inside the input area */}
+              {pendingImage && pendingImage.placement === 'back' && (
+                <div className="relative px-3 pb-3">
+                  <div className="relative inline-block">
+                    <img
+                      src={pendingImage.preview}
+                      alt="Preview"
+                      className="max-h-24 object-contain rounded"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setPendingImage(null)}
+                      className="absolute -top-2 -right-2 p-1 bg-red-500 rounded-full hover:bg-red-600 shadow-lg"
+                    >
+                      <X size={10} className="text-white" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Rotation Selector */}
