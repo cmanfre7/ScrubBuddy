@@ -253,23 +253,10 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
                 </div>
               )}
 
-              {/* Front Content Preview */}
-              <div className="flex items-start gap-2 mb-2">
-                <HelpCircle size={16} className="text-blue-400 mt-0.5 flex-shrink-0" />
-                <p className="text-slate-200 leading-relaxed line-clamp-3 pr-4">
-                  {pearl.content}
-                </p>
-              </div>
-
-              {/* Back Content Preview (if exists) */}
-              {pearl.backContent && (
-                <div className="flex items-start gap-2 mt-3 pt-3 border-t border-slate-700/50">
-                  <Lightbulb size={16} className="text-green-400 mt-0.5 flex-shrink-0" />
-                  <p className="text-slate-400 text-sm leading-relaxed line-clamp-2">
-                    {pearl.backContent}
-                  </p>
-                </div>
-              )}
+              {/* Front Content Only */}
+              <p className="text-slate-200 leading-relaxed line-clamp-4 pr-6">
+                {pearl.content}
+              </p>
 
               {/* Tags Preview */}
               {pearl.tags.length > 0 && (
