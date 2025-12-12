@@ -27,6 +27,7 @@ export async function GET(request: Request) {
     if (search) {
       where.OR = [
         { content: { contains: search, mode: 'insensitive' } },
+        { backContent: { contains: search, mode: 'insensitive' } },
         { tags: { has: search } },
       ]
     }
@@ -61,12 +62,13 @@ export async function POST(request: Request) {
     }
 
     const data = await request.json()
-    const { content, tags, isHighYield, source, rotationId, patientId } = data
+    const { content, backContent, tags, isHighYield, source, rotationId, patientId } = data
 
     const pearl = await prisma.clinicalPearl.create({
       data: {
         userId: session.user.id,
         content,
+        backContent: backContent || null,
         tags: tags || [],
         isHighYield: isHighYield || false,
         source,

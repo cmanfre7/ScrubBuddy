@@ -695,7 +695,10 @@ model ClinicalPearl {
   rotationId  String?
   rotation    Rotation? @relation(fields: [rotationId], references: [id])
 
-  content     String    @db.Text
+  // Flashcard content
+  content     String    @db.Text  // Front of flashcard (question/prompt)
+  backContent String?   @db.Text  // Back of flashcard (answer/explanation)
+
   tags        String[]  @default([])
   isHighYield Boolean   @default(false) // Marked for shelf exam review
   source      String?   // "rounds", "attending", "patient", "reading", "other"

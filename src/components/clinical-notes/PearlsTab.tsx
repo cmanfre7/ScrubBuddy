@@ -19,12 +19,14 @@ import {
   Stethoscope,
   RotateCw,
   Calendar,
-  BookOpen,
+  HelpCircle,
+  Lightbulb,
 } from 'lucide-react'
 
 interface ClinicalPearl {
   id: string
   content: string
+  backContent: string | null
   tags: string[]
   isHighYield: boolean
   source: string | null
@@ -53,6 +55,7 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
   const [selectedRotationId, setSelectedRotationId] = useState(rotationId)
   const [newPearl, setNewPearl] = useState({
     content: '',
+    backContent: '',
     tags: [] as string[],
     isHighYield: false,
     source: '',
@@ -104,7 +107,7 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
       queryClient.invalidateQueries({ queryKey: ['clinical-pearls'] })
       queryClient.invalidateQueries({ queryKey: ['rotations'] })
       setIsModalOpen(false)
-      setNewPearl({ content: '', tags: [], isHighYield: false, source: '' })
+      setNewPearl({ content: '', backContent: '', tags: [], isHighYield: false, source: '' })
       setSelectedRotationId(rotationId)
     },
   })
@@ -112,6 +115,7 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
   // Reset selected rotation when opening modal
   const handleOpenModal = () => {
     setSelectedRotationId(rotationId)
+    setNewPearl({ content: '', backContent: '', tags: [], isHighYield: false, source: '' })
     setIsModalOpen(true)
   }
 
@@ -249,10 +253,23 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
                 </div>
               )}
 
-              {/* Content Preview */}
-              <p className="text-slate-200 leading-relaxed line-clamp-4 pr-6">
-                {pearl.content}
-              </p>
+              {/* Front Content Preview */}
+              <div className="flex items-start gap-2 mb-2">
+                <HelpCircle size={16} className="text-blue-400 mt-0.5 flex-shrink-0" />
+                <p className="text-slate-200 leading-relaxed line-clamp-3 pr-4">
+                  {pearl.content}
+                </p>
+              </div>
+
+              {/* Back Content Preview (if exists) */}
+              {pearl.backContent && (
+                <div className="flex items-start gap-2 mt-3 pt-3 border-t border-slate-700/50">
+                  <Lightbulb size={16} className="text-green-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-slate-400 text-sm leading-relaxed line-clamp-2">
+                    {pearl.backContent}
+                  </p>
+                </div>
+              )}
 
               {/* Tags Preview */}
               {pearl.tags.length > 0 && (
@@ -274,7 +291,7 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
               {/* Click hint */}
               <div className="mt-4 pt-3 border-t border-slate-700/50 flex items-center justify-center gap-2 text-slate-500 text-xs group-hover:text-blue-400 transition-colors">
                 <RotateCw size={12} />
-                Click to flip
+                Click to study
               </div>
             </div>
           ))}
@@ -322,12 +339,12 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
 
                   {/* Front Label */}
                   <div className="flex items-center gap-2 text-blue-400 text-sm font-medium mb-4">
-                    <BookOpen size={16} />
-                    Clinical Pearl
+                    <HelpCircle size={16} />
+                    Front
                   </div>
 
                   {/* Content */}
-                  <div className="flex-1 flex items-center justify-center">
+                  <div className="flex-1 flex items-center justify-center overflow-auto">
                     <p className="text-slate-100 text-lg leading-relaxed text-center">
                       {flashcardPearl.content}
                     </p>
@@ -342,65 +359,72 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
 
                 {/* Back of Card */}
                 <div
-                  className="absolute inset-0 bg-gradient-to-br from-blue-900/50 to-slate-900 border border-blue-500/30 rounded-2xl p-6 flex flex-col shadow-2xl"
+                  className="absolute inset-0 bg-gradient-to-br from-green-900/30 to-slate-900 border border-green-500/30 rounded-2xl p-6 flex flex-col shadow-2xl"
                   style={{
                     backfaceVisibility: 'hidden',
                     transform: 'rotateY(180deg)',
                   }}
                 >
                   {/* Back Label */}
-                  <div className="flex items-center gap-2 text-blue-400 text-sm font-medium mb-6">
-                    <Tag size={16} />
-                    Details
+                  <div className="flex items-center gap-2 text-green-400 text-sm font-medium mb-4">
+                    <Lightbulb size={16} />
+                    Back
                   </div>
 
-                  {/* Details Content */}
-                  <div className="flex-1 space-y-4">
-                    {/* Tags */}
-                    {flashcardPearl.tags.length > 0 && (
-                      <div>
-                        <p className="text-slate-500 text-xs uppercase tracking-wide mb-2">Tags</p>
-                        <div className="flex flex-wrap gap-2">
-                          {flashcardPearl.tags.map((tag) => (
-                            <span
-                              key={tag}
-                              className="px-3 py-1 rounded-lg bg-blue-500/20 border border-blue-500/30 text-sm text-blue-300"
-                            >
-                              {tag}
-                            </span>
-                          ))}
+                  {/* Back Content */}
+                  <div className="flex-1 flex flex-col justify-center overflow-auto">
+                    {flashcardPearl.backContent ? (
+                      <p className="text-slate-100 text-lg leading-relaxed text-center">
+                        {flashcardPearl.backContent}
+                      </p>
+                    ) : (
+                      <div className="text-center">
+                        <p className="text-slate-400 text-sm mb-4">No back content added</p>
+                        {/* Show metadata instead */}
+                        <div className="space-y-3 text-left max-w-xs mx-auto">
+                          {flashcardPearl.tags.length > 0 && (
+                            <div>
+                              <p className="text-slate-500 text-xs uppercase tracking-wide mb-1">Tags</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {flashcardPearl.tags.map((tag) => (
+                                  <span
+                                    key={tag}
+                                    className="px-2 py-0.5 rounded bg-blue-500/20 border border-blue-500/30 text-xs text-blue-300"
+                                  >
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {flashcardPearl.source && (
+                            <div>
+                              <p className="text-slate-500 text-xs uppercase tracking-wide mb-1">Source</p>
+                              <p className="text-slate-300 text-sm">{flashcardPearl.source}</p>
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-slate-500 text-xs uppercase tracking-wide mb-1">Added</p>
+                            <p className="text-slate-300 text-sm">{formatDate(new Date(flashcardPearl.createdAt))}</p>
+                          </div>
                         </div>
                       </div>
                     )}
+                  </div>
 
-                    {/* Source */}
-                    {flashcardPearl.source && (
-                      <div>
-                        <p className="text-slate-500 text-xs uppercase tracking-wide mb-2">Source</p>
-                        <p className="text-slate-200">{flashcardPearl.source}</p>
-                      </div>
-                    )}
-
-                    {/* Date */}
-                    <div>
-                      <p className="text-slate-500 text-xs uppercase tracking-wide mb-2">Added</p>
-                      <div className="flex items-center gap-2 text-slate-200">
-                        <Calendar size={14} className="text-slate-400" />
-                        {formatDate(new Date(flashcardPearl.createdAt))}
-                      </div>
+                  {/* Tags on back if there's content */}
+                  {flashcardPearl.backContent && flashcardPearl.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 justify-center mt-2">
+                      {flashcardPearl.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="px-2 py-0.5 rounded bg-green-500/20 border border-green-500/30 text-xs text-green-300"
+                        >
+                          {tag}
+                        </span>
+                      ))}
                     </div>
-
-                    {/* Rotation */}
-                    {flashcardPearl.rotation && (
-                      <div>
-                        <p className="text-slate-500 text-xs uppercase tracking-wide mb-2">Rotation</p>
-                        <div className="flex items-center gap-2 text-slate-200">
-                          <Stethoscope size={14} className="text-slate-400" />
-                          {flashcardPearl.rotation.name}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  )}
 
                   {/* Flip hint */}
                   <div className="flex items-center justify-center gap-2 text-slate-500 text-sm mt-4">
@@ -468,14 +492,35 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
           }}
           className="space-y-4"
         >
-          <Textarea
-            label="What did you learn?"
-            placeholder="E.g., Lithium toxicity can present like gastroenteritis in early stages..."
-            value={newPearl.content}
-            onChange={(e) => setNewPearl({ ...newPearl, content: e.target.value })}
-            rows={4}
-            required
-          />
+          {/* Front Text Box */}
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2 flex items-center gap-2">
+              <HelpCircle size={16} className="text-blue-400" />
+              Front (Question/Prompt)
+            </label>
+            <Textarea
+              placeholder="E.g., What are the classic signs of appendicitis?"
+              value={newPearl.content}
+              onChange={(e) => setNewPearl({ ...newPearl, content: e.target.value })}
+              rows={3}
+              required
+            />
+          </div>
+
+          {/* Back Text Box */}
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2 flex items-center gap-2">
+              <Lightbulb size={16} className="text-green-400" />
+              Back (Answer/Explanation)
+            </label>
+            <Textarea
+              placeholder="E.g., McBurney's point tenderness, RLQ pain, rebound tenderness, Rovsing's sign, psoas sign, obturator sign..."
+              value={newPearl.backContent}
+              onChange={(e) => setNewPearl({ ...newPearl, backContent: e.target.value })}
+              rows={4}
+            />
+            <p className="text-xs text-slate-500 mt-1">Optional - leave blank for simple pearls</p>
+          </div>
 
           {/* Rotation Selector */}
           <div>
@@ -494,9 +539,6 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
                 </option>
               ))}
             </select>
-            <p className="text-xs text-slate-500 mt-1">
-              Select which rotation this pearl is from
-            </p>
           </div>
 
           <div>
@@ -542,7 +584,7 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
 
           <Input
             label="Source (optional)"
-            placeholder="rounds, attending, patient, reading..."
+            placeholder="rounds, attending, UWorld, etc..."
             value={newPearl.source}
             onChange={(e) => setNewPearl({ ...newPearl, source: e.target.value })}
           />
