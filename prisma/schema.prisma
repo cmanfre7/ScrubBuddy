@@ -699,9 +699,10 @@ model ClinicalPearl {
   content     String    @db.Text  // Front of flashcard (question/prompt)
   backContent String?   @db.Text  // Back of flashcard (answer/explanation)
 
-  // Optional image attachment
-  imageData   String?   @db.Text  // Base64 encoded image
-  imageType   String?   // MIME type: "image/png", "image/jpeg", etc.
+  // Optional image attachment (paste into front or back textarea)
+  imageData      String?   @db.Text  // Base64 encoded image
+  imageType      String?   // MIME type: "image/png", "image/jpeg", etc.
+  imagePlacement String?   // "front" or "back" - which side of flashcard
 
   tags        String[]  @default([])
   isHighYield Boolean   @default(false) // Marked for shelf exam review

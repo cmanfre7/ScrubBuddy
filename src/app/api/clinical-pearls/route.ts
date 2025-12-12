@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     }
 
     const data = await request.json()
-    const { content, backContent, imageData, imageType, tags, isHighYield, source, rotationId, patientId } = data
+    const { content, backContent, imageData, imageType, imagePlacement, tags, isHighYield, source, rotationId, patientId } = data
 
     // Validate image size if provided (max 10MB base64 ~ 13MB string)
     if (imageData && imageData.length > 13 * 1024 * 1024) {
@@ -79,6 +79,7 @@ export async function POST(request: Request) {
         backContent: backContent || null,
         imageData: imageData || null,
         imageType: imageType || null,
+        imagePlacement: imagePlacement || null,
         tags: tags || [],
         isHighYield: isHighYield || false,
         source,

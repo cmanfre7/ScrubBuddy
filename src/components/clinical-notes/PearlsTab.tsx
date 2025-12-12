@@ -10,7 +10,6 @@ import { formatDate, cn } from '@/lib/utils'
 import {
   Plus,
   Star,
-  Tag,
   Search,
   Flame,
   Clock,
@@ -18,10 +17,8 @@ import {
   X,
   Stethoscope,
   RotateCw,
-  Calendar,
   HelpCircle,
   Lightbulb,
-  ImagePlus,
   Image,
 } from 'lucide-react'
 
@@ -31,6 +28,7 @@ interface ClinicalPearl {
   backContent: string | null
   imageData: string | null
   imageType: string | null
+  imagePlacement: string | null
   tags: string[]
   isHighYield: boolean
   source: string | null
@@ -79,16 +77,17 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
     source: '',
   })
   const [tagInput, setTagInput] = useState('')
-  const [pendingImage, setPendingImage] = useState<{ data: string; mediaType: string; preview: string } | null>(null)
+  const [pendingImage, setPendingImage] = useState<{ data: string; mediaType: string; preview: string; placement: 'front' | 'back' } | null>(null)
+  const [focusedField, setFocusedField] = useState<'front' | 'back' | null>(null)
 
   // Flashcard modal state
   const [flashcardPearl, setFlashcardPearl] = useState<ClinicalPearl | null>(null)
   const [isFlipped, setIsFlipped] = useState(false)
 
-  // Handle paste for images
+  // Handle paste for images - works in either Front or Back textarea
   useEffect(() => {
     const handlePaste = async (e: ClipboardEvent) => {
-      if (!isModalOpen) return
+      if (!isModalOpen || !focusedField) return
 
       const items = e.clipboardData?.items
       if (!items) return
@@ -107,6 +106,7 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
               data,
               mediaType,
               preview: URL.createObjectURL(file),
+              placement: focusedField,
             })
           }
           break
@@ -116,7 +116,7 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
 
     document.addEventListener('paste', handlePaste)
     return () => document.removeEventListener('paste', handlePaste)
-  }, [isModalOpen])
+  }, [isModalOpen, focusedField])
 
   // Fetch all rotations for the dropdown
   const { data: rotations = [] } = useQuery<Rotation[]>({
@@ -146,7 +146,7 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
 
   // Create pearl
   const createMutation = useMutation({
-    mutationFn: async (data: typeof newPearl & { imageData?: string | null; imageType?: string | null }) => {
+    mutationFn: async (data: typeof newPearl & { imageData?: string | null; imageType?: string | null; imagePlacement?: string | null }) => {
       const res = await fetch('/api/clinical-pearls', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -161,6 +161,7 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
       setIsModalOpen(false)
       setNewPearl({ content: '', backContent: '', tags: [], isHighYield: false, source: '' })
       setPendingImage(null)
+      setFocusedField(null)
       setSelectedRotationId(rotationId)
     },
   })
@@ -170,6 +171,7 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
     setSelectedRotationId(rotationId)
     setNewPearl({ content: '', backContent: '', tags: [], isHighYield: false, source: '' })
     setPendingImage(null)
+    setFocusedField(null)
     setIsModalOpen(true)
   }
 
@@ -230,6 +232,7 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
         ...newPearl,
         imageData: pendingImage?.data || null,
         imageType: pendingImage?.mediaType || null,
+        imagePlacement: pendingImage?.placement || null,
       })
     }
   }
@@ -406,7 +409,17 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
                   </div>
 
                   {/* Content */}
-                  <div className="flex-1 flex items-center justify-center overflow-auto">
+                  <div className="flex-1 flex flex-col items-center justify-center overflow-auto">
+                    {/* Show image on front if imagePlacement is 'front' */}
+                    {flashcardPearl.imageData && flashcardPearl.imageType && flashcardPearl.imagePlacement === 'front' && (
+                      <div className="mb-3 bg-white rounded-lg p-2">
+                        <img
+                          src={`data:${flashcardPearl.imageType};base64,${flashcardPearl.imageData}`}
+                          alt="Pearl image"
+                          className="max-h-36 object-contain rounded"
+                        />
+                      </div>
+                    )}
                     <p className="text-slate-100 text-lg leading-relaxed text-center">
                       {flashcardPearl.content}
                     </p>
@@ -435,8 +448,8 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
 
                   {/* Back Content */}
                   <div className="flex-1 flex flex-col justify-center overflow-auto">
-                    {/* Show image if exists */}
-                    {flashcardPearl.imageData && flashcardPearl.imageType && (
+                    {/* Show image on back if imagePlacement is 'back' or null (legacy) */}
+                    {flashcardPearl.imageData && flashcardPearl.imageType && (flashcardPearl.imagePlacement === 'back' || !flashcardPearl.imagePlacement) && (
                       <div className="mb-4 bg-white rounded-lg p-2">
                         <img
                           src={`data:${flashcardPearl.imageType};base64,${flashcardPearl.imageData}`}
@@ -450,7 +463,7 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
                       <p className="text-slate-100 text-lg leading-relaxed text-center">
                         {flashcardPearl.backContent}
                       </p>
-                    ) : !flashcardPearl.imageData ? (
+                    ) : !(flashcardPearl.imageData && (flashcardPearl.imagePlacement === 'back' || !flashcardPearl.imagePlacement)) ? (
                       <div className="text-center">
                         <p className="text-slate-400 text-sm mb-4">No back content added</p>
                         {/* Show metadata instead */}
@@ -486,7 +499,7 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
                   </div>
 
                   {/* Tags on back if there's content */}
-                  {(flashcardPearl.backContent || flashcardPearl.imageData) && flashcardPearl.tags.length > 0 && (
+                  {(flashcardPearl.backContent || (flashcardPearl.imageData && (flashcardPearl.imagePlacement === 'back' || !flashcardPearl.imagePlacement))) && flashcardPearl.tags.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 justify-center mt-2">
                       {flashcardPearl.tags.map((tag) => (
                         <span
@@ -567,9 +580,27 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
               placeholder="E.g., What are the classic signs of appendicitis?"
               value={newPearl.content}
               onChange={(e) => setNewPearl({ ...newPearl, content: e.target.value })}
+              onFocus={() => setFocusedField('front')}
               rows={3}
               required
             />
+            {/* Inline image preview for front */}
+            {pendingImage && pendingImage.placement === 'front' && (
+              <div className="relative mt-2">
+                <img
+                  src={pendingImage.preview}
+                  alt="Preview"
+                  className="max-h-32 object-contain rounded border border-slate-600 bg-slate-800"
+                />
+                <button
+                  type="button"
+                  onClick={() => setPendingImage(null)}
+                  className="absolute top-1 right-1 p-1 bg-red-500/80 rounded-full hover:bg-red-600"
+                >
+                  <X size={12} className="text-white" />
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Back Text Box */}
@@ -582,36 +613,24 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
               placeholder="E.g., McBurney's point tenderness, RLQ pain, rebound tenderness..."
               value={newPearl.backContent}
               onChange={(e) => setNewPearl({ ...newPearl, backContent: e.target.value })}
+              onFocus={() => setFocusedField('back')}
               rows={3}
             />
-          </div>
-
-          {/* Image Attachment */}
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2 flex items-center gap-2">
-              <ImagePlus size={16} className="text-purple-400" />
-              Image (optional)
-            </label>
-            {pendingImage ? (
-              <div className="relative">
+            {/* Inline image preview for back */}
+            {pendingImage && pendingImage.placement === 'back' && (
+              <div className="relative mt-2">
                 <img
                   src={pendingImage.preview}
                   alt="Preview"
-                  className="w-full max-h-48 object-contain rounded-lg border border-slate-600 bg-slate-800"
+                  className="max-h-32 object-contain rounded border border-slate-600 bg-slate-800"
                 />
                 <button
                   type="button"
                   onClick={() => setPendingImage(null)}
-                  className="absolute top-2 right-2 p-1.5 bg-red-500 rounded-full hover:bg-red-600"
+                  className="absolute top-1 right-1 p-1 bg-red-500/80 rounded-full hover:bg-red-600"
                 >
-                  <X size={14} className="text-white" />
+                  <X size={12} className="text-white" />
                 </button>
-              </div>
-            ) : (
-              <div className="border-2 border-dashed border-slate-600 rounded-lg p-4 text-center">
-                <ImagePlus size={24} className="mx-auto mb-2 text-slate-400" />
-                <p className="text-slate-400 text-sm">Paste image (Ctrl+V)</p>
-                <p className="text-xs text-slate-500 mt-1">PNG, JPG up to 10MB</p>
               </div>
             )}
           </div>
