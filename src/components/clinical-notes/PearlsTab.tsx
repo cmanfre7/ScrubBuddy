@@ -14,10 +14,12 @@ import {
   Search,
   Flame,
   Clock,
-  Link as LinkIcon,
   Trash2,
   X,
   Stethoscope,
+  RotateCw,
+  Calendar,
+  BookOpen,
 } from 'lucide-react'
 
 interface ClinicalPearl {
@@ -57,6 +59,10 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
   })
   const [tagInput, setTagInput] = useState('')
 
+  // Flashcard modal state
+  const [flashcardPearl, setFlashcardPearl] = useState<ClinicalPearl | null>(null)
+  const [isFlipped, setIsFlipped] = useState(false)
+
   // Fetch all rotations for the dropdown
   const { data: rotations = [] } = useQuery<Rotation[]>({
     queryKey: ['rotations-list'],
@@ -64,7 +70,6 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
       const res = await fetch('/api/rotations')
       if (!res.ok) throw new Error('Failed to fetch rotations')
       const data = await res.json()
-      // API returns { rotations: [...] } so we need to extract the array
       return data.rotations || []
     },
   })
@@ -97,10 +102,10 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clinical-pearls'] })
-      queryClient.invalidateQueries({ queryKey: ['rotations'] }) // Update counts
+      queryClient.invalidateQueries({ queryKey: ['rotations'] })
       setIsModalOpen(false)
       setNewPearl({ content: '', tags: [], isHighYield: false, source: '' })
-      setSelectedRotationId(rotationId) // Reset to current rotation
+      setSelectedRotationId(rotationId)
     },
   })
 
@@ -135,6 +140,7 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clinical-pearls'] })
       queryClient.invalidateQueries({ queryKey: ['rotations'] })
+      setFlashcardPearl(null)
     },
   })
 
@@ -147,6 +153,16 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
 
   const handleRemoveTag = (tag: string) => {
     setNewPearl({ ...newPearl, tags: newPearl.tags.filter((t) => t !== tag) })
+  }
+
+  const openFlashcard = (pearl: ClinicalPearl) => {
+    setFlashcardPearl(pearl)
+    setIsFlipped(false)
+  }
+
+  const closeFlashcard = () => {
+    setFlashcardPearl(null)
+    setIsFlipped(false)
   }
 
   return (
@@ -207,7 +223,7 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
         </button>
       </div>
 
-      {/* Pearls List */}
+      {/* Pearls Grid */}
       {isLoading ? (
         <div className="text-center py-12 text-slate-400">Loading pearls...</div>
       ) : pearls.length === 0 ? (
@@ -219,69 +235,221 @@ export function PearlsTab({ rotationId }: PearlsTabProps) {
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {pearls.map((pearl) => (
             <div
               key={pearl.id}
-              className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-4 hover:border-slate-600 transition-colors"
+              onClick={() => openFlashcard(pearl)}
+              className="group bg-slate-800/50 border border-slate-700/50 rounded-xl p-5 hover:border-blue-500/50 hover:bg-slate-800/70 transition-all cursor-pointer relative overflow-hidden"
             >
-              <div className="flex items-start gap-3">
-                {/* Star button */}
-                <button
-                  onClick={() =>
-                    toggleHighYieldMutation.mutate({
-                      id: pearl.id,
-                      isHighYield: !pearl.isHighYield,
-                    })
-                  }
-                  className={cn(
-                    'mt-1 transition-colors',
-                    pearl.isHighYield ? 'text-yellow-400' : 'text-slate-600 hover:text-slate-400'
-                  )}
-                >
-                  <Star size={20} fill={pearl.isHighYield ? 'currentColor' : 'none'} />
-                </button>
-
-                {/* Content */}
-                <div className="flex-1">
-                  <p className="text-slate-200 leading-relaxed">{pearl.content}</p>
-
-                  {/* Tags & Metadata */}
-                  <div className="flex items-center gap-2 mt-3 flex-wrap">
-                    {pearl.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/20 text-xs text-blue-400"
-                      >
-                        <Tag size={12} />
-                        {tag}
-                      </span>
-                    ))}
-                    {pearl.source && (
-                      <span className="text-xs text-slate-500">
-                        Source: {pearl.source}
-                      </span>
-                    )}
-                    <span className="text-xs text-slate-500">
-                      {formatDate(new Date(pearl.createdAt))}
-                    </span>
-                  </div>
+              {/* High Yield Indicator */}
+              {pearl.isHighYield && (
+                <div className="absolute top-3 right-3">
+                  <Star size={18} className="text-yellow-400 fill-yellow-400" />
                 </div>
+              )}
 
-                {/* Delete button */}
-                <button
-                  onClick={() => {
-                    if (confirm('Delete this pearl?')) {
-                      deleteMutation.mutate(pearl.id)
-                    }
-                  }}
-                  className="text-slate-600 hover:text-red-400 transition-colors"
-                >
-                  <Trash2 size={16} />
-                </button>
+              {/* Content Preview */}
+              <p className="text-slate-200 leading-relaxed line-clamp-4 pr-6">
+                {pearl.content}
+              </p>
+
+              {/* Tags Preview */}
+              {pearl.tags.length > 0 && (
+                <div className="flex gap-1.5 mt-3 flex-wrap">
+                  {pearl.tags.slice(0, 3).map((tag) => (
+                    <span
+                      key={tag}
+                      className="px-2 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/20 text-xs text-blue-400"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                  {pearl.tags.length > 3 && (
+                    <span className="text-xs text-slate-500">+{pearl.tags.length - 3}</span>
+                  )}
+                </div>
+              )}
+
+              {/* Click hint */}
+              <div className="mt-4 pt-3 border-t border-slate-700/50 flex items-center justify-center gap-2 text-slate-500 text-xs group-hover:text-blue-400 transition-colors">
+                <RotateCw size={12} />
+                Click to flip
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Flashcard Modal */}
+      {flashcardPearl && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="relative w-full max-w-lg">
+            {/* Close button */}
+            <button
+              onClick={closeFlashcard}
+              className="absolute -top-12 right-0 text-slate-400 hover:text-white transition-colors"
+            >
+              <X size={24} />
+            </button>
+
+            {/* Flashcard Container */}
+            <div
+              className="relative w-full aspect-[4/3] cursor-pointer"
+              style={{ perspective: '1000px' }}
+              onClick={() => setIsFlipped(!isFlipped)}
+            >
+              {/* Card Inner - handles the flip */}
+              <div
+                className="relative w-full h-full transition-transform duration-500 ease-out"
+                style={{
+                  transformStyle: 'preserve-3d',
+                  transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                }}
+              >
+                {/* Front of Card */}
+                <div
+                  className="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-600 rounded-2xl p-6 flex flex-col shadow-2xl"
+                  style={{ backfaceVisibility: 'hidden' }}
+                >
+                  {/* High Yield Badge */}
+                  {flashcardPearl.isHighYield && (
+                    <div className="absolute top-4 right-4 flex items-center gap-1.5 px-2.5 py-1 bg-yellow-500/20 border border-yellow-500/30 rounded-full">
+                      <Star size={14} className="text-yellow-400 fill-yellow-400" />
+                      <span className="text-xs text-yellow-400 font-medium">High Yield</span>
+                    </div>
+                  )}
+
+                  {/* Front Label */}
+                  <div className="flex items-center gap-2 text-blue-400 text-sm font-medium mb-4">
+                    <BookOpen size={16} />
+                    Clinical Pearl
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex-1 flex items-center justify-center">
+                    <p className="text-slate-100 text-lg leading-relaxed text-center">
+                      {flashcardPearl.content}
+                    </p>
+                  </div>
+
+                  {/* Flip hint */}
+                  <div className="flex items-center justify-center gap-2 text-slate-500 text-sm mt-4">
+                    <RotateCw size={14} />
+                    Tap to flip
+                  </div>
+                </div>
+
+                {/* Back of Card */}
+                <div
+                  className="absolute inset-0 bg-gradient-to-br from-blue-900/50 to-slate-900 border border-blue-500/30 rounded-2xl p-6 flex flex-col shadow-2xl"
+                  style={{
+                    backfaceVisibility: 'hidden',
+                    transform: 'rotateY(180deg)',
+                  }}
+                >
+                  {/* Back Label */}
+                  <div className="flex items-center gap-2 text-blue-400 text-sm font-medium mb-6">
+                    <Tag size={16} />
+                    Details
+                  </div>
+
+                  {/* Details Content */}
+                  <div className="flex-1 space-y-4">
+                    {/* Tags */}
+                    {flashcardPearl.tags.length > 0 && (
+                      <div>
+                        <p className="text-slate-500 text-xs uppercase tracking-wide mb-2">Tags</p>
+                        <div className="flex flex-wrap gap-2">
+                          {flashcardPearl.tags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="px-3 py-1 rounded-lg bg-blue-500/20 border border-blue-500/30 text-sm text-blue-300"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Source */}
+                    {flashcardPearl.source && (
+                      <div>
+                        <p className="text-slate-500 text-xs uppercase tracking-wide mb-2">Source</p>
+                        <p className="text-slate-200">{flashcardPearl.source}</p>
+                      </div>
+                    )}
+
+                    {/* Date */}
+                    <div>
+                      <p className="text-slate-500 text-xs uppercase tracking-wide mb-2">Added</p>
+                      <div className="flex items-center gap-2 text-slate-200">
+                        <Calendar size={14} className="text-slate-400" />
+                        {formatDate(new Date(flashcardPearl.createdAt))}
+                      </div>
+                    </div>
+
+                    {/* Rotation */}
+                    {flashcardPearl.rotation && (
+                      <div>
+                        <p className="text-slate-500 text-xs uppercase tracking-wide mb-2">Rotation</p>
+                        <div className="flex items-center gap-2 text-slate-200">
+                          <Stethoscope size={14} className="text-slate-400" />
+                          {flashcardPearl.rotation.name}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Flip hint */}
+                  <div className="flex items-center justify-center gap-2 text-slate-500 text-sm mt-4">
+                    <RotateCw size={14} />
+                    Tap to flip back
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Action buttons below card */}
+            <div className="flex items-center justify-center gap-4 mt-6">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  toggleHighYieldMutation.mutate({
+                    id: flashcardPearl.id,
+                    isHighYield: !flashcardPearl.isHighYield,
+                  })
+                  setFlashcardPearl({
+                    ...flashcardPearl,
+                    isHighYield: !flashcardPearl.isHighYield,
+                  })
+                }}
+                className={cn(
+                  'flex items-center gap-2 px-4 py-2 rounded-lg transition-all',
+                  flashcardPearl.isHighYield
+                    ? 'bg-yellow-500/20 border border-yellow-500/30 text-yellow-400'
+                    : 'bg-slate-800 border border-slate-700 text-slate-400 hover:text-yellow-400 hover:border-yellow-500/30'
+                )}
+              >
+                <Star size={16} fill={flashcardPearl.isHighYield ? 'currentColor' : 'none'} />
+                {flashcardPearl.isHighYield ? 'High Yield' : 'Mark High Yield'}
+              </button>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (confirm('Delete this pearl?')) {
+                    deleteMutation.mutate(flashcardPearl.id)
+                  }
+                }}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-red-400 hover:border-red-500/30 transition-all"
+              >
+                <Trash2 size={16} />
+                Delete
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
